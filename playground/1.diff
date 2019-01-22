@@ -1,0 +1,51 @@
+diff --git a/yottadisk.go b/yottadisk.go
+index f63f325..ae58cbc 100644
+--- a/yottadisk.go
++++ b/yottadisk.go
+@@ -107,21 +107,33 @@ func (disk *YottaDisk) Put(key common.Hash, buf []byte) error {
+ 	if disk.sync {
+ 		// TODO: func-ize & implement !sync mode i.e. link write with cache replacement.
+ 		writer, _ := disk.store.Writer()
++		rowCountBlock := make([]byte, 2, 2)
++		rcBuf := bytes.NewBuffer(rowCountBlock)
++		err := binary.Write(rcBuf, binary.LittleEndian, rowCount)
++		if err != nil {
++			return err
++		}
+ 
+ 		// Update RangeTable sizes
+ 		writer.Seek((int64)(disk.meta.RangeOffset + idx * 2), io.SeekStart)
+-		err := binary.Write(writer, binary.LittleEndian, rowCount)
++		_, err = writer.Write(rowCountBlock)
+ 		if err != nil {
+ 			return err
+ 		}
+ 
+ 		// Update RangeTable
+-		writer.Seek((int64)(disk.meta.HashOffset + idx * 34 * (uint64)(disk.meta.RangeCoverage) + 34 * (uint64)(rowCount)), io.SeekStart)
+ 		row := HashTableItem{
+ 			Hash: key,
+ 			Idx:  rowCount,
+ 		}
+-		err = binary.Write(writer, binary.LittleEndian, row)
++		rowInfoBlock := make([]byte, unsafe.Sizeof(row), unsafe.Sizeof(row))
++		riBuf := bytes.NewBuffer(rowInfoBlock)
++		err = binary.Write(riBuf, binary.LittleEndian, row)
++		if err != nil {
++			return err
++		}
++		writer.Seek((int64)(disk.meta.HashOffset + idx * 34 * (uint64)(disk.meta.RangeCoverage) + 34 * (uint64)(rowCount)), io.SeekStart)
++		_, err = writer.Write(rowInfoBlock)
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -133,7 +145,8 @@ func (disk *YottaDisk) Put(key common.Hash, buf []byte) error {
+ 		writer.Seek((int64)(disk.meta.DataOffset + 
+ 			(uint64)(disk.meta.DataBlockSize) * (uint64)(disk.meta.RangeCoverage) * (uint64)(idx) +
+ 			(uint64)(disk.meta.DataBlockSize) * (uint64)(rowCount)), io.SeekStart)
+-		err = binary.Write(writer, binary.LittleEndian, dataBlock)
++		// err = binary.Write(writer, binary.LittleEndian, dataBlock)
++		_, err = writer.Write(dataBlock)
+ 		if err != nil {
+ 			return err
+ 		}

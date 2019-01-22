@@ -1,0 +1,12 @@
+{
+	"storage": "/var/folders/sy/wvdjv01n0s71tyw1l15xvn980000gn/T/yotta-play977288906",
+	"type": 0,
+	"readonly": false,
+	"writesync": true,
+	"metadatasync": 1024,
+	"cache": 0,
+	"M": 120,
+	"N": 128,
+	"T": 1048576,
+	"D": 32
+	}
