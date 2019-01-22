@@ -9,8 +9,8 @@ import (
 	// "log"
 	"testing"
 
-	"github.com/yotta-disk/common"
-	"github.com/yotta-disk/opt"
+	"github.com/yottachain/YTFS/common"
+	"github.com/yottachain/YTFS/opt"
 )
 
 func testOptions() *opt.Options {

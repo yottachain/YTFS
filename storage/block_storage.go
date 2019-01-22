@@ -5,9 +5,9 @@ import (
 	"sync"
 	// "syscall"
 
-	types "github.com/yotta-disk/common"
-	"github.com/yotta-disk/opt"
-	"github.com/yotta-disk/errors"
+	types "github.com/yottachain/YTFS/common"
+	"github.com/yottachain/YTFS/opt"
+	"github.com/yottachain/YTFS/errors"
 )
 
 // BlockStorage is a file-system backed storage.

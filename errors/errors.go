@@ -6,10 +6,10 @@ import (
 
 // Common errors.
 var (
-	ErrHeadNotFound     = errors.New("yotta-disk: head not found")
-	ErrDataNotFound     = errors.New("yotta-disk: data not found")
-	ErrConfigCache      = errors.New("yotta-disk: Cache size config error")
-	ErrStorageSize		= New("yotta-disk: storage size does not meet settings")
+	ErrHeadNotFound     = errors.New("YTFS: head not found")
+	ErrDataNotFound     = errors.New("YTFS: data not found")
+	ErrConfigCache      = errors.New("YTFS: Cache size config error")
+	ErrStorageSize		= New("YTFS: storage size does not meet settings")
 )
 
 // New returns an error that formats as the given text.

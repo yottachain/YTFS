@@ -14,10 +14,10 @@ import (
 	// use eth hash related func.
 	"github.com/ethereum/go-ethereum/common"
 
-	ydcommon "github.com/yotta-disk/common"
-	"github.com/yotta-disk/opt"
-	"github.com/yotta-disk/storage"
-	"github.com/yotta-disk/cache"
+	ydcommon "github.com/yottachain/YTFS/common"
+	"github.com/yottachain/YTFS/opt"
+	"github.com/yottachain/YTFS/storage"
+	"github.com/yottachain/YTFS/cache"
 )
 
 type HashRangeIndex struct {

@@ -6,7 +6,7 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 
-	"github.com/yotta-disk/errors"
+	"github.com/yottachain/YTFS/errors"
 )
 
 type CacheManager struct {

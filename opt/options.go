@@ -9,7 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	yotta "github.com/yotta-disk/common"
+	yotta "github.com/yottachain/YTFS/common"
 )
 
 const (

@@ -13,9 +13,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/yotta-disk"
-	"github.com/yotta-disk/opt"
-	ydcommon "github.com/yotta-disk/common"
+	"github.com/yottachain/YTFS"
+	"github.com/yottachain/YTFS/opt"
+	ydcommon "github.com/yottachain/YTFS/common"
 )
 
 var (

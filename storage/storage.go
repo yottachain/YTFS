@@ -3,7 +3,7 @@ package storage
 import (
 	"io"
 
-	types "github.com/yotta-disk/common"
+	types "github.com/yottachain/YTFS/common"
 )
 
 // Locker is the interface that wraps Unlock method.

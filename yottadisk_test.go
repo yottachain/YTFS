@@ -16,8 +16,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	types "github.com/yotta-disk/common"
-	"github.com/yotta-disk/opt"
+	types "github.com/yottachain/YTFS/common"
+	"github.com/yottachain/YTFS/opt"
 )
 
 const (

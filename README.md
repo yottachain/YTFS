@@ -20,7 +20,7 @@ Just download YTFS from github, no other process needs to be done.
 There are 2 ways to run the test:
 ### 1. go test
 ```go
-go test -timeout 300s github.com/yotta-disk -run ^(TestYTFSPutGetWithFileStorage)$ -v -count=1
+go test -timeout 300s github.com/yottachain/YTFS -run ^(TestYTFSPutGetWithFileStorage)$ -v -count=1
 ```
 ### 2. playground test
 ```go
@@ -49,7 +49,7 @@ If anything goes wrong, e.g.
 bash$ ./playground --test hybrid --config config-file.json 
 Open YTFS Success @/tmp/yotta-disk-storage.test
 Starting hybrid test on 15384 data blocks
-panic: yotta-disk: Range is full
+panic: YTFS: Range is full
 
 goroutine 7 [running]:...
 ```
