@@ -1,0 +1,12 @@
+{
+    "storage": "/tmp/YTFS-file-storage.test",
+    "type": 0,
+    "readonly": false,
+    "writesync": true,
+    "metadatasync": 0,
+    "cache": 0,
+    "N": 8,
+    "T": 4294967296,
+    "D": 32768,
+    "M": 0
+}
