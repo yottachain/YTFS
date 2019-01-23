@@ -100,7 +100,7 @@ func (disk *YottaDisk) writeData(idx uint32, key ydcommon.IndexTableKey, dataOff
 			return err
 		}
 
-		// Update data count. WARNING: use magic number
+		// Update data count.
 		writer.Seek((int64)(unsafe.Offsetof(disk.meta.DataCount)), io.SeekStart)
 		_, err = writer.Write(dcBuf.Bytes())
 		if err != nil {
