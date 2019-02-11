@@ -54,7 +54,7 @@ func (disk *YottaDisk) Get(key ydcommon.IndexTableKey) ([]byte, error) {
 			val, _ := disk.cm.Get(idx)
 			table = val.(ydcommon.IndexTable)
 		} else {
-			table = disk.loadTableFromStorage(idx, rowCount)
+			table = disk.loadTableFromStorage(idx)
 			disk.cm.Add(idx, table)
 		}
 
@@ -177,27 +177,25 @@ func (disk *YottaDisk) Put(key ydcommon.IndexTableKey, buf []byte) error {
 	dataCount := disk.index.total
 	disk.index.total++
 	disk.meta.DataCount++
-	if rowCount == 0 {
-		table := ydcommon.IndexTable{}
-		table[(ydcommon.IndexTableKey)(key)] = (ydcommon.IndexTableValue)(dataCount)
-		disk.index.sizes[idx]++
-		disk.cm.Add(idx, table)
+
+	var table ydcommon.IndexTable
+	if disk.cm.Contains(idx) {
+		val, _ := disk.cm.Get(idx)
+		table = val.(ydcommon.IndexTable)
 	} else {
-		var table ydcommon.IndexTable
-		if disk.cm.Contains(idx) {
-			val, _ := disk.cm.Get(idx)
-			table = val.(ydcommon.IndexTable)
-		} else {
-			table = disk.loadTableFromStorage(idx, rowCount)
-		}
-		ydcommon.YottaAssert(len(table) == (int)(rowCount))
-		if _, ok := table[(ydcommon.IndexTableKey)(key)]; ok {
-			return ErrConflict
-		}
-		table[(ydcommon.IndexTableKey)(key)] = (ydcommon.IndexTableValue)(dataCount)
-		disk.cm.Add(idx, table)
-		disk.index.sizes[idx]++
+		table = disk.loadTableFromStorage(idx)
 	}
+
+	// check conflict
+	ydcommon.YottaAssert(len(table) == (int)(rowCount))
+	if _, ok := table[(ydcommon.IndexTableKey)(key)]; ok {
+		return ErrConflict
+	}
+
+	table[(ydcommon.IndexTableKey)(key)] = (ydcommon.IndexTableValue)(dataCount)
+	disk.cm.Add(idx, table)
+	disk.index.sizes[idx]++
+
 	return disk.writeData(idx, key, (ydcommon.IndexTableValue)(dataCount), buf)
 }
 
@@ -429,26 +427,29 @@ func (disk *YottaDisk) saveTableToStorage(key, value interface{}) {
 	}
 }
 
-func (disk *YottaDisk) loadTableFromStorage(idx uint32, rows uint16) ydcommon.IndexTable {
+func (disk *YottaDisk) loadTableFromStorage(idx uint32) ydcommon.IndexTable {
 	locker, _ := disk.store.Lock()
 	defer locker.Unlock()
 
 	table := ydcommon.IndexTable{}
-	rowSize := (uint64)(unsafe.Sizeof(ydcommon.IndexItem{}))
-	reader, _ := disk.store.Reader()
-	reader.Seek((int64)(disk.meta.HashOffset + (uint64)(disk.meta.RangeCoverage) * (uint64)(idx) * (uint64)(rowSize)), io.SeekStart)
-	bufSize := (uint64)(rows) * rowSize
-	tableBuf := make([]byte, bufSize, bufSize)
-	_, err := reader.Read(tableBuf)
-	if err != nil {
-		panic(err)
-	}
-	for i := (uint64)(0); i < (uint64)(rows); i++ {
-		table[(ydcommon.IndexTableKey)(common.BytesToHash(tableBuf[i*rowSize : i*rowSize + 32]))] =
-			(ydcommon.IndexTableValue)(tableBuf[i*rowSize + 35]) << 24 |
-			(ydcommon.IndexTableValue)(tableBuf[i*rowSize + 34]) << 16 |
-			(ydcommon.IndexTableValue)(tableBuf[i*rowSize + 33]) <<  8 |
-			(ydcommon.IndexTableValue)(tableBuf[i*rowSize + 32])
+	rowCount := disk.index.sizes[idx]
+	if rowCount != 0 {
+		rowSize := (uint64)(unsafe.Sizeof(ydcommon.IndexItem{}))
+		reader, _ := disk.store.Reader()
+		reader.Seek((int64)(disk.meta.HashOffset + (uint64)(disk.meta.RangeCoverage) * (uint64)(idx) * (uint64)(rowSize)), io.SeekStart)
+		bufSize := (uint64)(rowCount) * rowSize
+		tableBuf := make([]byte, bufSize, bufSize)
+		_, err := reader.Read(tableBuf)
+		if err != nil {
+			panic(err)
+		}
+		for i := (uint64)(0); i < (uint64)(rowCount); i++ {
+			table[(ydcommon.IndexTableKey)(common.BytesToHash(tableBuf[i*rowSize : i*rowSize + 32]))] =
+				(ydcommon.IndexTableValue)(tableBuf[i*rowSize + 35]) << 24 |
+				(ydcommon.IndexTableValue)(tableBuf[i*rowSize + 34]) << 16 |
+				(ydcommon.IndexTableValue)(tableBuf[i*rowSize + 33]) <<  8 |
+				(ydcommon.IndexTableValue)(tableBuf[i*rowSize + 32])
+		}
 	}
 	return table
 }
