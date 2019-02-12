@@ -431,7 +431,7 @@ func (disk *YottaDisk) loadTableFromStorage(idx uint32) ydcommon.IndexTable {
 	locker, _ := disk.store.Lock()
 	defer locker.Unlock()
 
-	table := ydcommon.IndexTable{}
+	table := make(ydcommon.IndexTable, disk.meta.RangeCoverage)
 	rowCount := disk.index.sizes[idx]
 	if rowCount != 0 {
 		rowSize := (uint64)(unsafe.Sizeof(ydcommon.IndexItem{}))
