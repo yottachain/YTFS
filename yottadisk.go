@@ -20,11 +20,13 @@ import (
 	"github.com/yottachain/YTFS/cache"
 )
 
+// HashRangeIndex level 1 index size.
 type HashRangeIndex struct {
 	total	uint32			// total data saved.
 	sizes	[]uint16		// data len of each table.
 }
 
+// YottaDisk main entry of YTFS
 type YottaDisk struct {
 	config		*opt.Options
 	meta		ydcommon.Header
@@ -34,6 +36,7 @@ type YottaDisk struct {
 	sync.Mutex
 }
 
+// Close closes the YottaDisk.
 func (disk *YottaDisk) Close() {
 	if !disk.config.ReadOnly {
 		disk.flushMetaAndHashRegion()
@@ -41,6 +44,12 @@ func (disk *YottaDisk) Close() {
 	disk.store.Close()
 }
 
+// Get gets the value for the given key. It returns ErrNotFound if the
+// DB does not contains the key.
+//
+// The returned slice is its own copy, it is safe to modify the contents
+// of the returned slice.
+// It is safe to modify the contents of the argument after Get returns.
 func (disk *YottaDisk) Get(key ydcommon.IndexTableKey) ([]byte, error) {
 	disk.Lock()
 	defer disk.Unlock()
@@ -161,6 +170,10 @@ func (disk *YottaDisk) writeData(idx uint32, key ydcommon.IndexTableKey, dataOff
 	return nil
 }
 
+// Put sets the value for the given key. It panic if there exists any previous value
+// for that key; YottaDisk is not a multi-map.
+// It is safe to modify the contents of the arguments after Put returns but not
+// before.
 func (disk *YottaDisk) Put(key ydcommon.IndexTableKey, buf []byte) error {
 	if disk.config.ReadOnly {
 		return ErrReadOnly
@@ -227,6 +240,13 @@ func (disk *YottaDisk) flushMetaAndHashRegion() error {
 	return nil
 }
 
+// OpenYottaDisk opens or creates a YottaDisk for the given storage.
+// The DB will be created if not exist, unless Error happens.
+//
+// OpenYottaDisk will return ErrConfigXXX if config is incorrect.
+//
+// The returned YottaDisk instance is safe for concurrent use.
+// The YottaDisk must be closed after use, by calling Close method.
 func OpenYottaDisk(config *opt.Options) (*YottaDisk, error) {
 	if !ydcommon.IsPowerOfTwo((uint64)(config.N)) {
 		return nil, opt.ErrConfigN
@@ -454,12 +474,16 @@ func (disk *YottaDisk) loadTableFromStorage(idx uint32) ydcommon.IndexTable {
 	return table
 }
 
+// FormatYottaDisk formats an existed YottaDisk, and make it ready
+// for next put/get operation. so far we do quick format which just
+// erases the header.
 func (disk *YottaDisk) FormatYottaDisk() error {
 	// TODO: implement fully format, so far we just break the header
 	disk.meta = ydcommon.Header{}
 	return nil
 }
 
+// Meta reports meta info of this YottaDisk.
 func (disk *YottaDisk) Meta() *ydcommon.Header {
 	return &disk.meta
 }

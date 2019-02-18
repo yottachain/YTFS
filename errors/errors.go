@@ -1,3 +1,4 @@
+// Package errors provides common error types used throughout YottaDisk.
 package errors
 
 import (
