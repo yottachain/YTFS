@@ -10,10 +10,10 @@ import (
 	"github.com/yottachain/YTFS/errors"
 )
 
-// CacheManager the entry point of LRU cache used by YottaDisk
-type CacheManager struct {
+// Manager the entry point of LRU cache used by YottaDisk
+type Manager struct {
 	// Size
-	caps		uint64
+	caps uint64
 
 	// Implementation
 	*lru.Cache
@@ -22,16 +22,16 @@ type CacheManager struct {
 	// sync.Mutex
 
 	// statistics
-	itemSize	uint64
-	hit			uint64
-	access		uint64
+	itemSize uint64
+	hit      uint64
+	access   uint64
 }
 
 const logCache = false
 
 // NewCacheManager creates a new CacheManager, reports ErrConfigCache
 // if open failed.
-func NewCacheManager(itemSize uint32, cacheCaps uint64, onEvicted func(key interface{}, value interface{})) (*CacheManager, error) {
+func NewCacheManager(itemSize uint32, cacheCaps uint64, onEvicted func(key interface{}, value interface{})) (*Manager, error) {
 	if cacheCaps < (uint64)(itemSize) {
 		cacheCaps = (uint64)(itemSize)
 	}
@@ -53,9 +53,9 @@ func NewCacheManager(itemSize uint32, cacheCaps uint64, onEvicted func(key inter
 	cache, err := lru.NewWithEvict((int)(lruCaps), evictWithLog)
 	if err != nil {
 		return nil, errors.ErrConfigCache
-	}	
+	}
 
-	return &CacheManager{
+	return &Manager{
 		lruCaps,
 		cache,
 		// sync.Mutex{},
@@ -66,7 +66,7 @@ func NewCacheManager(itemSize uint32, cacheCaps uint64, onEvicted func(key inter
 }
 
 // Add wraps the LRU cache Add() which adds a new cache item.
-func (cm *CacheManager) Add(key, value interface{}) bool {
+func (cm *Manager) Add(key, value interface{}) bool {
 	if logCache {
 		fmt.Printf("Cache Add <%v:%v>\n", key, value)
 	}
@@ -74,7 +74,7 @@ func (cm *CacheManager) Add(key, value interface{}) bool {
 }
 
 // Contains wraps the LRU cache Contains() which check if a cache item exists.
-func (cm *CacheManager) Contains(key interface{}) bool {
+func (cm *Manager) Contains(key interface{}) bool {
 	if logCache {
 		fmt.Printf("Check if <%v> contains.\n", key)
 	}
@@ -88,11 +88,10 @@ func (cm *CacheManager) Contains(key interface{}) bool {
 	return false
 }
 
-func (cm *CacheManager) String() string {
-	return fmt.Sprintf( "Cache slot number: %d\n"  +
-						"Occupied cache slot: %d\n" +
-						"Cache slot item size: %d\n" +
-						"Cache hit: %d\n" +
-						"Cache miss: %d\n", cm.caps, cm.Len(), cm.itemSize, cm.hit, cm.access - cm.hit)
+func (cm *Manager) String() string {
+	return fmt.Sprintf("Cache slot number: %d\n"+
+		"Occupied cache slot: %d\n"+
+		"Cache slot item size: %d\n"+
+		"Cache hit: %d\n"+
+		"Cache miss: %d\n", cm.caps, cm.Len(), cm.itemSize, cm.hit, cm.access-cm.hit)
 }
-

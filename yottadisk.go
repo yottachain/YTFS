@@ -10,29 +10,29 @@ import (
 	"math/big"
 	"sync"
 	"unsafe"
-	
+
 	// use eth hash related func.
 	"github.com/ethereum/go-ethereum/common"
 
+	"github.com/yottachain/YTFS/cache"
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
 	"github.com/yottachain/YTFS/storage"
-	"github.com/yottachain/YTFS/cache"
 )
 
 // HashRangeIndex level 1 index size.
 type HashRangeIndex struct {
-	total	uint32			// total data saved.
-	sizes	[]uint16		// data len of each table.
+	total uint32   // total data saved.
+	sizes []uint16 // data len of each table.
 }
 
 // YottaDisk main entry of YTFS
 type YottaDisk struct {
-	config		*opt.Options
-	meta		ydcommon.Header
-	store		storage.Storage
-	index		HashRangeIndex
-	cm			*cache.CacheManager
+	config *opt.Options
+	meta   ydcommon.Header
+	store  storage.Storage
+	index  HashRangeIndex
+	cm     *cache.Manager
 	sync.Mutex
 }
 
@@ -69,7 +69,7 @@ func (disk *YottaDisk) Get(key ydcommon.IndexTableKey) ([]byte, error) {
 
 		if innerIdx, ok := table[key]; ok {
 			return disk.readData(innerIdx)
-		} 
+		}
 	}
 
 	return nil, ErrDataNotFound
@@ -80,7 +80,7 @@ func (disk *YottaDisk) readData(dataIndex ydcommon.IndexTableValue) ([]byte, err
 	defer locker.Unlock()
 
 	reader, _ := disk.store.Reader()
-	reader.Seek((int64)(disk.meta.DataOffset + (uint64)(dataIndex) * (uint64)(disk.meta.DataBlockSize)), io.SeekStart)
+	reader.Seek((int64)(disk.meta.DataOffset+(uint64)(dataIndex)*(uint64)(disk.meta.DataBlockSize)), io.SeekStart)
 	buf := make([]byte, disk.meta.DataBlockSize, disk.meta.DataBlockSize)
 	// binary.Read(reader, binary.LittleEndian, &buf)
 	_, err := reader.Read(buf)
@@ -126,7 +126,7 @@ func (disk *YottaDisk) writeData(idx uint32, key ydcommon.IndexTableKey, dataOff
 		}
 
 		// Update RangeTable sizes
-		writer.Seek((int64)(disk.meta.RangeOffset + (uint32)(idx * 2)), io.SeekStart)
+		writer.Seek((int64)(disk.meta.RangeOffset+(uint32)(idx*2)), io.SeekStart)
 		_, err = writer.Write(rcBuf.Bytes())
 		if err != nil {
 			return err
@@ -134,8 +134,8 @@ func (disk *YottaDisk) writeData(idx uint32, key ydcommon.IndexTableKey, dataOff
 
 		// Step 3. Update in range HashIndexTable
 		row := ydcommon.IndexItem{
-			Hash: 		(ydcommon.IndexTableKey)(key),
-			OffsetIdx:  (ydcommon.IndexTableValue)(dataOffsetIndex),
+			Hash:      (ydcommon.IndexTableKey)(key),
+			OffsetIdx: (ydcommon.IndexTableValue)(dataOffsetIndex),
 		}
 		rowInfoBlock := make([]byte, 0, unsafe.Sizeof(row))
 		riBuf := bytes.NewBuffer(rowInfoBlock)
@@ -144,8 +144,8 @@ func (disk *YottaDisk) writeData(idx uint32, key ydcommon.IndexTableKey, dataOff
 			return err
 		}
 		rowSize := (uint64)(unsafe.Sizeof(row))
-		rowIdx	:= rowCount - 1
-		writer.Seek((int64)(disk.meta.HashOffset + (uint64)(idx) * rowSize * (uint64)(disk.meta.RangeCoverage) + rowSize * (uint64)(rowIdx)), io.SeekStart)
+		rowIdx := rowCount - 1
+		writer.Seek((int64)(disk.meta.HashOffset+(uint64)(idx)*rowSize*(uint64)(disk.meta.RangeCoverage)+rowSize*(uint64)(rowIdx)), io.SeekStart)
 		_, err = writer.Write(riBuf.Bytes())
 		if err != nil {
 			return err
@@ -155,8 +155,8 @@ func (disk *YottaDisk) writeData(idx uint32, key ydcommon.IndexTableKey, dataOff
 	ydcommon.YottaAssert(len(buf) <= (int)(disk.meta.DataBlockSize))
 	dataBlock := make([]byte, disk.meta.DataBlockSize, disk.meta.DataBlockSize)
 	copy(dataBlock, buf)
-	writer.Seek((int64)(disk.meta.DataOffset +
-		(uint64)(disk.meta.DataBlockSize) * (uint64)(dataOffsetIndex)), io.SeekStart)
+	writer.Seek((int64)(disk.meta.DataOffset+
+		(uint64)(disk.meta.DataBlockSize)*(uint64)(dataOffsetIndex)), io.SeekStart)
 	// fmt.Println("Write", dataBlock, "@", (int64)(disk.meta.DataOffset + (uint64)(disk.meta.DataBlockSize) * (uint64)(dataOffsetIndex)))
 	_, err = writer.Write(dataBlock)
 	if err != nil {
@@ -247,6 +247,26 @@ func (disk *YottaDisk) flushMetaAndHashRegion() error {
 //
 // The returned YottaDisk instance is safe for concurrent use.
 // The YottaDisk must be closed after use, by calling Close method.
+//
+// Usage Sample, ref to playground.go:
+//		...
+//		config := opt.DefaultOptions()
+//
+//		yd, err := yottadisk.OpenYottaDisk(config)
+//		if err != nil {
+//			panic(err)
+//		}
+//		defer yd.Close()
+//		err = yd.Put(ydcommon.IndexTableKey, ydcommon.IndexTableValue)
+///		if err != nil {
+//			panic(err)
+//		}
+//
+//		ydcommon.IndexTableValue, err = yd.Gut(ydcommon.IndexTableKey)
+///		if err != nil {
+//			panic(err)
+//		}
+//		...
 func OpenYottaDisk(config *opt.Options) (*YottaDisk, error) {
 	if !ydcommon.IsPowerOfTwo((uint64)(config.N)) {
 		return nil, opt.ErrConfigN
@@ -275,8 +295,8 @@ func OpenYottaDisk(config *opt.Options) (*YottaDisk, error) {
 
 func buildYottaDisk(header *ydcommon.Header, storage storage.Storage, opt *opt.Options) (*YottaDisk, error) {
 	index := HashRangeIndex{
-		total:	0,
-		sizes:	make([]uint16, header.RangeCaps, header.RangeCaps),
+		total: 0,
+		sizes: make([]uint16, header.RangeCaps, header.RangeCaps),
 	}
 
 	reader, err := storage.Reader()
@@ -320,30 +340,30 @@ func initializeStorage(store storage.Storage, config *opt.Options) (*ydcommon.He
 	ydcommon.YottaAssert(hashTableEntrySize == 36)
 
 	// in case data overflows.
-	ydcommon.YottaAssert((n <= math.MaxUint16 + 1) && (m <= math.MaxUint16))
+	ydcommon.YottaAssert((n <= math.MaxUint16+1) && (m <= math.MaxUint16))
 
 	// write header.
-	hashOffset := h + rangeEntrySize * (uint64)(n)
+	hashOffset := h + rangeEntrySize*(uint64)(n)
 	// TODO: consider alignment of each segment?
-	dataOffset := hashOffset + hashTableEntrySize * (uint64)(m) * (uint64)(n)
-	allocOffset := dataOffset + (uint64)(n) * (uint64)(d) * (uint64)(m)
-	resolveOffset := allocOffset + (uint64)(n) * (uint64)(m) / 8
+	dataOffset := hashOffset + hashTableEntrySize*(uint64)(m)*(uint64)(n)
+	allocOffset := dataOffset + (uint64)(n)*(uint64)(d)*(uint64)(m)
+	resolveOffset := allocOffset + (uint64)(n)*(uint64)(m)/8
 	ydcommon.YottaAssert(resolveOffset <= t)
 
 	header := ydcommon.Header{
-		Tag:			[4]byte{'Y', 'O', 'T', 'A'},
-		Version:		[4]byte{0x0, '.', 0x0, 0x1},
-		DiskCaps:		t,
-		DataBlockSize:	d,
-		RangeCaps:		n,
-		RangeCoverage:	m,
-		RangeOffset:	(uint32)(h),
-		HashOffset:		hashOffset,
-		DataOffset:		dataOffset,
-		DataCount:		0,
-		AllocOffset:	allocOffset,
-		ResolveOffset:	resolveOffset,
-		Reserved:		(t - resolveOffset) % (uint64)(d),
+		Tag:           [4]byte{'Y', 'O', 'T', 'A'},
+		Version:       [4]byte{0x0, '.', 0x0, 0x1},
+		DiskCaps:      t,
+		DataBlockSize: d,
+		RangeCaps:     n,
+		RangeCoverage: m,
+		RangeOffset:   (uint32)(h),
+		HashOffset:    hashOffset,
+		DataOffset:    dataOffset,
+		DataCount:     0,
+		AllocOffset:   allocOffset,
+		ResolveOffset: resolveOffset,
+		Reserved:      (t - resolveOffset) % (uint64)(d),
 	}
 
 	writer.Seek(0, io.SeekStart)
@@ -362,7 +382,7 @@ func initializeStorage(store storage.Storage, config *opt.Options) (*ydcommon.He
 	}
 
 	writer.Sync()
-	return &header, nil 
+	return &header, nil
 }
 
 func readHeader(store storage.Storage) (*ydcommon.Header, error) {
@@ -376,7 +396,7 @@ func readHeader(store storage.Storage) (*ydcommon.Header, error) {
 
 	buf := make([]byte, unsafe.Sizeof(header), unsafe.Sizeof(header))
 	n, err := reader.Read(buf)
-	if (err != nil) || (n != (int)(unsafe.Sizeof(header))){
+	if (err != nil) || (n != (int)(unsafe.Sizeof(header))) {
 		return nil, err
 	}
 	bufReader := bytes.NewBuffer(buf)
@@ -403,7 +423,7 @@ func (disk *YottaDisk) initializeCacheManager() error {
 }
 
 func (disk *YottaDisk) getTableEntryIndex(key ydcommon.IndexTableKey) uint32 {
-	msb := (uint32)(big.NewInt(0).SetBytes(key[common.HashLength - 4:]).Uint64())
+	msb := (uint32)(big.NewInt(0).SetBytes(key[common.HashLength-4:]).Uint64())
 	return msb & (disk.meta.RangeCaps - 1)
 }
 
@@ -417,10 +437,10 @@ func (disk *YottaDisk) saveTableToStorage(key, value interface{}) {
 	table := value.(ydcommon.IndexTable)
 	idx := key.(uint32)
 	ydcommon.YottaAssertMsg(len(table) == (int)(disk.index.sizes[idx]),
-							fmt.Sprintf("Error in %d entry: table.size(%d) != index.size(%d).", idx, len(table), disk.index.sizes[idx]))
+		fmt.Sprintf("Error in %d entry: table.size(%d) != index.size(%d).", idx, len(table), disk.index.sizes[idx]))
 	rowSize := (int)(unsafe.Sizeof(ydcommon.IndexItem{}))
 	writer, _ := disk.store.Writer()
-	_, err := writer.Seek((int64)(disk.meta.HashOffset + (uint64)(disk.meta.RangeCoverage) * (uint64)(idx) * (uint64)(rowSize)), io.SeekStart)
+	_, err := writer.Seek((int64)(disk.meta.HashOffset+(uint64)(disk.meta.RangeCoverage)*(uint64)(idx)*(uint64)(rowSize)), io.SeekStart)
 	if err != nil {
 		panic(err)
 	}
@@ -456,7 +476,7 @@ func (disk *YottaDisk) loadTableFromStorage(idx uint32) ydcommon.IndexTable {
 	if rowCount != 0 {
 		rowSize := (uint64)(unsafe.Sizeof(ydcommon.IndexItem{}))
 		reader, _ := disk.store.Reader()
-		reader.Seek((int64)(disk.meta.HashOffset + (uint64)(disk.meta.RangeCoverage) * (uint64)(idx) * (uint64)(rowSize)), io.SeekStart)
+		reader.Seek((int64)(disk.meta.HashOffset+(uint64)(disk.meta.RangeCoverage)*(uint64)(idx)*(uint64)(rowSize)), io.SeekStart)
 		bufSize := (uint64)(rowCount) * rowSize
 		tableBuf := make([]byte, bufSize, bufSize)
 		_, err := reader.Read(tableBuf)
@@ -464,11 +484,11 @@ func (disk *YottaDisk) loadTableFromStorage(idx uint32) ydcommon.IndexTable {
 			panic(err)
 		}
 		for i := (uint64)(0); i < (uint64)(rowCount); i++ {
-			table[(ydcommon.IndexTableKey)(common.BytesToHash(tableBuf[i*rowSize : i*rowSize + 32]))] =
-				(ydcommon.IndexTableValue)(tableBuf[i*rowSize + 35]) << 24 |
-				(ydcommon.IndexTableValue)(tableBuf[i*rowSize + 34]) << 16 |
-				(ydcommon.IndexTableValue)(tableBuf[i*rowSize + 33]) <<  8 |
-				(ydcommon.IndexTableValue)(tableBuf[i*rowSize + 32])
+			table[(ydcommon.IndexTableKey)(common.BytesToHash(tableBuf[i*rowSize:i*rowSize+32]))] =
+				(ydcommon.IndexTableValue)(tableBuf[i*rowSize+35])<<24 |
+					(ydcommon.IndexTableValue)(tableBuf[i*rowSize+34])<<16 |
+					(ydcommon.IndexTableValue)(tableBuf[i*rowSize+33])<<8 |
+					(ydcommon.IndexTableValue)(tableBuf[i*rowSize+32])
 		}
 	}
 	return table
@@ -503,11 +523,11 @@ func (disk *YottaDisk) String() string {
 		}
 	}
 	avg := sum / (int64)(len(disk.index.sizes))
-	table := fmt.Sprintf("Total table Count: %d\n"  +
-						 "Total saved items: %d\n" +
-						 "Maximum table size: %d\n" +
-						 "Minimum table size: %d\n" +
-						 "Average table size: %d\n" , len(disk.index.sizes), sum, max, min, avg)
+	table := fmt.Sprintf("Total table Count: %d\n"+
+		"Total saved items: %d\n"+
+		"Maximum table size: %d\n"+
+		"Minimum table size: %d\n"+
+		"Average table size: %d\n", len(disk.index.sizes), sum, max, min, avg)
 	cache := disk.cm.String()
 	return string(meta) + "\n" + table + cache
 }
