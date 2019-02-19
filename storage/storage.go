@@ -1,3 +1,4 @@
+// Package storage provides different storage types used throughout YottaDisk.
 package storage
 
 import (

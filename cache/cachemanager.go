@@ -1,3 +1,4 @@
+// Package cache provides cache support used throughout YottaDisk.
 package cache
 
 import (
@@ -9,6 +10,7 @@ import (
 	"github.com/yottachain/YTFS/errors"
 )
 
+// CacheManager the entry point of LRU cache used by YottaDisk
 type CacheManager struct {
 	// Size
 	caps		uint64
@@ -27,6 +29,8 @@ type CacheManager struct {
 
 const logCache = false
 
+// NewCacheManager creates a new CacheManager, reports ErrConfigCache
+// if open failed.
 func NewCacheManager(itemSize uint32, cacheCaps uint64, onEvicted func(key interface{}, value interface{})) (*CacheManager, error) {
 	if cacheCaps < (uint64)(itemSize) {
 		cacheCaps = (uint64)(itemSize)
@@ -61,6 +65,7 @@ func NewCacheManager(itemSize uint32, cacheCaps uint64, onEvicted func(key inter
 	}, nil
 }
 
+// Add wraps the LRU cache Add() which adds a new cache item.
 func (cm *CacheManager) Add(key, value interface{}) bool {
 	if logCache {
 		fmt.Printf("Cache Add <%v:%v>\n", key, value)
@@ -68,6 +73,7 @@ func (cm *CacheManager) Add(key, value interface{}) bool {
 	return cm.Cache.Add(key, value)
 }
 
+// Contains wraps the LRU cache Contains() which check if a cache item exists.
 func (cm *CacheManager) Contains(key interface{}) bool {
 	if logCache {
 		fmt.Printf("Check if <%v> contains.\n", key)
