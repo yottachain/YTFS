@@ -1,3 +1,4 @@
+// Package common provides common types used throughout YottaDisk.
 package common
 
 import (
