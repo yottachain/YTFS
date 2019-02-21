@@ -1,4 +1,4 @@
-package yottadisk
+package ytfs
 
 import (
 	"github.com/yottachain/YTFS/errors"
@@ -6,10 +6,9 @@ import (
 
 // Common errors.
 var (
-	ErrDataNotFound		= errors.ErrDataNotFound
-	ErrHeaderNotFound	= errors.ErrHeadNotFound
-	ErrConflict         = errors.New("YTFS: conflict hash value")
-	ErrRangeFull        = errors.New("YTFS: Range is full")
-	ErrReadOnly         = errors.New("YTFS: read-only mode")
-	ErrClosed           = errors.New("YTFS: closed")
+	ErrDataOverflow        = errors.New("YTFS: overflow happens")
+	ErrDirNameConflict     = errors.New("YTFS: ytfs can not open dir because of name conflict")
+	ErrEmptyYTFSDir        = errors.New("YTFS: dir has no ytfs contents")
+	ErrSettingMismatch     = errors.New("YTFS: ytfs initailize failed because new config not consistent")
+	ErrConfigIndexMismatch = errors.New("YTFS: ytfs initailize failed because indexDB and config mismatch")
 )

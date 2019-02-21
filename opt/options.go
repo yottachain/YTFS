@@ -5,65 +5,104 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"math"
+	"math/bits"
 	"os"
-	"unsafe"
+	// "unsafe"
 
-	"github.com/ethereum/go-ethereum/common"
+	// "github.com/ethereum/go-ethereum/common"
 
-	yotta "github.com/yottachain/YTFS/common"
+	ytfs "github.com/yottachain/YTFS/common"
 )
 
 // common size limitations
 const (
-	MaxDiskCapability = 1 << 44 // 16T
-	MaxRangeCoverage  = 1 << 16 // 64K
-	MaxRangeNumber    = 1 << 16 // 64K
+	// MaxDiskCapability = 1 << 47 // 128T
+	MaxRangeCoverage  = math.MaxInt32 // 2G
+	MaxRangeNumber    = math.MaxInt32 // 2G
 )
 
 // config errors
 var (
+	ErrConfigC          = errors.New("yotta config: config.C should in range [sum(Ti), MaxDiskCapability]")
 	ErrConfigN          = errors.New("yotta config: config.N should be power of 2 and less than MAX_RANGE")
+	ErrConfigD          = errors.New("yotta config: config.D should be consistent with YTFS")
 	ErrConfigM          = errors.New("yotta config: config.M setting is incorrect")
-	ErrConfigMetaPeriod = errors.New("yotta config: Meta sync period should be power of 2")
 )
 
 // Options Config options
 type Options struct {
-	StorageName    string            `json:"storage"`
-	StorageType    yotta.StorageType `json:"type"`
+	YTFSTag        string            `json:"ytfs"`
+	Storages       []StorageOptions  `json:"storages"`
 	ReadOnly       bool              `json:"readonly"`
-	Sync           bool              `json:"writesync"`
-	MetaSyncPeriod uint32            `json:"metadatasync"`
 	CacheSize      uint64            `json:"cache"`
-	M              uint32            `json:"M"`
-	N              uint32            `json:"N"`
-	T              uint64            `json:"T"`
-	D              uint32            `json:"D"`
+	IndexTableCols uint32            `json:"M"`
+	IndexTableRows uint32            `json:"N"`
+	DataBlockSize  uint32            `json:"D"`
+	TotalVolumn    uint64            `json:"C"`
+}
+
+// Equal compares 2 Options to tell if it is equal
+func (opt *Options) Equal(other *Options) bool {
+	bEqual := opt.YTFSTag == other.YTFSTag && opt.CacheSize == other.CacheSize && opt.IndexTableCols == other.IndexTableCols &&
+		opt.IndexTableRows == other.IndexTableRows && opt.DataBlockSize == other.DataBlockSize && opt.TotalVolumn == other.TotalVolumn
+
+	if bEqual {
+		// check storages
+		i, j := len(opt.Storages), len(other.Storages)
+		if i <= j {
+			// support expension only
+			for k := 0; k < i && bEqual; k++ {
+				bEqual = opt.Storages[k].Equal(&other.Storages[k])
+			}
+		}
+	}
+
+	return bEqual
 }
 
 // DefaultOptions default config
 func DefaultOptions() *Options {
-	tmpFile, err := ioutil.TempFile("", "yotta-play")
+	tmpFile1, err := ioutil.TempFile("", "yotta-play-1")
+	if err != nil {
+		panic(err)
+	}
+	tmpFile2, err := ioutil.TempFile("", "yotta-play-2")
 	if err != nil {
 		panic(err)
 	}
 
 	config := &Options{
-		StorageName:    tmpFile.Name(),
-		StorageType:    yotta.FileStorageType,
+		YTFSTag:        "ytfs default setting",
+		Storages:       []StorageOptions{
+			{
+				StorageName:   tmpFile1.Name(),
+				StorageType:   ytfs.FileStorageType,
+				ReadOnly:      false,
+				Sync:          false,
+				StorageVolume: 1 << 20,
+				DataBlockSize: 1 << 15,
+			},
+			{
+				StorageName:   tmpFile2.Name(),
+				StorageType:   ytfs.FileStorageType,
+				ReadOnly:      false,
+				Sync:          false,
+				StorageVolume: 1 << 20,
+				DataBlockSize: 1 << 15,
+			},
+		},
 		ReadOnly:       false,
-		Sync:           true,
-		MetaSyncPeriod: 0, // write meta every ${MetaSyncPeriod} data arrives. set to 0 if not sync with data write.
-		CacheSize:      0, // Size cache in byte. Can be 0 which means only 1 L1(Range) table entry will be kepted.
-		M:              0,
-		N:              128,
-		T:              1 << 20, // 1M for default
-		D:              32,      // Just save HashLen for test.
+		CacheSize:      0,   // Size cache in byte. Can be 0 which means only 1 L1(Range) table entry will be kepted.
+		IndexTableCols: 0,
+		IndexTableRows: 1 << 13,
+		DataBlockSize:  1 << 15, // Just save HashLen for test.
+		TotalVolumn:	2 << 30, // 1G
 	}
 
 	newConfig, err := FinalizeConfig(config)
 	if err != nil {
-		return nil
+		panic(err)
 	}
 
 	return newConfig
@@ -107,40 +146,51 @@ func SaveConfig(config *Options, fileName string) error {
 	return nil
 }
 
-// FinalizeConfig finalize the config, it does following things:
+// FinalizeConfig finalizes the config, it does following things:
 // 1. Do a few calculation according to config setting.
 // 2. Check if config setting is valid.
 func FinalizeConfig(config *Options) (*Options, error) {
-	if config.T > MaxDiskCapability {
-		return nil, errors.New("opt.N > MaxDiskCapability")
+	// check C in range
+	maxDiskCapability := uint64(1) << ((uint32)(bits.Len32(config.DataBlockSize)) + (uint32)(32))
+	sumT := uint64(0)
+	for _, ti := range config.Storages {
+		sumT += ti.StorageVolume
 	}
 
-	t, d, n, m, h := config.T, (uint64)(config.D), (uint64)(config.N), (uint64)(config.M), (uint64)(unsafe.Sizeof(yotta.Header{}))
+	if config.TotalVolumn > maxDiskCapability || config.TotalVolumn < sumT {
+		return nil, ErrConfigC
+	}
+
+	// calc M, N, D
+	c, d, n, m := config.TotalVolumn, (uint64)(config.DataBlockSize), (uint64)(config.IndexTableRows), (uint64)(config.IndexTableCols)
 	// range len array: N size array of uint16, i.e. [uint16, uint16, ...(N)]
-	rangeLenSize := (uint64)(unsafe.Sizeof((uint16)(0)))
+	// rangeLenSize := (uint64)(unsafe.Sizeof((uint16)(0)))
 	// index table item [Hash (32bytes) | OffsetIdx (uint32)]
-	indexTableEntrySize := (uint64)(unsafe.Sizeof(common.Hash{})) + (uint64)(unsafe.Sizeof((uint32)(0)))
+	// indexTableEntrySize := (uint64)(unsafe.Sizeof(common.Hash{})) + (uint64)(unsafe.Sizeof((uint32)(0)))
 
 	// Total disk allocation:
 	// --------+-------------------+-----------------------------+------------+----------------+
 	// [Header]|[ RangeTableSizes ]|[         HashTable         ]|[    Data  ]|[     BitMap    ]
 	// --------+-------------------+-----------------------------+------------+----------------+
-	// h       + rangeLenSize * n  + indexTableEntrySize* n * m  + n * d * m  + (m * n + 7)/ 8 = t
+	// h       + rangeLenSize * n  + indexTableEntrySize* n * m  + n * d * m  + (m * n + 7)/ 8 
 	// --------+-------------------+-----------------------------+------------+----------------+
-	m = ((t-h-rangeLenSize*n)*8 - 7) / (indexTableEntrySize*n*8 + n*d*8 + n)
+	m = c / (n * d)
 	if m < 4 || m >= MaxRangeCoverage {
 		// m can not == MAX_RANGE_COVERAGE because max uint16 is (MAX_RANGE_COVERAGE - 1)
 		// otherwise we shoud keep +1 in mind when calc the index table size, which seems a little bit tricky.
 		return nil, ErrConfigM
 	}
-	config.M = (uint32)(m)
+	config.IndexTableCols = (uint32)(m)
 
-	if config.N > MaxRangeNumber && !yotta.IsPowerOfTwo((uint64)(config.N)) {
+	if config.IndexTableRows > MaxRangeNumber || !ytfs.IsPowerOfTwo((uint64)(config.IndexTableRows)) {
 		return nil, ErrConfigN
 	}
 
-	if config.MetaSyncPeriod != 0 && !yotta.IsPowerOfTwo((uint64)(config.MetaSyncPeriod)) {
-		return nil, ErrConfigMetaPeriod
+	// check if YTFS param consistency with YTFS storage.
+	for _, storageOpt := range config.Storages {
+		if (storageOpt.DataBlockSize != config.DataBlockSize) || !ytfs.IsPowerOfTwo((uint64)(config.DataBlockSize)) {
+			return nil, ErrConfigD
+		}
 	}
 
 	// TODO: return new object.

@@ -23,7 +23,7 @@ type FileStorage struct {
 // same path will fail.
 //
 // The storage must be closed after use, by calling Close method.
-func OpenFileStorage(opt *opt.Options) (Storage, error) {
+func OpenFileStorage(opt *opt.StorageOptions) (Storage, error) {
 	fileStorage := FileStorage{
 		readOnly:	opt.ReadOnly,
 		mu:			sync.RWMutex{},
@@ -33,7 +33,6 @@ func OpenFileStorage(opt *opt.Options) (Storage, error) {
 						Path:	opt.StorageName,
 					},
 	}
-
 
 	writer, err := fileStorage.Create(*fileStorage.fd)
 	if err != nil {
@@ -88,8 +87,8 @@ func (file *FileStorage) Close() error {
 	return nil
 }
 
-func (file *FileStorage) validateStorageParam(opt *opt.Options) error {
-	if file.fd.Caps > opt.T {
+func (file *FileStorage) validateStorageParam(opt *opt.StorageOptions) error {
+	if file.fd.Caps > opt.StorageVolume {
 		return errors.ErrStorageSize
 	}
 
