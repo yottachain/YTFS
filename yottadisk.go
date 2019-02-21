@@ -225,7 +225,7 @@ func (disk *YottaDisk) flushMetaAndHashRegion() error {
 	writer.Seek((int64)(disk.meta.RangeOffset), io.SeekStart)
 	// write range hashmap len array
 	for i := (uint32)(0); i < disk.meta.RangeCaps; i++ {
-		err = binary.Write(writer, binary.LittleEndian, disk.index.sizes[i])
+		_, err := writer.Write([]byte{byte(disk.index.sizes[i] & 0xFF), byte((disk.index.sizes[i] >> 8) & 0xFF)})
 		if err != nil {
 			return err
 		}
@@ -304,9 +304,14 @@ func buildYottaDisk(header *ydcommon.Header, storage storage.Storage, opt *opt.O
 		return nil, err
 	}
 	reader.Seek((int64)(header.RangeOffset), io.SeekStart)
-	err = binary.Read(reader, binary.LittleEndian, &index.sizes)
-	if err != nil {
+	indexSizeBuf := make([]byte, header.RangeCaps * uint32(unsafe.Sizeof(index.sizes[0])))
+	n, err := reader.Read(indexSizeBuf)
+	if err != nil || n != len(indexSizeBuf) {
 		return nil, err
+	}
+
+	for i := uint32(0); i < header.RangeCaps; i++ {
+		index.sizes[i] = (uint16(indexSizeBuf[(i << 1) + 1]) << 8) | uint16(indexSizeBuf[i << 1])
 	}
 
 	yd := &YottaDisk{
