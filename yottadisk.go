@@ -313,6 +313,7 @@ func buildYottaDisk(header *ydcommon.Header, storage storage.Storage, opt *opt.O
 	for i := uint32(0); i < header.RangeCaps; i++ {
 		index.sizes[i] = (uint16(indexSizeBuf[(i << 1) + 1]) << 8) | uint16(indexSizeBuf[i << 1])
 	}
+	index.total = header.DataCount
 
 	yd := &YottaDisk{
 		opt,
