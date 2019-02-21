@@ -92,65 +92,17 @@ func (disk *YottaDisk) readData(dataIndex ydcommon.IndexTableValue) ([]byte, err
 }
 
 func (disk *YottaDisk) writeData(idx uint32, key ydcommon.IndexTableKey, dataOffsetIndex ydcommon.IndexTableValue, buf []byte) error {
-	locker, _ := disk.store.Lock()
-	defer locker.Unlock()
-
-	// Step 1. write back total count
-	writer, err := disk.store.Writer()
 	dataCount := (uint32)(dataOffsetIndex) + 1
 	// if disk.config.MetaSyncPeriod == 0 then check (dataCount & 0xFFFFFFFF) which always non-0
 	// else check (dataCount & 0x000000FF) which happens in fixed period [here takes 256 as a example]
 	if (dataCount & (disk.config.MetaSyncPeriod - 1)) == 0 {
-		// TODO: if not writeMetaSync, we need to write meta maybe in a fixed period.
-		dataCountBuf := []byte{}
-		dcBuf := bytes.NewBuffer(dataCountBuf)
-		err = binary.Write(dcBuf, binary.LittleEndian, dataCount)
-		if err != nil {
-			return err
-		}
-
-		// Update data count.
-		writer.Seek((int64)(unsafe.Offsetof(disk.meta.DataCount)), io.SeekStart)
-		_, err = writer.Write(dcBuf.Bytes())
-		if err != nil {
-			return err
-		}
-
-		// Step 2. write RangeLen table
-		rowCountBlock := []byte{}
-		rcBuf := bytes.NewBuffer(rowCountBlock)
-		rowCount := disk.index.sizes[idx]
-		err = binary.Write(rcBuf, binary.LittleEndian, rowCount)
-		if err != nil {
-			return err
-		}
-
-		// Update RangeTable sizes
-		writer.Seek((int64)(disk.meta.RangeOffset+(uint32)(idx*2)), io.SeekStart)
-		_, err = writer.Write(rcBuf.Bytes())
-		if err != nil {
-			return err
-		}
-
-		// Step 3. Update in range HashIndexTable
-		row := ydcommon.IndexItem{
-			Hash:      (ydcommon.IndexTableKey)(key),
-			OffsetIdx: (ydcommon.IndexTableValue)(dataOffsetIndex),
-		}
-		rowInfoBlock := make([]byte, 0, unsafe.Sizeof(row))
-		riBuf := bytes.NewBuffer(rowInfoBlock)
-		err = binary.Write(riBuf, binary.LittleEndian, row)
-		if err != nil {
-			return err
-		}
-		rowSize := (uint64)(unsafe.Sizeof(row))
-		rowIdx := rowCount - 1
-		writer.Seek((int64)(disk.meta.HashOffset+(uint64)(idx)*rowSize*(uint64)(disk.meta.RangeCoverage)+rowSize*(uint64)(rowIdx)), io.SeekStart)
-		_, err = writer.Write(riBuf.Bytes())
-		if err != nil {
-			return err
-		}
+		disk.flushMetaAndHashRegion()
 	}
+
+	locker, _ := disk.store.Lock()
+	defer locker.Unlock()
+	writer, err := disk.store.Writer()
+
 	// Step 4. Write Data
 	ydcommon.YottaAssert(len(buf) <= (int)(disk.meta.DataBlockSize))
 	dataBlock := make([]byte, disk.meta.DataBlockSize, disk.meta.DataBlockSize)
