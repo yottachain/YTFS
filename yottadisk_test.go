@@ -151,6 +151,66 @@ func stressRead(yd *YottaDisk) error {
 	return nil
 }
 
+func Test2YottaDiskPutAndAnotherYottaDiskRead(t *testing.T) {
+	config := opt.DefaultOptions()
+	// defer os.Remove(config.StorageName)
+
+	yd1, err := OpenYottaDisk(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type KeyValuePair struct{
+		hash types.IndexTableKey
+		buf []byte
+	}
+
+	meta := yd1.Meta()
+	dataCaps := (uint64)(meta.RangeCaps) * (uint64)(meta.RangeCoverage)
+	fmt.Printf("Starting insert %d data blocks\n", dataCaps)
+	for i := (uint64)(0); i < dataCaps/2; i++ {
+		testHash := (types.IndexTableKey)(common.HexToHash(fmt.Sprintf("%032X", i)))
+		err := yd1.Put(testHash, testHash[:])
+		if err != nil {
+			panic(err)
+		}
+	}
+	yd1.Close()
+
+	yd2, err := OpenYottaDisk(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := (uint64)(0); i < dataCaps/2; i++ {
+		testHash := (types.IndexTableKey)(common.HexToHash(fmt.Sprintf("%032X", i + dataCaps/2)))
+		err := yd2.Put(testHash, testHash[:])
+		if err != nil {
+			panic(err)
+		}
+	}
+	yd2.Close()
+
+	yd3, err := OpenYottaDisk(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer yd3.Close()
+	fmt.Printf("Starting validata %d data blocks\n", dataCaps)
+	for i := (uint64)(0); i < dataCaps; i++ {
+		testHash := (types.IndexTableKey)(common.HexToHash(fmt.Sprintf("%032X", i)))
+		buf, err := yd3.Get(testHash)
+		if err != nil {
+			panic(fmt.Sprintf("Error: %v in %d check", err, i))
+		}
+
+		if bytes.Compare(buf[:len(testHash)], testHash[:]) != 0 {
+			panic(fmt.Sprintf("Fatal: %d test fail, want:\n%x\n, get:\n%x\n", i, testHash, buf[:len(testHash)]))
+		}
+	}
+
+	fmt.Println(yd3)
+}
+
 func stressWrite(yd *YottaDisk) error {
 	type KeyValuePair struct {
 		hash common.Hash
