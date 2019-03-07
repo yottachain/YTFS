@@ -236,9 +236,29 @@ func hybridTestReadAfterWrite(yd *yottadisk.YottaDisk) error {
 	fmt.Printf("Starting hybrid test on %d data blocks\n", dataCaps)
 	wg := sync.WaitGroup{}
 	done := make(chan interface{})
+	exit := make(chan interface{})
+	count := 0
+	parallel := 0
+	go func() {
+		for {
+			select {
+			case <- done:
+				count++
+				parallel--
+				printProgress((uint64)(count), dataCaps)
+			case <- exit:
+				return
+			}
+		}
+	}()
+
 	r := rand.New(rand.NewSource(time.Now().Unix()))
 	for _, i := range r.Perm((int)(dataCaps)) {
 		wg.Add(1)
+		if parallel >= 2000 {
+			time.Sleep(100*time.Millisecond)
+		}
+		parallel++
 		go func(id uint64) {
 			testHash := common.HexToHash(fmt.Sprintf("%032X", id))
 			err := yd.Put((ydcommon.IndexTableKey)(testHash), testHash[:])
@@ -258,20 +278,6 @@ func hybridTestReadAfterWrite(yd *yottadisk.YottaDisk) error {
 			wg.Done()
 		}((uint64)(i))
 	}
-
-	count := 0
-	exit := make(chan interface{})
-	go func() {
-		for {
-			select {
-			case <- done:
-				count++
-				printProgress((uint64)(count), dataCaps)
-			case <- exit:
-				return
-			}
-		}
-	}()
 
 	wg.Wait()
 	exit <- struct{}{}
