@@ -5,18 +5,18 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"runtime/pprof"
 	"math/rand"
 	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/yottachain/YTFS/opt"
 	ytfs "github.com/yottachain/YTFS"
 	ydcommon "github.com/yottachain/YTFS/common"
+	"github.com/yottachain/YTFS/opt"
 )
 
 var (
@@ -88,7 +88,7 @@ func main() {
 			err = stressRead(ytfs)
 		case "write":
 			err = stressWrite(ytfs)
-		case "report" :
+		case "report":
 			err = reportInfo(ytfs)
 		default:
 			err = simpleTest(ytfs)
@@ -170,7 +170,7 @@ func stressWrite(ytfs *ytfs.YTFS) error {
 	fmt.Printf("Starting insert %d data blocks\n", dataCaps)
 
 	for i := (uint64)(0); i < dataCaps; i++ {
-		printProgress(i, dataCaps - 1)
+		printProgress(i, dataCaps-1)
 		testHash := common.HexToHash(fmt.Sprintf("%032X", i))
 		dataPair := KeyValuePair{
 			hash: testHash,
@@ -197,7 +197,7 @@ func stressRead(ytfs *ytfs.YTFS) error {
 
 	r := rand.New(rand.NewSource(time.Now().Unix()))
 	for seq, i := range r.Perm((int)(dataCaps)) {
-		printProgress((uint64)(seq), dataCaps - 1)
+		printProgress((uint64)(seq), dataCaps-1)
 		testHash := common.HexToHash(fmt.Sprintf("%032X", i))
 		buf, err := ytfs.Get((ydcommon.IndexTableKey)(testHash))
 		if err != nil {
@@ -250,10 +250,10 @@ func hybridTestReadAfterWrite(ytfs *ytfs.YTFS) error {
 	go func() {
 		for {
 			select {
-			case <- done:
+			case <-done:
 				count++
 				printProgress((uint64)(count), dataCaps)
-			case <- exit:
+			case <-exit:
 				return
 			}
 		}
@@ -282,7 +282,7 @@ func hybridTestReadAfterWrite(ytfs *ytfs.YTFS) error {
 			}
 			done <- struct{}{}
 			sema <- struct{}{}
-			defer func(){<- sema}()
+			defer func() { <-sema }()
 			wg.Done()
 		}((uint64)(i))
 	}

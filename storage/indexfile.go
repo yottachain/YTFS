@@ -15,26 +15,26 @@ import (
 
 	"github.com/yottachain/YTFS/cache"
 	ydcommon "github.com/yottachain/YTFS/common"
-	"github.com/yottachain/YTFS/opt"
 	"github.com/yottachain/YTFS/errors"
+	"github.com/yottachain/YTFS/opt"
 )
 
 const (
 	unInitializedCount = 0
-	debugPrint = false
+	debugPrint         = false
 )
 
 type rangeTableInfo struct {
-	sizes	[]uint32		// data len of each table.
+	sizes []uint32 // data len of each table.
 }
 
 // YTFSIndexFile main struct of YTFS index
 // it defines the read/write logic of index file structure.
 type YTFSIndexFile struct {
-	meta   *ydcommon.Header
-	index  rangeTableInfo
-	store  Storage
-	cm     *cache.Manager
+	meta  *ydcommon.Header
+	index rangeTableInfo
+	store Storage
+	cm    *cache.Manager
 	sync.Mutex
 }
 
@@ -77,7 +77,7 @@ func (disk *YTFSIndexFile) Format() error {
 }
 
 func (disk *YTFSIndexFile) getTableEntryIndex(key ydcommon.IndexTableKey) uint32 {
-	msb := (uint32)(big.NewInt(0).SetBytes(key[common.HashLength - 4:]).Uint64())
+	msb := (uint32)(big.NewInt(0).SetBytes(key[common.HashLength-4:]).Uint64())
 	return msb & (disk.meta.RangeCaps - 1)
 }
 
@@ -104,19 +104,19 @@ func (disk *YTFSIndexFile) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableV
 func (disk *YTFSIndexFile) loadTableFromStorage(tbIndex uint32) (map[ydcommon.IndexTableKey]ydcommon.IndexTableValue, error) {
 	reader, _ := disk.store.Reader()
 	itemSize := uint32(unsafe.Sizeof(ydcommon.IndexTableKey{}) + unsafe.Sizeof(ydcommon.IndexTableValue(0)))
-	tableAllocationSize := disk.meta.RangeCoverage * itemSize + 4
-	reader.Seek((int64)(disk.meta.HashOffset + tbIndex * tableAllocationSize), io.SeekStart)
-	
+	tableAllocationSize := disk.meta.RangeCoverage*itemSize + 4
+	reader.Seek((int64)(disk.meta.HashOffset+tbIndex*tableAllocationSize), io.SeekStart)
+
 	// read len of table
 	sizeBuf := make([]byte, 4)
 	reader.Read(sizeBuf)
 	tableSize := binary.LittleEndian.Uint32(sizeBuf)
 	if debugPrint {
-		fmt.Println("read table size :=", sizeBuf, "from", disk.meta.HashOffset + tbIndex * tableAllocationSize)
+		fmt.Println("read table size :=", sizeBuf, "from", disk.meta.HashOffset+tbIndex*tableAllocationSize)
 	}
 
 	// read table contents
-	tableBuf := make([]byte, tableSize * itemSize, tableSize * itemSize)
+	tableBuf := make([]byte, tableSize*itemSize, tableSize*itemSize)
 	_, err := reader.Read(tableBuf)
 	if err != nil {
 		return nil, err
@@ -124,8 +124,8 @@ func (disk *YTFSIndexFile) loadTableFromStorage(tbIndex uint32) (map[ydcommon.In
 
 	table := map[ydcommon.IndexTableKey]ydcommon.IndexTableValue{}
 	for i := uint32(0); i < tableSize; i++ {
-		key := common.BytesToHash(tableBuf[i * itemSize : i * itemSize + 32])
-		value := binary.LittleEndian.Uint32(tableBuf[i*itemSize + 32 : i*itemSize + 36][:])
+		key := common.BytesToHash(tableBuf[i*itemSize : i*itemSize+32])
+		value := binary.LittleEndian.Uint32(tableBuf[i*itemSize+32 : i*itemSize+36][:])
 		table[ydcommon.IndexTableKey(key)] = ydcommon.IndexTableValue(value)
 	}
 
@@ -135,11 +135,11 @@ func (disk *YTFSIndexFile) loadTableFromStorage(tbIndex uint32) (map[ydcommon.In
 func (disk *YTFSIndexFile) clearTableFromStorage() error {
 	writer, _ := disk.store.Writer()
 	itemSize := uint32(unsafe.Sizeof(ydcommon.IndexTableKey{}) + unsafe.Sizeof(ydcommon.IndexTableValue(0)))
-	tableAllocationSize := disk.meta.RangeCoverage * itemSize + 4
+	tableAllocationSize := disk.meta.RangeCoverage*itemSize + 4
 	valueBuf := make([]byte, 4)
 
 	for tbIndex := uint32(0); tbIndex < disk.meta.RangeCaps; tbIndex++ {
-		writer.Seek((int64)(disk.meta.HashOffset + tbIndex * tableAllocationSize), io.SeekStart)
+		writer.Seek((int64)(disk.meta.HashOffset+tbIndex*tableAllocationSize), io.SeekStart)
 		tableSize := 0
 		binary.LittleEndian.PutUint32(valueBuf, uint32(tableSize))
 		_, err := writer.Write(valueBuf)
@@ -168,8 +168,8 @@ func (disk *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.IndexT
 	// write cnt
 	writer, _ := disk.store.Writer()
 	itemSize := uint32(unsafe.Sizeof(ydcommon.IndexTableKey{}) + unsafe.Sizeof(ydcommon.IndexTableValue(0)))
-	tableAllocationSize := disk.meta.RangeCoverage * itemSize + 4
-	tableBeginPos := (int64)(disk.meta.HashOffset + idx * tableAllocationSize)
+	tableAllocationSize := disk.meta.RangeCoverage*itemSize + 4
+	tableBeginPos := (int64)(disk.meta.HashOffset + idx*tableAllocationSize)
 
 	valueBuf := make([]byte, 4)
 	writer.Seek(tableBeginPos, io.SeekStart)
@@ -181,7 +181,7 @@ func (disk *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.IndexT
 	}
 
 	// write new item
-	tableItemPos := tableBeginPos + 4 + int64(len(table)) * int64(itemSize)
+	tableItemPos := tableBeginPos + 4 + int64(len(table))*int64(itemSize)
 	writer.Seek(tableItemPos, io.SeekStart)
 	_, err = writer.Write(key[:])
 	if err != nil {
@@ -226,7 +226,7 @@ func OpenYTFSIndexFile(path string, yottaConfig *opt.Options) (*YTFSIndexFile, e
 
 	yd := &YTFSIndexFile{
 		header,
-		rangeTableInfo{sizes : make([]uint32, header.RangeCaps, header.RangeCaps)},
+		rangeTableInfo{sizes: make([]uint32, header.RangeCaps, header.RangeCaps)},
 		storage,
 		nil,
 		sync.Mutex{},
@@ -252,17 +252,17 @@ func initializeIndexStorage(store Storage, config *opt.Options) (*ydcommon.Heade
 
 	// write header.
 	header := ydcommon.Header{
-		Tag            : [4]byte{'Y', 'T', 'F', 'S'},
-		Version        : [4]byte{'0', '.', '0', '3'},
-		YtfsCapability : t,
-		YtfsSize       : ytfsSize,
-		DataBlockSize  : d,
-		RangeCaps      : n,
-		RangeCoverage  : m,
-		HashOffset     : h,
-		DataCount      : 0,
-		ResolveOffset  : 0,
-		Reserved       : 0xCDCDCDCDCDCDCDCD,
+		Tag:            [4]byte{'Y', 'T', 'F', 'S'},
+		Version:        [4]byte{'0', '.', '0', '3'},
+		YtfsCapability: t,
+		YtfsSize:       ytfsSize,
+		DataBlockSize:  d,
+		RangeCaps:      n,
+		RangeCoverage:  m,
+		HashOffset:     h,
+		DataCount:      0,
+		ResolveOffset:  0,
+		Reserved:       0xCDCDCDCDCDCDCDCD,
 	}
 
 	writer.Seek(0, io.SeekStart)
@@ -287,7 +287,7 @@ func initializeIndexStorage(store Storage, config *opt.Options) (*ydcommon.Heade
 	// +---+----------+
 	// | TAG: eofPos  |
 	// +---+----------+
-	eofPos := int64(m * 36 + 4) * int64(n + 1)  + int64(h)
+	eofPos := int64(m*36+4)*int64(n+1) + int64(h)
 	writer.Seek(eofPos, io.SeekStart)
 	err = binary.Write(writer, binary.LittleEndian, &eofPos)
 	if err != nil {
@@ -299,13 +299,13 @@ func initializeIndexStorage(store Storage, config *opt.Options) (*ydcommon.Heade
 
 func openIndexStorage(path string, opt *opt.Options) (Storage, error) {
 	fileStorage := FileStorage{
-		readOnly:	opt.ReadOnly,
-		mu:			sync.RWMutex{},
-		fd:			&FileDesc{
-						Type:	ydcommon.DummyStorageType,
-						Caps:	0,
-						Path:	path,
-					},
+		readOnly: opt.ReadOnly,
+		mu:       sync.RWMutex{},
+		fd: &FileDesc{
+			Type: ydcommon.DummyStorageType,
+			Caps: 0,
+			Path: path,
+		},
 	}
 
 	writer, err := fileStorage.Create(*fileStorage.fd)
@@ -353,4 +353,3 @@ func readIndexHeader(store Storage) (*ydcommon.Header, error) {
 
 	return &header, nil
 }
-

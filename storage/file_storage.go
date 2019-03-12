@@ -5,17 +5,17 @@ import (
 	"sync"
 
 	types "github.com/yottachain/YTFS/common"
-	"github.com/yottachain/YTFS/opt"
 	"github.com/yottachain/YTFS/errors"
+	"github.com/yottachain/YTFS/opt"
 )
 
 // FileStorage is a file-system backed storage.
 type FileStorage struct {
-	readOnly	bool
-	mu			sync.RWMutex
-	fd			*FileDesc
-	reader		Reader
-	writer		Writer
+	readOnly bool
+	mu       sync.RWMutex
+	fd       *FileDesc
+	reader   Reader
+	writer   Writer
 }
 
 // OpenFileStorage returns a new filesystem-backed storage implementation with the given
@@ -25,13 +25,13 @@ type FileStorage struct {
 // The storage must be closed after use, by calling Close method.
 func OpenFileStorage(opt *opt.StorageOptions) (Storage, error) {
 	fileStorage := FileStorage{
-		readOnly:	opt.ReadOnly,
-		mu:			sync.RWMutex{},
-		fd:			&FileDesc{
-						Type:	types.DummyStorageType,
-						Caps:	0,
-						Path:	opt.StorageName,
-					},
+		readOnly: opt.ReadOnly,
+		mu:       sync.RWMutex{},
+		fd: &FileDesc{
+			Type: types.DummyStorageType,
+			Caps: 0,
+			Path: opt.StorageName,
+		},
 	}
 
 	writer, err := fileStorage.Create(*fileStorage.fd)
@@ -121,9 +121,9 @@ func (file *FileStorage) Open(fd FileDesc) (Reader, error) {
 // exist and opens write-only.
 // Returns ErrClosed if the underlying storage is closed.
 func (file *FileStorage) Create(fd FileDesc) (Writer, error) {
-	fp, err := os.OpenFile(fd.Path, os.O_CREATE | os.O_RDWR, 0644)
-    if err != nil {
-       return nil, err
+	fp, err := os.OpenFile(fd.Path, os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		return nil, err
 	}
 	return fp, nil
 }

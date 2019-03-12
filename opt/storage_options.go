@@ -17,12 +17,12 @@ var (
 
 // StorageOptions sets options of YTFS storage
 type StorageOptions struct {
-	StorageName    string            `json:"storage"`
-	StorageType    ytfs.StorageType  `json:"type"`
-	ReadOnly       bool              `json:"readonly"`
-	Sync           bool              `json:"writesync"`
-	StorageVolume  uint64            `json:"storageSize"`
-	DataBlockSize  uint32            `json:"dataBlockSize"`
+	StorageName   string           `json:"storage"`
+	StorageType   ytfs.StorageType `json:"type"`
+	ReadOnly      bool             `json:"readonly"`
+	Sync          bool             `json:"writesync"`
+	StorageVolume uint64           `json:"storageSize"`
+	DataBlockSize uint32           `json:"dataBlockSize"`
 }
 
 // Equal compares 2 StorageOptions to tell if it is equal
@@ -38,12 +38,12 @@ func DefaultStorageOptions() *StorageOptions {
 	}
 
 	config := &StorageOptions{
-		StorageName:    tmpFile.Name(),
-		StorageType:    ytfs.FileStorageType,
-		ReadOnly:       false,
-		Sync:           true,
-		StorageVolume:  1 << 20, // 1M for default
-		DataBlockSize:  32,      // Just save HashLen for test.
+		StorageName:   tmpFile.Name(),
+		StorageType:   ytfs.FileStorageType,
+		ReadOnly:      false,
+		Sync:          true,
+		StorageVolume: 1 << 20, // 1M for default
+		DataBlockSize: 32,      // Just save HashLen for test.
 	}
 
 	return config

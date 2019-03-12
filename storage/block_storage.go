@@ -6,17 +6,17 @@ import (
 	// "syscall"
 
 	types "github.com/yottachain/YTFS/common"
-	"github.com/yottachain/YTFS/opt"
 	"github.com/yottachain/YTFS/errors"
+	"github.com/yottachain/YTFS/opt"
 )
 
 // BlockStorage is a file-system backed storage.
 type BlockStorage struct {
-	readOnly	bool
-	mu			sync.RWMutex
-	fd			*FileDesc
-	reader		Reader
-	writer		Writer
+	readOnly bool
+	mu       sync.RWMutex
+	fd       *FileDesc
+	reader   Reader
+	writer   Writer
 }
 
 // OpenblkStorage returns a new filesystem-backed storage implementation with the given
@@ -26,13 +26,13 @@ type BlockStorage struct {
 // The storage must be closed after use, by calling Close method.
 func OpenBlockStorage(path string, opt *opt.StorageOptions) (Storage, error) {
 	blkStorage := BlockStorage{
-		readOnly:	opt.ReadOnly,
-		mu:			sync.RWMutex{},
-		fd:			&FileDesc{
-						Type:	types.BlockStorageType,
-						Caps:	0,
-						Path:	path,
-					},
+		readOnly: opt.ReadOnly,
+		mu:       sync.RWMutex{},
+		fd: &FileDesc{
+			Type: types.BlockStorageType,
+			Caps: 0,
+			Path: path,
+		},
 	}
 
 	reader, err := blkStorage.Open(*blkStorage.fd)
@@ -105,7 +105,7 @@ func (file *BlockStorage) Open(fd FileDesc) (Reader, error) {
 	}
 
 	// fp, err :=  syscall.Open(fd.Path, syscall.O_RDONLY, 0777)
-	fp, err :=  os.Open(fd.Path)
+	fp, err := os.Open(fd.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -118,8 +118,8 @@ func (file *BlockStorage) Open(fd FileDesc) (Reader, error) {
 // Returns ErrClosed if the underlying storage is closed.
 func (file *BlockStorage) Create(fd FileDesc) (Writer, error) {
 	fp, err := os.OpenFile(fd.Path, os.O_RDWR, 0644)
-    if err != nil {
-       return nil, err
+	if err != nil {
+		return nil, err
 	}
 	return fp, nil
 }

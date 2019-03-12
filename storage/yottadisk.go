@@ -12,10 +12,9 @@ import (
 	// "github.com/ethereum/go-ethereum/common"
 
 	ydcommon "github.com/yottachain/YTFS/common"
-	"github.com/yottachain/YTFS/opt"
 	"github.com/yottachain/YTFS/errors"
+	"github.com/yottachain/YTFS/opt"
 )
-
 
 // YottaDisk main entry of YTFS storage
 type YottaDisk struct {
@@ -83,7 +82,7 @@ func (disk *YottaDisk) ReadData(dataIndex ydcommon.IndexTableValue) ([]byte, err
 
 // WriteData writes data to low level storage
 func (disk *YottaDisk) WriteData(dataOffsetIndex ydcommon.IndexTableValue, data []byte) error {
-	if (uint32(dataOffsetIndex) >= disk.meta.DataCaps) {
+	if uint32(dataOffsetIndex) >= disk.meta.DataCaps {
 		return errors.ErrDataOverflow
 	}
 
@@ -211,4 +210,3 @@ func readHeader(store Storage) (*ydcommon.StorageHeader, error) {
 
 	return &header, nil
 }
-

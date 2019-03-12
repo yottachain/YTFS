@@ -6,7 +6,7 @@ import (
 )
 
 func TestCacheManager(t *testing.T) {
-	cm, err := NewCacheManager(32, 32*1024, func(key, value interface{}){
+	cm, err := NewCacheManager(32, 32*1024, func(key, value interface{}) {
 		fmt.Println("Remove", key, value)
 	})
 	if err != nil {

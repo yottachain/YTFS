@@ -1,8 +1,9 @@
 package storage
+
 import (
-	"reflect"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"testing"
 
 	types "github.com/yottachain/YTFS/common"
@@ -20,10 +21,10 @@ func testOptions() *opt.StorageOptions {
 	}
 
 	return &opt.StorageOptions{
-		StorageName: tmpfile.Name(),
-		StorageType: types.FileStorageType,
-		ReadOnly: false,
-		Sync: true,
+		StorageName:   tmpfile.Name(),
+		StorageType:   types.FileStorageType,
+		ReadOnly:      false,
+		Sync:          true,
 		StorageVolume: 1 << 20, // 1m
 		DataBlockSize: 1 << 15, // 32k
 	}
@@ -76,5 +77,3 @@ func TestValidateYottaDiskWithFileStorage(t *testing.T) {
 		t.Fatal()
 	}
 }
-
-

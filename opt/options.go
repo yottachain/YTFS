@@ -18,28 +18,28 @@ import (
 // common size limitations
 const (
 	// MaxDiskCapability = 1 << 47 // 128T
-	MaxRangeCoverage  = math.MaxInt32 // 2G
-	MaxRangeNumber    = math.MaxInt32 // 2G
+	MaxRangeCoverage = math.MaxInt32 // 2G
+	MaxRangeNumber   = math.MaxInt32 // 2G
 )
 
 // config errors
 var (
-	ErrConfigC          = errors.New("yotta config: config.C should in range [sum(Ti), MaxDiskCapability]")
-	ErrConfigN          = errors.New("yotta config: config.N should be power of 2 and less than MAX_RANGE")
-	ErrConfigD          = errors.New("yotta config: config.D should be consistent with YTFS")
-	ErrConfigM          = errors.New("yotta config: config.M setting is incorrect")
+	ErrConfigC = errors.New("yotta config: config.C should in range [sum(Ti), MaxDiskCapability]")
+	ErrConfigN = errors.New("yotta config: config.N should be power of 2 and less than MAX_RANGE")
+	ErrConfigD = errors.New("yotta config: config.D should be consistent with YTFS")
+	ErrConfigM = errors.New("yotta config: config.M setting is incorrect")
 )
 
 // Options Config options
 type Options struct {
-	YTFSTag        string            `json:"ytfs"`
-	Storages       []StorageOptions  `json:"storages"`
-	ReadOnly       bool              `json:"readonly"`
-	CacheSize      uint64            `json:"cache"`
-	IndexTableCols uint32            `json:"M"`
-	IndexTableRows uint32            `json:"N"`
-	DataBlockSize  uint32            `json:"D"`
-	TotalVolumn    uint64            `json:"C"`
+	YTFSTag        string           `json:"ytfs"`
+	Storages       []StorageOptions `json:"storages"`
+	ReadOnly       bool             `json:"readonly"`
+	CacheSize      uint64           `json:"cache"`
+	IndexTableCols uint32           `json:"M"`
+	IndexTableRows uint32           `json:"N"`
+	DataBlockSize  uint32           `json:"D"`
+	TotalVolumn    uint64           `json:"C"`
 }
 
 // Equal compares 2 Options to tell if it is equal
@@ -73,8 +73,8 @@ func DefaultOptions() *Options {
 	}
 
 	config := &Options{
-		YTFSTag:        "ytfs default setting",
-		Storages:       []StorageOptions{
+		YTFSTag: "ytfs default setting",
+		Storages: []StorageOptions{
 			{
 				StorageName:   tmpFile1.Name(),
 				StorageType:   ytfs.FileStorageType,
@@ -93,11 +93,11 @@ func DefaultOptions() *Options {
 			},
 		},
 		ReadOnly:       false,
-		CacheSize:      0,   // Size cache in byte. Can be 0 which means only 1 L1(Range) table entry will be kepted.
+		CacheSize:      0, // Size cache in byte. Can be 0 which means only 1 L1(Range) table entry will be kepted.
 		IndexTableCols: 0,
 		IndexTableRows: 1 << 13,
 		DataBlockSize:  1 << 15, // Just save HashLen for test.
-		TotalVolumn:	2 << 30, // 1G
+		TotalVolumn:    2 << 30, // 1G
 	}
 
 	newConfig, err := FinalizeConfig(config)
@@ -172,7 +172,7 @@ func FinalizeConfig(config *Options) (*Options, error) {
 	// --------+-------------------+-----------------------------+------------+----------------+
 	// [Header]|[ RangeTableSizes ]|[         HashTable         ]|[    Data  ]|[     BitMap    ]
 	// --------+-------------------+-----------------------------+------------+----------------+
-	// h       + rangeLenSize * n  + indexTableEntrySize* n * m  + n * d * m  + (m * n + 7)/ 8 
+	// h       + rangeLenSize * n  + indexTableEntrySize* n * m  + n * d * m  + (m * n + 7)/ 8
 	// --------+-------------------+-----------------------------+------------+----------------+
 	m = c / (n * d)
 	if m < 4 || m >= MaxRangeCoverage {

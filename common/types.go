@@ -12,7 +12,7 @@ type StorageType int
 
 const (
 	// FileStorageType File storage type
-	FileStorageType	StorageType = iota
+	FileStorageType StorageType = iota
 	// BlockStorageType Disk storage type
 	BlockStorageType
 	// DummyStorageType Dummy storage type
@@ -23,12 +23,12 @@ type IndexTableKey common.Hash
 type IndexTableValue uint32
 type IndexTable map[IndexTableKey]IndexTableValue
 type IndexItem struct {
-	Hash		IndexTableKey
-	OffsetIdx	IndexTableValue
+	Hash      IndexTableKey
+	OffsetIdx IndexTableValue
 }
 
 func IsPowerOfTwo(x uint64) bool {
-    return (x != 0) && ((x & (x - 1)) == 0);
+	return (x != 0) && ((x & (x - 1)) == 0)
 }
 
 func YottaAssert(condition bool) {

@@ -11,7 +11,7 @@ var (
 	ErrDataNotFound     = errors.New("YTFS: data not found")
 	ErrDataOverflow     = errors.New("YTFS: overflow happens, all data disk full")
 	ErrConfigCache      = errors.New("YTFS: Cache size config error")
-	ErrStorageSize		= errors.New("YTFS: storage size does not meet settings")
+	ErrStorageSize      = errors.New("YTFS: storage size does not meet settings")
 	ErrContextIDMapping = errors.New("YTFS: context mapping global id to device failed")
 	ErrConflict         = errors.New("YTFS: conflict hash value")
 	ErrRangeFull        = errors.New("YTFS: Range is full")
