@@ -35,7 +35,6 @@ type Options struct {
 	YTFSTag        string           `json:"ytfs"`
 	Storages       []StorageOptions `json:"storages"`
 	ReadOnly       bool             `json:"readonly"`
-	CacheSize      uint64           `json:"cache"`
 	IndexTableCols uint32           `json:"M"`
 	IndexTableRows uint32           `json:"N"`
 	DataBlockSize  uint32           `json:"D"`
@@ -44,7 +43,7 @@ type Options struct {
 
 // Equal compares 2 Options to tell if it is equal
 func (opt *Options) Equal(other *Options) bool {
-	bEqual := opt.YTFSTag == other.YTFSTag && opt.CacheSize == other.CacheSize && opt.IndexTableCols == other.IndexTableCols &&
+	bEqual := opt.YTFSTag == other.YTFSTag && opt.IndexTableCols == other.IndexTableCols &&
 		opt.IndexTableRows == other.IndexTableRows && opt.DataBlockSize == other.DataBlockSize && opt.TotalVolumn == other.TotalVolumn
 
 	if bEqual {
@@ -93,7 +92,6 @@ func DefaultOptions() *Options {
 			},
 		},
 		ReadOnly:       false,
-		CacheSize:      0, // Size cache in byte. Can be 0 which means only 1 L1(Range) table entry will be kepted.
 		IndexTableCols: 0,
 		IndexTableRows: 1 << 13,
 		DataBlockSize:  1 << 15, // Just save HashLen for test.
