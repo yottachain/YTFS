@@ -1,26 +1,35 @@
-# YTFS
+# Yotta Disk
 
 A data block save/load lib based on key-value styled db APIs.
 
 ## Getting Started
 
 ### Prerequisites
-YTFS is developped by Golang, so install golang developping environment first.
-Also, YTFS has 2 external dependencies. a simple golang-lru and ethereum.
-Install these 2 before using YTFS
+YottaDisk is developped by Golang, so install golang developping environment first.
+Also, YottaDisk has 2 external dependencies. a simple golang-lru and ethereum.
+Install these 2 before using YottaDisk
 ```
 go get github.com/hashicorp/golang-lru
 go get github.com/ethereum/go-ethereum
 ```
 
 ### Installing
-Just download YTFS from github, no other process needs to be done.
+Just download from github.com, no other process needs to be done.
 
 ## Running the tests
 There are 2 ways to run the test:
 ### 1. go test
+
+run all test:
+
 ```go
-go test -timeout 300s github.com/yottachain/YTFS -run ^(TestYTFSPutGetWithFileStorage)$ -v -count=1
+go test
+```
+
+or run specific:
+
+```go
+go test -timeout 300s github.com/yotta-disk -run ^(TestNewYTFS)$ -v -count=1
 ```
 ### 2. playground test
 ```go
@@ -33,23 +42,27 @@ Usage of ./playground:
     	cpuprofile
   -format
     	format storage
+  -home string
+    	root directory of YTFS
+  -memprofile string
+    	memprofile
   -test string
-		Testmode: simple(default), stress, hybrid
+    	Testmode: simple, stress, hybrid
 ```
 
 Run playgroud as below:
 
 ```go
-bash$ ./playground --test hybrid --config config-file.json 
+bash$ ./playground --test hybrid --config config-file.json --home /tmp/.ytfs
 ```
 
 If anything goes wrong, e.g.
 
 ```go
 bash$ ./playground --test hybrid --config config-file.json 
-Open YTFS Success @/tmp/yotta-disk-storage.test
+Open YottaDisk Success @/tmp/yotta-disk-storage.test
 Starting hybrid test on 15384 data blocks
-panic: YTFS: Range is full
+panic: yotta-disk: Range is full
 
 goroutine 7 [running]:...
 ```
@@ -58,10 +71,10 @@ Format the storage, then re-execute the command.
 
 ```go
 bash$ ./playground --test hybrid --config config-file.json --format
-Open YTFS Success @/tmp/yotta-disk-storage.test
+Open YottaDisk Success @/tmp/yotta-disk-storage.test
 play completed.
-bash$ ./playground --test hybrid --config config-file.json
-Open YTFS Success @/tmp/yotta-disk-storage.test
+bash$ ./playground --test hybrid --config config-file.json --home /tmp/.ytfs
+Open YottaDisk Success @/tmp/yotta-disk-storage.test
 Starting hybrid test on 130048 data blocks
 [========================================================================] 100%
 play completed.
@@ -69,55 +82,92 @@ play completed.
 
 ## Deployment
 
-First, check storage device, make sure it is available and writable!
-Then update config according to config description.
+First, check your storage device, then, update config according to config description.
 
 ### config description
 
 A sample config file:
 
-```
+```json
 {
-  "storage": "/tmp/testFileStorage",
-  "type": 0,
-  "readonly": false,
-  "writesync": true,
-  "metadatasync": 0,
-  "cache": 0,
-  "M": 0,
-  "N": 8,
-  "T": 1048576,
-  "D": 32
+	"ytfs": "ytfs default setting",
+	"storages": [
+	{
+        "storage": "/tmp/yotta-play-1781595343",
+        "type": 0,
+        "readonly": false,
+        "writesync": false,
+        "storageSize": 1048576,
+        "dataBlockSize": 32768
+	},
+	{
+        "storage": "/tmp/yotta-play-2127581154",
+        "type": 0,
+        "readonly": false,
+        "writesync": false,
+        "storageSize": 1048576,
+        "dataBlockSize": 32768
+	}
+	],
+	"readonly": false,
+	"M": 0,
+	"N": 16384,
+	"D": 32768,
+	"C": 2147483648
 }
 ```
 
-| Name         | Values           | Comments                                                     |
-| ------------ | ---------------- | :----------------------------------------------------------- |
-| storage      | N/A              | Storage file/device name                                     |
-| type         | 0, 1             | 0 for file storage, i.e. a file in disk.<br />1 for dev storage, i.e. a block device. |
-| readonly     | true, false      | If readonly mode, i.e. no append writing.                    |
-| writesync    | true, false      | If data is written synchronizily to file/device.             |
-| metadatasync | [0,INT_MAX]      | A period. YottaDiks updates metadata every ${metadatasync} writings.<br />0 means do NOT sync meta data. |
-| cache        | [0,MemSize]      | LRU cache size which holds available table. <br />Unit in Byte, for example: cache: 1073741824, (1G) |
-| M            | N/A              | How many items one table can hold, it is calculated by a equotion. |
-| N            | [0,32768)        | How many ranges is divided from the whole hash space. <br />The larger the better, and must be power of 2. |
-| T            | (0,DeviceVolumn] | The total writing space of storage.                          |
-| D            | [0,DeviceVolumn) | The data block size, normally it is 32k.                     |
+Config file includes 2 structures, first level is YTFS general config
 
-So, if we want to store a lots of 32k data block to a 16G file, and considering the writing performance, we disable the write sync (leave it to OS), the config looks like below:
+| Name     | Values            | Comments                                                     |
+| -------- | ----------------- | :----------------------------------------------------------- |
+| ytfs     | string            | Storage config name/tag.                                     |
+| storages | array of storages | The stroage options, include all writable devices. [device number<255] |
+| readonly | true, false       | If readonly mode, i.e. no append writing.                    |
+| M        | N/A               | How many items one table can hold, it is calculated by a equotion:$M=\frac{C}{N*D}$<br />YTFS v0.3 expends M with a ratio, e.g. 1.2, to cover un-even distributed Hash key. |
+| N        | [0,MAXUINT32)     | How many ranges is divided from the whole hash space. <br />Must be power of 2. |
+| C        | (0,DeviceVolumn]  | The total writing space of storage. Basically the larger the better as it is the upper limit of YTFS expension. |
+| D        | [0,DeviceVolumn)  | The data block size, normally it is 32k.                     |
 
-```
+The second level is storage device config.
+
+| Name          | Values | Comments                                                     |
+| ------------- | ------ | ------------------------------------------------------------ |
+| storage       | string | Storage device path, e.g. /tmp/ytfs-storage or /dev/sda.     |
+| type          | enum   | Storage type: File, Block device, etc.                       |
+| readonly      | bool   | If storage is read only.                                     |
+| writesync     | bool   | If write device in explicit sync mode.                       |
+| storageSize   | uint64 | Storage device volumn.                                       |
+| dataBlockSize | uint32 | Datablock size, should be consistent with YTFS, normally 32k. |
+
+So, if we want to store a lots of 32k data block to 2 files, 8G and 4G respectively, and considering the expension in future, we set YTFS capacity to 16t. The config file may looks like:
+
+```json
 {
-  "storage": "/tmp/yotta-disk-storage.test",
-  "type": 0,
-  "readonly": false,
-  "writesync": false,
-  "metadatasync": 0,
-  "cache": 0,
-  "M": 0,
-  "N": 1024,
-  "T": 17179869184,
-  "D": 32768
+	"ytfs": "ytfs default setting",
+	"storages": [
+	{
+        "storage": "/tmp/yotta-play-1781595343",
+        "type": 0,
+        "readonly": false,
+        "writesync": false,
+        "storageSize": 8589934592,
+        "dataBlockSize": 32768
+	},
+	{
+        "storage": "/tmp/yotta-play-2127581154",
+        "type": 0,
+        "readonly": false,
+        "writesync": false,
+        "storageSize": 4294967296,
+        "dataBlockSize": 32768
+	}
+	],
+	"readonly": false,
+	"M": 0,
+	"N": 65536,
+	"D": 32768,
+	"C": 17592186044416
 }
 ```
 

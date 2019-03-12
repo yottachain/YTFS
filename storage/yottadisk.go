@@ -156,13 +156,11 @@ func initializeStorage(store Storage, config *opt.StorageOptions) (*ydcommon.Sto
 	}
 
 	t, d, h := config.StorageVolume, (uint64)(config.DataBlockSize), (uint64)(unsafe.Sizeof(ydcommon.Header{}))
-
 	// in case data overflows.
 	ydcommon.YottaAssertMsg(t > h+d, "t should > h + d")
 
 	// write header.
 	dataOffset := uint32(h)
-
 	header := ydcommon.StorageHeader{
 		Tag:           [4]byte{'S', 'T', 'O', 'R'},
 		Version:       [4]byte{0x0, '.', 0x0, 0x1},
