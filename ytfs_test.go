@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	types "github.com/yottachain/YTFS/common"
+	"github.com/yottachain/YTFS/errors"
 	"github.com/yottachain/YTFS/opt"
 )
 
@@ -79,6 +80,46 @@ func TestYTFSBasic(t *testing.T) {
 
 	if bytes.Compare(bufIn, bufOut) != 0 {
 		t.Fatal(fmt.Sprintf("Fatal: test fail, want:\n%x\n, get:\n%x\n", bufIn[:10], bufOut[:10]))
+	}
+}
+
+func TestYTFSRangeOverflow(t *testing.T) {
+	rootDir, err := ioutil.TempDir("/tmp", "ytfsTest")
+	config := opt.DefaultOptions()
+
+	ytfs, err := Open(rootDir, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ytfs.Close()
+
+	dataCaps := uint64(ytfs.Meta().RangeCoverage * 2)
+	fmt.Printf("Starting insert %d data blocks\n", dataCaps)
+	for i := (uint64)(0); i < dataCaps; i++ {
+		testHash := (types.IndexTableKey)(common.HexToHash(fmt.Sprintf("%X0000000", i)))
+		err := ytfs.Put(testHash, testHash[:])
+		if err != nil {
+			panic(fmt.Sprintf("Error: %v in %d insert", err, i))
+		}
+	}
+
+	fmt.Printf("Starting validata %d data blocks\n", dataCaps)
+	for i := (uint64)(0); i < dataCaps; i++ {
+		testHash := (types.IndexTableKey)(common.HexToHash(fmt.Sprintf("%X0000000", i)))
+		buf, err := ytfs.Get(testHash)
+		if err != nil {
+			t.Fatal(fmt.Sprintf("Error: %v in %d check", err, i))
+		}
+
+		if bytes.Compare(buf[:len(testHash)], testHash[:]) != 0 {
+			t.Fatal(fmt.Sprintf("Fatal: %d test fail, want:\n%x\n, get:\n%x\n", i, testHash, buf[:len(testHash)]))
+		}
+	}
+
+	testHash := (types.IndexTableKey)(common.HexToHash(fmt.Sprintf("%X0000000", dataCaps+1)))
+	err = ytfs.Put(testHash, testHash[:])
+	if err != errors.ErrRangeFull {
+		t.Fatal(fmt.Sprintf("Error: unmeet expected error RangeFull, but meet %v", err))
 	}
 }
 

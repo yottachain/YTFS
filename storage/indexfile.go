@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	debugPrint         = opt.DebugPrint
+	debugPrint = opt.DebugPrint
 )
 
 type rangeTableInfo struct {
@@ -97,6 +97,22 @@ func (indexFile *YTFSIndexFile) Get(key ydcommon.IndexTableKey) (ydcommon.IndexT
 		return value, nil
 	}
 
+	// check overflow region if current region is full
+	if uint32(len(table)) == indexFile.meta.RangeCoverage {
+		idx := indexFile.meta.RangeCaps
+		table, err = indexFile.loadTableFromStorage(idx)
+		if err != nil {
+			return 0, err
+		}
+
+		if value, ok := table[key]; ok {
+			if debugPrint {
+				fmt.Println("IndexDB get @overflow table", key, value)
+			}
+			return value, nil
+		}
+	}
+
 	if debugPrint {
 		fmt.Println("IndexDB get", key, "failed, from table", table)
 	}
@@ -158,15 +174,25 @@ func (indexFile *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.I
 	defer locker.Unlock()
 
 	idx := indexFile.getTableEntryIndex(key)
-	rowCount := indexFile.index.sizes[idx]
-	if rowCount >= indexFile.meta.RangeCoverage {
-		return errors.ErrRangeFull
-	}
-
 	table, err := indexFile.loadTableFromStorage(idx)
 	if err != nil {
 		return err
 	}
+
+	rowCount := uint32(len(table))
+	if rowCount >= indexFile.meta.RangeCoverage {
+		// move to overflow region
+		idx = indexFile.meta.RangeCaps
+		table, err = indexFile.loadTableFromStorage(idx)
+		if err != nil {
+			return err
+		}
+		rowCount := uint32(len(table))
+		if rowCount >= indexFile.meta.RangeCoverage {
+			return errors.ErrRangeFull
+		}
+	}
+
 	// write cnt
 	writer, _ := indexFile.store.Writer()
 	itemSize := uint32(unsafe.Sizeof(ydcommon.IndexTableKey{}) + unsafe.Sizeof(ydcommon.IndexTableValue(0)))
@@ -196,6 +222,7 @@ func (indexFile *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.I
 		return err
 	}
 
+	indexFile.index.sizes[idx] = tableSize
 	indexFile.meta.DataCount++
 	binary.LittleEndian.PutUint32(valueBuf, uint32(indexFile.meta.DataCount))
 	header := indexFile.meta
@@ -237,7 +264,7 @@ func OpenYTFSIndexFile(path string, yottaConfig *opt.Options) (*YTFSIndexFile, e
 
 	yd := &YTFSIndexFile{
 		header,
-		rangeTableInfo{sizes: make([]uint32, header.RangeCaps, header.RangeCaps)},
+		rangeTableInfo{sizes: make([]uint32, header.RangeCaps+1, header.RangeCaps+1)}, // +1 for overflow region
 		storage,
 		nil,
 		sync.Mutex{},

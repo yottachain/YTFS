@@ -2,5 +2,5 @@ package opt
 
 // properties for internal use.
 const (
-	DebugPrint bool = false
+	DebugPrint bool = true
 )
