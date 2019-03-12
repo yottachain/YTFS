@@ -163,24 +163,11 @@ func FinalizeConfig(config *Options) (*Options, error) {
 
 	// calc M, N, D
 	c, d, n, m := config.TotalVolumn, (uint64)(config.DataBlockSize), (uint64)(config.IndexTableRows), (uint64)(config.IndexTableCols)
-	// range len array: N size array of uint16, i.e. [uint16, uint16, ...(N)]
-	// rangeLenSize := (uint64)(unsafe.Sizeof((uint16)(0)))
-	// index table item [Hash (32bytes) | OffsetIdx (uint32)]
-	// indexTableEntrySize := (uint64)(unsafe.Sizeof(common.Hash{})) + (uint64)(unsafe.Sizeof((uint32)(0)))
-
-	// Total disk allocation:
-	// --------+-------------------+-----------------------------+------------+----------------+
-	// [Header]|[ RangeTableSizes ]|[         HashTable         ]|[    Data  ]|[     BitMap    ]
-	// --------+-------------------+-----------------------------+------------+----------------+
-	// h       + rangeLenSize * n  + indexTableEntrySize* n * m  + n * d * m  + (m * n + 7)/ 8
-	// --------+-------------------+-----------------------------+------------+----------------+
 	m = c / (n * d)
 	if m < 4 || m >= MaxRangeCoverage {
-		// m can not == MAX_RANGE_COVERAGE because max uint16 is (MAX_RANGE_COVERAGE - 1)
-		// otherwise we shoud keep +1 in mind when calc the index table size, which seems a little bit tricky.
 		return nil, ErrConfigM
 	}
-	config.IndexTableCols = (uint32)(m)
+	config.IndexTableCols = uint32((float32)(m) * expendRatioM)
 
 	if config.IndexTableRows > MaxRangeNumber || !ytfs.IsPowerOfTwo((uint64)(config.IndexTableRows)) {
 		return nil, ErrConfigN

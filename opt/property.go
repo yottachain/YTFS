@@ -2,5 +2,6 @@ package opt
 
 // properties for internal use.
 const (
-	DebugPrint bool = true
+	DebugPrint bool = false
+	expendRatioM float32 = 1.2
 )
