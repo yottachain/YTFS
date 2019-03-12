@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	debugPrint bool = false
+	debugPrint bool = opt.DebugPrint
 )
 
 type storageContext struct {

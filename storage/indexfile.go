@@ -20,8 +20,7 @@ import (
 )
 
 const (
-	unInitializedCount = 0
-	debugPrint         = false
+	debugPrint         = opt.DebugPrint
 )
 
 type rangeTableInfo struct {
@@ -38,24 +37,24 @@ type YTFSIndexFile struct {
 	sync.Mutex
 }
 
-// Stat reports the YTFSIndexFile status.
-func (disk *YTFSIndexFile) MetaData() *ydcommon.Header {
-	return disk.meta
+// MetaData reports the YTFSIndexFile status.
+func (indexFile *YTFSIndexFile) MetaData() *ydcommon.Header {
+	return indexFile.meta
 }
 
 // Stat reports the YTFSIndexFile status.
-func (disk *YTFSIndexFile) Stat() uint32 {
-	return uint32(disk.meta.DataCount)
+func (indexFile *YTFSIndexFile) Stat() uint32 {
+	return uint32(indexFile.meta.DataCount)
 }
 
 // Sync syncs all pending meta and unflushed writes
-func (disk *YTFSIndexFile) Sync() error {
-	locker, _ := disk.store.Lock()
+func (indexFile *YTFSIndexFile) Sync() error {
+	locker, _ := indexFile.store.Lock()
 	defer locker.Unlock()
 
-	writer, err := disk.store.Writer()
+	writer, err := indexFile.store.Writer()
 	writer.Seek(0, io.SeekStart)
-	err = binary.Write(writer, binary.LittleEndian, &disk.meta)
+	err = binary.Write(writer, binary.LittleEndian, &indexFile.meta)
 	if err != nil {
 		return err
 	}
@@ -65,28 +64,28 @@ func (disk *YTFSIndexFile) Sync() error {
 }
 
 // Close closes the YTFSIndexFile.
-func (disk *YTFSIndexFile) Close() error {
-	disk.Sync()
-	disk.store.Close()
+func (indexFile *YTFSIndexFile) Close() error {
+	indexFile.Sync()
+	indexFile.store.Close()
 	return nil
 }
 
 // Format formats the YTFSIndexFile file struct.
-func (disk *YTFSIndexFile) Format() error {
-	return disk.clearTableFromStorage()
+func (indexFile *YTFSIndexFile) Format() error {
+	return indexFile.clearTableFromStorage()
 }
 
-func (disk *YTFSIndexFile) getTableEntryIndex(key ydcommon.IndexTableKey) uint32 {
+func (indexFile *YTFSIndexFile) getTableEntryIndex(key ydcommon.IndexTableKey) uint32 {
 	msb := (uint32)(big.NewInt(0).SetBytes(key[common.HashLength-4:]).Uint64())
-	return msb & (disk.meta.RangeCaps - 1)
+	return msb & (indexFile.meta.RangeCaps - 1)
 }
 
 // Get gets IndexTableValue from index table file
-func (disk *YTFSIndexFile) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error) {
-	disk.Lock()
-	defer disk.Unlock()
-	idx := disk.getTableEntryIndex(key)
-	table, err := disk.loadTableFromStorage(idx)
+func (indexFile *YTFSIndexFile) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error) {
+	locker, _ := indexFile.store.Lock()
+	defer locker.Unlock()
+	idx := indexFile.getTableEntryIndex(key)
+	table, err := indexFile.loadTableFromStorage(idx)
 	if err != nil {
 		return 0, err
 	}
@@ -98,21 +97,24 @@ func (disk *YTFSIndexFile) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableV
 		return value, nil
 	}
 
+	if debugPrint {
+		fmt.Println("IndexDB get", key, "failed, from table", table)
+	}
 	return 0, errors.ErrDataNotFound
 }
 
-func (disk *YTFSIndexFile) loadTableFromStorage(tbIndex uint32) (map[ydcommon.IndexTableKey]ydcommon.IndexTableValue, error) {
-	reader, _ := disk.store.Reader()
+func (indexFile *YTFSIndexFile) loadTableFromStorage(tbIndex uint32) (map[ydcommon.IndexTableKey]ydcommon.IndexTableValue, error) {
+	reader, _ := indexFile.store.Reader()
 	itemSize := uint32(unsafe.Sizeof(ydcommon.IndexTableKey{}) + unsafe.Sizeof(ydcommon.IndexTableValue(0)))
-	tableAllocationSize := disk.meta.RangeCoverage*itemSize + 4
-	reader.Seek((int64)(disk.meta.HashOffset+tbIndex*tableAllocationSize), io.SeekStart)
+	tableAllocationSize := indexFile.meta.RangeCoverage*itemSize + 4
+	reader.Seek((int64)(indexFile.meta.HashOffset+tbIndex*tableAllocationSize), io.SeekStart)
 
 	// read len of table
 	sizeBuf := make([]byte, 4)
 	reader.Read(sizeBuf)
 	tableSize := binary.LittleEndian.Uint32(sizeBuf)
 	if debugPrint {
-		fmt.Println("read table size :=", sizeBuf, "from", disk.meta.HashOffset+tbIndex*tableAllocationSize)
+		fmt.Println("read table size :=", sizeBuf, "from", indexFile.meta.HashOffset+tbIndex*tableAllocationSize)
 	}
 
 	// read table contents
@@ -132,14 +134,14 @@ func (disk *YTFSIndexFile) loadTableFromStorage(tbIndex uint32) (map[ydcommon.In
 	return table, nil
 }
 
-func (disk *YTFSIndexFile) clearTableFromStorage() error {
-	writer, _ := disk.store.Writer()
+func (indexFile *YTFSIndexFile) clearTableFromStorage() error {
+	writer, _ := indexFile.store.Writer()
 	itemSize := uint32(unsafe.Sizeof(ydcommon.IndexTableKey{}) + unsafe.Sizeof(ydcommon.IndexTableValue(0)))
-	tableAllocationSize := disk.meta.RangeCoverage*itemSize + 4
+	tableAllocationSize := indexFile.meta.RangeCoverage*itemSize + 4
 	valueBuf := make([]byte, 4)
 
-	for tbIndex := uint32(0); tbIndex < disk.meta.RangeCaps; tbIndex++ {
-		writer.Seek((int64)(disk.meta.HashOffset+tbIndex*tableAllocationSize), io.SeekStart)
+	for tbIndex := uint32(0); tbIndex < indexFile.meta.RangeCaps; tbIndex++ {
+		writer.Seek((int64)(indexFile.meta.HashOffset+tbIndex*tableAllocationSize), io.SeekStart)
 		tableSize := 0
 		binary.LittleEndian.PutUint32(valueBuf, uint32(tableSize))
 		_, err := writer.Write(valueBuf)
@@ -151,25 +153,25 @@ func (disk *YTFSIndexFile) clearTableFromStorage() error {
 }
 
 // Put saves a key value pair.
-func (disk *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) error {
-	locker, _ := disk.store.Lock()
+func (indexFile *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) error {
+	locker, _ := indexFile.store.Lock()
 	defer locker.Unlock()
 
-	idx := disk.getTableEntryIndex(key)
-	rowCount := disk.index.sizes[idx]
-	if rowCount >= disk.meta.RangeCoverage {
+	idx := indexFile.getTableEntryIndex(key)
+	rowCount := indexFile.index.sizes[idx]
+	if rowCount >= indexFile.meta.RangeCoverage {
 		return errors.ErrRangeFull
 	}
 
-	table, err := disk.loadTableFromStorage(idx)
+	table, err := indexFile.loadTableFromStorage(idx)
 	if err != nil {
 		return err
 	}
 	// write cnt
-	writer, _ := disk.store.Writer()
+	writer, _ := indexFile.store.Writer()
 	itemSize := uint32(unsafe.Sizeof(ydcommon.IndexTableKey{}) + unsafe.Sizeof(ydcommon.IndexTableValue(0)))
-	tableAllocationSize := disk.meta.RangeCoverage*itemSize + 4
-	tableBeginPos := (int64)(disk.meta.HashOffset + idx*tableAllocationSize)
+	tableAllocationSize := indexFile.meta.RangeCoverage*itemSize + 4
+	tableBeginPos := (int64)(indexFile.meta.HashOffset + idx*tableAllocationSize)
 
 	valueBuf := make([]byte, 4)
 	writer.Seek(tableBeginPos, io.SeekStart)
@@ -189,6 +191,15 @@ func (disk *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.IndexT
 	}
 
 	binary.LittleEndian.PutUint32(valueBuf, uint32(value))
+	_, err = writer.Write(valueBuf)
+	if err != nil {
+		return err
+	}
+
+	indexFile.meta.DataCount++
+	binary.LittleEndian.PutUint32(valueBuf, uint32(indexFile.meta.DataCount))
+	header := indexFile.meta
+	writer.Seek(int64(unsafe.Offsetof(header.DataCount)), io.SeekStart)
 	_, err = writer.Write(valueBuf)
 	if err != nil {
 		return err
