@@ -247,3 +247,117 @@ func TestReloadYTFS(t *testing.T) {
 		}
 	}
 }
+
+func TestExpendYTFSConfigCheck(t *testing.T) {
+	rootDir, err := ioutil.TempDir("/tmp", "ytfsTest")
+	config := opt.DefaultOptions()
+	validConfig := *config
+	ytfs, err := Open(rootDir, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ytfs.Close()
+
+	configNew := opt.DefaultOptions()
+	config.Storages = append(config.Storages, configNew.Storages...)
+	dealWithExpensionConfig(t, rootDir, config, nil)
+
+	configNew = opt.DefaultOptions()
+	config.Storages = append(config.Storages, configNew.Storages...)
+	config.DataBlockSize = 1 << 16
+	dealWithExpensionConfig(t, rootDir, config, opt.ErrConfigD)
+	config.DataBlockSize = validConfig.DataBlockSize
+
+	configNew = opt.DefaultOptions()
+	config.Storages = append(config.Storages, configNew.Storages...)
+	config.IndexTableRows = config.IndexTableRows * 2
+	dealWithExpensionConfig(t, rootDir, config, ErrSettingMismatch)
+	config.IndexTableRows = validConfig.IndexTableRows
+
+	configNew = opt.DefaultOptions()
+	config.Storages = append(config.Storages, configNew.Storages...)
+	config.TotalVolumn = config.TotalVolumn * 2
+	dealWithExpensionConfig(t, rootDir, config, ErrSettingMismatch)
+	config.TotalVolumn = validConfig.TotalVolumn
+
+	configNew = opt.DefaultOptions()
+	config.Storages = append(config.Storages, configNew.Storages...)
+	config.Storages[len(config.Storages)-1].StorageVolume = config.TotalVolumn
+	dealWithExpensionConfig(t, rootDir, config, opt.ErrConfigC)
+	config.Storages = config.Storages[:(len(config.Storages) - 1)]
+
+	configNew = opt.DefaultOptions()
+	config.Storages = append(config.Storages, configNew.Storages...)
+	config.Storages[len(config.Storages)-1].DataBlockSize = 1 << 14
+	dealWithExpensionConfig(t, rootDir, config, opt.ErrConfigD)
+	config.Storages = config.Storages[:(len(config.Storages) - 1)]
+}
+
+func dealWithExpensionConfig(t *testing.T, rootDir string, newConfig *opt.Options, expectErr error) {
+	ytfs, err := Open(rootDir, newConfig)
+	if ytfs != nil {
+		ytfs.Close()
+	}
+	if err != expectErr {
+		t.Fatal(fmt.Errorf("Err: unmet expected err %v, but met %v", expectErr, err))
+	}
+}
+
+func TestExpendYTFSThenWriteFull(t *testing.T) {
+	rootDir, err := ioutil.TempDir("/tmp", "ytfsTest")
+	config := opt.DefaultOptions()
+	ytfs, err := Open(rootDir, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dataCaps := uint64(0)
+	for _, stroageCtx := range ytfs.context.storages {
+		dataCaps += uint64(stroageCtx.Cap)
+	}
+
+	fmt.Printf("Starting insert %d data blocks\n", dataCaps)
+	for i := (uint64)(0); i < dataCaps; i++ {
+		testHash := (types.IndexTableKey)(common.HexToHash(fmt.Sprintf("%032X", i)))
+		err := ytfs.Put(testHash, testHash[:])
+		if err != nil {
+			t.Fatal(fmt.Sprintf("Error: %v in %d insert", err, i))
+		}
+	}
+
+	testHash := (types.IndexTableKey)(common.HexToHash(fmt.Sprintf("%032X", dataCaps)))
+	err = ytfs.Put(testHash, testHash[:])
+	if err != ErrDataOverflow {
+		t.Fatal(fmt.Sprintf("Error: expected error is ErrDataOverflow rather than %v", err))
+	}
+	ytfs.Close()
+
+	configNew := opt.DefaultOptions()
+	// Add one file
+	config.Storages = append(config.Storages, configNew.Storages[0])
+
+	ytfsReopen, err := Open(rootDir, config)
+	defer ytfsReopen.Close()
+	dataCapsNew := ytfsReopen.Cap()
+	fmt.Printf("Starting insert other %d data blocks to expend region\n", dataCapsNew-dataCaps)
+	for i := dataCaps; i < dataCapsNew; i++ {
+		testHash := (types.IndexTableKey)(common.HexToHash(fmt.Sprintf("%032X", i)))
+		err := ytfsReopen.Put(testHash, testHash[:])
+		if err != nil {
+			t.Fatal(fmt.Sprintf("Error: %v in %d insert", err, i))
+		}
+	}
+
+	fmt.Printf("Starting validata %d data blocks\n", dataCapsNew)
+	for i := (uint64)(0); i < dataCapsNew; i++ {
+		testHash := (types.IndexTableKey)(common.HexToHash(fmt.Sprintf("%032X", i)))
+		buf, err := ytfsReopen.Get(testHash)
+		if err != nil {
+			t.Fatal(fmt.Sprintf("Error: %v in %d check", err, i))
+		}
+
+		if bytes.Compare(buf[:len(testHash)], testHash[:]) != 0 {
+			t.Fatal(fmt.Sprintf("Fatal: %d test fail, want:\n%x\n, get:\n%x\n", i, testHash, buf[:len(testHash)]))
+		}
+	}
+}

@@ -44,6 +44,9 @@ type YTFS struct {
 //		...
 func Open(dir string, config *opt.Options) (ytfs *YTFS, err error) {
 	settings, err := opt.FinalizeConfig(config)
+	if err != nil {
+		return nil, err
+	}
 	return openYTFS(dir, settings)
 }
 
