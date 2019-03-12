@@ -145,7 +145,7 @@ func OpenYottaDisk(yottaConfig *opt.StorageOptions) (*YottaDisk, error) {
 		sync.Mutex{},
 	}
 
-	fmt.Println("Open YottaDisk Success @" + yottaConfig.StorageName)
+	fmt.Println("Open YottaDisk success @" + yottaConfig.StorageName)
 	return yd, nil
 }
 

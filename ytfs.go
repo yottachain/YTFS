@@ -94,7 +94,7 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 		context: context,
 	}
 
-	fmt.Println("Open YTFS Success @" + dir)
+	fmt.Println("Open YTFS success @" + dir)
 	return ytfs, nil
 }
 

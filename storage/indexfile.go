@@ -270,7 +270,7 @@ func OpenYTFSIndexFile(path string, yottaConfig *opt.Options) (*YTFSIndexFile, e
 		sync.Mutex{},
 	}
 
-	fmt.Println("Open YTFSIndexFile Success @" + path)
+	fmt.Println("Open YTFSIndexFile success @" + path)
 	return yd, nil
 }
 

@@ -81,7 +81,7 @@ func initStorages(config *opt.Options) ([]*storageContext, *storagePointer, erro
 		}
 	}
 
-	fmt.Println("Finish init context, current sp = ", sp)
+	fmt.Println("Create YTFS content success, current sp = ", sp)
 	return contexts, sp, nil
 }
 
