@@ -64,7 +64,7 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 		}
 	} else {
 		// create new dir
-		if err := os.MkdirAll(dir, os.ModeDir); err != nil {
+		if err := os.MkdirAll(dir, os.ModeDir | os.ModePerm); err != nil {
 			return nil, err
 		}
 	}
