@@ -141,6 +141,11 @@ func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
 // It is safe to modify the contents of the arguments after Put returns but not
 // before.
 func (ytfs *YTFS) Put(key ydcommon.IndexTableKey, buf []byte) error {
+	_, err := ytfs.db.Get(key)
+	if err == nil {
+		return ErrDataConflict
+	}
+
 	pos, err := ytfs.context.Put(buf)
 	if err != nil {
 		return err

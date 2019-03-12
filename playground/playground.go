@@ -109,8 +109,8 @@ func simpleTest(ytfs *ytfs.YTFS) error {
 	}
 
 	dataPair := []KeyValuePair{}
-	for i := 0; i < 20; i++ {
-		printProgress((uint64)(i), 19)
+	for i := 0; i < 10; i++ {
+		printProgress((uint64)(i), 9)
 		testHash := common.HexToHash(fmt.Sprintf("%032X", i))
 		dataPair = append(dataPair, KeyValuePair{
 			hash: testHash,
@@ -240,20 +240,18 @@ func hybridTestReadAfterWrite(ytfs *ytfs.YTFS) error {
 		buf  []byte
 	}
 
-	meta := ytfs.Meta()
-	dataCaps := (uint64)(meta.RangeCaps) * (uint64)(meta.RangeCoverage)
-	fmt.Printf("Starting hybrid test on %d data blocks\n", dataCaps)
-	wg := sync.WaitGroup{}
-	done := make(chan interface{})
-	exit := make(chan interface{})
+	dataCaps := ytfs.Cap()
 	count := 0
-	parallel := 0
+	inqueue := 0
+	maxQueue := 10000
+	exit := make(chan interface{})
+	done := make(chan interface{})
+	sema := make(chan interface{}, maxQueue)
 	go func() {
 		for {
 			select {
 			case <- done:
 				count++
-				parallel--
 				printProgress((uint64)(count), dataCaps)
 			case <- exit:
 				return
@@ -261,13 +259,12 @@ func hybridTestReadAfterWrite(ytfs *ytfs.YTFS) error {
 		}
 	}()
 
+	fmt.Printf("Starting hybrid test on %d data blocks\n", dataCaps)
+	wg := sync.WaitGroup{}
 	r := rand.New(rand.NewSource(time.Now().Unix()))
 	for _, i := range r.Perm((int)(dataCaps)) {
 		wg.Add(1)
-		if parallel >= 2000 {
-			time.Sleep(100*time.Millisecond)
-		}
-		parallel++
+		inqueue++
 		go func(id uint64) {
 			testHash := common.HexToHash(fmt.Sprintf("%032X", id))
 			err := ytfs.Put((ydcommon.IndexTableKey)(testHash), testHash[:])
@@ -283,7 +280,9 @@ func hybridTestReadAfterWrite(ytfs *ytfs.YTFS) error {
 			if bytes.Compare(buf[:len(testHash)], testHash[:]) != 0 {
 				panic(fmt.Sprintf("Fatal: %d test fail, want:\n%x\n, get:\n%x\n", id, testHash, buf[:len(testHash)]))
 			}
-			done <- struct{}{};
+			done <- struct{}{}
+			sema <- struct{}{}
+			defer func(){<- sema}()
 			wg.Done()
 		}((uint64)(i))
 	}

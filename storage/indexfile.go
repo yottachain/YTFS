@@ -21,6 +21,7 @@ import (
 
 const (
 	unInitializedCount = 0
+	debugPrint = false
 )
 
 type rangeTableInfo struct {
@@ -89,7 +90,11 @@ func (disk *YTFSIndexFile) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableV
 	if err != nil {
 		return 0, err
 	}
+
 	if value, ok := table[key]; ok {
+		if debugPrint {
+			fmt.Println("IndexDB get", key, value)
+		}
 		return value, nil
 	}
 
@@ -101,11 +106,17 @@ func (disk *YTFSIndexFile) loadTableFromStorage(tbIndex uint32) (map[ydcommon.In
 	itemSize := uint32(unsafe.Sizeof(ydcommon.IndexTableKey{}) + unsafe.Sizeof(ydcommon.IndexTableValue(0)))
 	tableAllocationSize := disk.meta.RangeCoverage * itemSize + 4
 	reader.Seek((int64)(disk.meta.HashOffset + tbIndex * tableAllocationSize), io.SeekStart)
+	
+	// read len of table
 	sizeBuf := make([]byte, 4)
 	reader.Read(sizeBuf)
 	tableSize := binary.LittleEndian.Uint32(sizeBuf)
+	if debugPrint {
+		fmt.Println("read table size :=", sizeBuf, "from", disk.meta.HashOffset + tbIndex * tableAllocationSize)
+	}
+
+	// read table contents
 	tableBuf := make([]byte, tableSize * itemSize, tableSize * itemSize)
-	// skip length of table
 	_, err := reader.Read(tableBuf)
 	if err != nil {
 		return nil, err
@@ -182,6 +193,11 @@ func (disk *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.IndexT
 	if err != nil {
 		return err
 	}
+
+	if debugPrint {
+		fmt.Println("IndexDB put", key, value)
+	}
+
 	writer.Sync()
 	return err
 }

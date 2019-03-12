@@ -9,10 +9,10 @@ import (
 var (
 	ErrHeadNotFound     = errors.New("YTFS: head not found")
 	ErrDataNotFound     = errors.New("YTFS: data not found")
-	ErrDataOverflow     = errors.New("YTFS: data overflow")
+	ErrDataOverflow     = errors.New("YTFS: overflow happens, all data disk full")
 	ErrConfigCache      = errors.New("YTFS: Cache size config error")
 	ErrStorageSize		= errors.New("YTFS: storage size does not meet settings")
-	ErrContextIdMapping = errors.New("YTFS: context mapping global id to device failed")
+	ErrContextIDMapping = errors.New("YTFS: context mapping global id to device failed")
 	ErrConflict         = errors.New("YTFS: conflict hash value")
 	ErrRangeFull        = errors.New("YTFS: Range is full")
 	ErrReadOnly         = errors.New("YTFS: read-only mode")

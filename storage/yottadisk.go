@@ -35,6 +35,12 @@ func (disk *YottaDisk) Capability() uint32 {
 	return disk.meta.DataCaps
 }
 
+// Format formats the YottaDisk and reset header.
+func (disk *YottaDisk) Format() error {
+	disk.meta.DataCount = 0
+	return disk.Sync()
+}
+
 // Sync syncs all pending meta and unflushed writes
 func (disk *YottaDisk) Sync() error {
 	locker, _ := disk.store.Lock()
@@ -96,6 +102,13 @@ func (disk *YottaDisk) WriteData(dataOffsetIndex ydcommon.IndexTableValue, data 
 	}
 
 	disk.meta.DataCount++
+	valueBuf := make([]byte, 4)
+	binary.LittleEndian.PutUint32(valueBuf, uint32(disk.meta.DataCount))
+	writer.Seek(int64(unsafe.Offsetof(disk.meta.DataCount)), io.SeekStart)
+	_, err = writer.Write(valueBuf)
+	if err != nil {
+		return err
+	}
 
 	if disk.config.Sync {
 		return writer.Sync()

@@ -104,16 +104,18 @@ func (c *Context) locate(idx uint32) (*storagePointer, error) {
 		dev++
 	}
 
-	return nil, errors.ErrContextIdMapping
+	return nil, errors.ErrContextIDMapping
 }
 
 func (c *Context) forward() error {
 	sp := &c.sp
 	sp.posIdx++
 	if sp.posIdx == c.storages[sp.dev].Cap {
-		fmt.Println("Move to next dev", sp.dev+1)
-		if int(sp.dev) == len(c.storages) {
+		if int(sp.dev + 1) == len(c.storages) {
 			return ErrDataOverflow
+		}
+		if debugPrint {
+			fmt.Println("Move to next dev", sp.dev+1)
 		}
 		sp.dev++
 		sp.posIdx = 0
@@ -183,4 +185,7 @@ func (c *Context) Close() {
 // Reset reset current context.
 func (c *Context) Reset() {
 	c.sp = storagePointer{0, 0, 0}
+	for _, storage := range c.storages {
+		storage.Disk.Format()
+	}
 }
