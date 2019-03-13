@@ -1,0 +1,26 @@
+{
+	"ytfs": "ytfs default setting",
+	"storages": [
+	{
+        "storage": "/tmp/yotta-test-A",
+        "type": 0,
+        "dataBlockSize": 32768,
+        "storageSize": 1048576,
+        "readonly": false,
+        "writesync": false
+	},
+	{
+        "storage": "/tmp/yotta-test-B",
+        "type": 0,
+        "storageSize": 1048576,
+        "dataBlockSize": 32768,
+        "readonly": false,
+        "writesync": false
+	}
+	],
+	"readonly": false,
+	"C": 2147483648,
+	"N": 16384,
+	"D": 32768,
+	"M": 0
+}
