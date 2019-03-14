@@ -44,7 +44,7 @@ func (indexFile *YTFSIndexFile) MetaData() *ydcommon.Header {
 
 // Stat reports the YTFSIndexFile status.
 func (indexFile *YTFSIndexFile) Stat() uint32 {
-	return uint32(indexFile.meta.DataCount)
+	return uint32(indexFile.meta.DataEndPoint)
 }
 
 // Sync syncs all pending meta and unflushed writes
@@ -77,7 +77,7 @@ func (indexFile *YTFSIndexFile) Format() error {
 
 func (indexFile *YTFSIndexFile) getTableEntryIndex(key ydcommon.IndexTableKey) uint32 {
 	msb := (uint32)(big.NewInt(0).SetBytes(key[common.HashLength-4:]).Uint64())
-	return msb & (indexFile.meta.RangeCaps - 1)
+	return msb & (indexFile.meta.RangeCapacity - 1)
 }
 
 // Get gets IndexTableValue from index table file
@@ -99,7 +99,7 @@ func (indexFile *YTFSIndexFile) Get(key ydcommon.IndexTableKey) (ydcommon.IndexT
 
 	// check overflow region if current region is full
 	if uint32(len(table)) == indexFile.meta.RangeCoverage {
-		idx := indexFile.meta.RangeCaps
+		idx := indexFile.meta.RangeCapacity
 		table, err = indexFile.loadTableFromStorage(idx)
 		if err != nil {
 			return 0, err
@@ -156,7 +156,7 @@ func (indexFile *YTFSIndexFile) clearTableFromStorage() error {
 	tableAllocationSize := indexFile.meta.RangeCoverage*itemSize + 4
 	valueBuf := make([]byte, 4)
 
-	for tbIndex := uint32(0); tbIndex < indexFile.meta.RangeCaps; tbIndex++ {
+	for tbIndex := uint32(0); tbIndex < indexFile.meta.RangeCapacity; tbIndex++ {
 		writer.Seek((int64)(indexFile.meta.HashOffset+tbIndex*tableAllocationSize), io.SeekStart)
 		tableSize := 0
 		binary.LittleEndian.PutUint32(valueBuf, uint32(tableSize))
@@ -182,7 +182,7 @@ func (indexFile *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.I
 	rowCount := uint32(len(table))
 	if rowCount >= indexFile.meta.RangeCoverage {
 		// move to overflow region
-		idx = indexFile.meta.RangeCaps
+		idx = indexFile.meta.RangeCapacity
 		table, err = indexFile.loadTableFromStorage(idx)
 		if err != nil {
 			return err
@@ -223,10 +223,10 @@ func (indexFile *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.I
 	}
 
 	indexFile.index.sizes[idx] = tableSize
-	indexFile.meta.DataCount++
-	binary.LittleEndian.PutUint32(valueBuf, uint32(indexFile.meta.DataCount))
+	indexFile.meta.DataEndPoint++
+	binary.LittleEndian.PutUint32(valueBuf, uint32(indexFile.meta.DataEndPoint))
 	header := indexFile.meta
-	writer.Seek(int64(unsafe.Offsetof(header.DataCount)), io.SeekStart)
+	writer.Seek(int64(unsafe.Offsetof(header.DataEndPoint)), io.SeekStart)
 	_, err = writer.Write(valueBuf)
 	if err != nil {
 		return err
@@ -264,7 +264,7 @@ func OpenYTFSIndexFile(path string, yottaConfig *opt.Options) (*YTFSIndexFile, e
 
 	yd := &YTFSIndexFile{
 		header,
-		rangeTableInfo{sizes: make([]uint32, header.RangeCaps+1, header.RangeCaps+1)}, // +1 for overflow region
+		rangeTableInfo{sizes: make([]uint32, header.RangeCapacity+1, header.RangeCapacity+1)}, // +1 for overflow region
 		storage,
 		nil,
 		sync.Mutex{},
@@ -295,11 +295,11 @@ func initializeIndexStorage(store Storage, config *opt.Options) (*ydcommon.Heade
 		YtfsCapability: t,
 		YtfsSize:       ytfsSize,
 		DataBlockSize:  d,
-		RangeCaps:      n,
+		RangeCapacity:  n,
 		RangeCoverage:  m,
 		HashOffset:     h,
-		DataCount:      0,
-		ResolveOffset:  0,
+		DataEndPoint:   0,
+		RecycleOffset:  uint64(h) + (uint64(n) + 1) * (uint64(m)*36 + 4),
 		Reserved:       0xCDCDCDCDCDCDCDCD,
 	}
 

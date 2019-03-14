@@ -84,7 +84,7 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	}
 
 	//3. open storages
-	context, err := NewContext(dir, config)
+	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint)
 	if err != nil {
 		return nil, err
 	}
@@ -182,20 +182,16 @@ func (ytfs *YTFS) Reset() error {
 
 // Cap report capacity of YTFS, just like cap() of a slice
 func (ytfs *YTFS) Cap() uint64 {
-	dataCaps := uint64(0)
+	cap := uint64(0)
 	for _, stroageCtx := range ytfs.context.storages {
-		dataCaps += uint64(stroageCtx.Cap)
+		cap += uint64(stroageCtx.Cap)
 	}
-	return dataCaps
+	return cap
 }
 
 // Len report len of YTFS, just like len() of a slice
 func (ytfs *YTFS) Len() uint64 {
-	dataLen := uint64(0)
-	for _, stroageCtx := range ytfs.context.storages {
-		dataLen += uint64(stroageCtx.Len)
-	}
-	return dataLen
+	return ytfs.db.schema.DataEndPoint
 }
 
 // String reports current YTFS status.

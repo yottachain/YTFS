@@ -327,7 +327,7 @@ func TestExpendYTFSThenWriteFull(t *testing.T) {
 
 	testHash := (types.IndexTableKey)(common.HexToHash(fmt.Sprintf("%032X", dataCaps)))
 	err = ytfs.Put(testHash, testHash[:])
-	if err != ErrDataOverflow {
+	if err != errors.ErrDataOverflow {
 		t.Fatal(fmt.Sprintf("Error: expected error is ErrDataOverflow rather than %v", err))
 	}
 	ytfs.Close()

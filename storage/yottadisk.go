@@ -24,19 +24,14 @@ type YottaDisk struct {
 	sync.Mutex
 }
 
-// Stat reports the YottaDisk status.
-func (disk *YottaDisk) Stat() uint32 {
-	return disk.meta.DataCount
-}
-
 // Capability reports the YottaDisk's capability of datablocks.
 func (disk *YottaDisk) Capability() uint32 {
-	return disk.meta.DataCaps
+	return disk.meta.DataCapacity
 }
 
 // Format formats the YottaDisk and reset header.
 func (disk *YottaDisk) Format() error {
-	disk.meta.DataCount = 0
+	disk.meta.Tag = [4]byte{0, 0, 0, 0}
 	return disk.Sync()
 }
 
@@ -82,7 +77,7 @@ func (disk *YottaDisk) ReadData(dataIndex ydcommon.IndexTableValue) ([]byte, err
 
 // WriteData writes data to low level storage
 func (disk *YottaDisk) WriteData(dataOffsetIndex ydcommon.IndexTableValue, data []byte) error {
-	if uint32(dataOffsetIndex) >= disk.meta.DataCaps {
+	if uint32(dataOffsetIndex) >= disk.meta.DataCapacity {
 		return errors.ErrDataOverflow
 	}
 
@@ -100,14 +95,14 @@ func (disk *YottaDisk) WriteData(dataOffsetIndex ydcommon.IndexTableValue, data 
 		return err
 	}
 
-	disk.meta.DataCount++
-	valueBuf := make([]byte, 4)
-	binary.LittleEndian.PutUint32(valueBuf, uint32(disk.meta.DataCount))
-	writer.Seek(int64(unsafe.Offsetof(disk.meta.DataCount)), io.SeekStart)
-	_, err = writer.Write(valueBuf)
-	if err != nil {
-		return err
-	}
+	// disk.meta.DataCount++
+	// valueBuf := make([]byte, 4)
+	// binary.LittleEndian.PutUint32(valueBuf, uint32(disk.meta.DataCount))
+	// writer.Seek(int64(unsafe.Offsetof(disk.meta.DataCount)), io.SeekStart)
+	// _, err = writer.Write(valueBuf)
+	// if err != nil {
+	// 	return err
+	// }
 
 	if disk.config.Sync {
 		return writer.Sync()
@@ -167,9 +162,8 @@ func initializeStorage(store Storage, config *opt.StorageOptions) (*ydcommon.Sto
 		DiskCaps:      t,
 		DataBlockSize: uint32(d),
 		DataOffset:    dataOffset,
-		DataCount:     0,
-		DataCaps:      uint32((t - h) / d),
-		Reserved:      (t - h) % d, // left-overs
+		DataCapacity:  uint32((t - h) / d),
+		Reserved:      uint32((t - h) % d), // left-overs
 	}
 
 	writer.Seek(0, io.SeekStart)

@@ -10,6 +10,7 @@ var (
 	ErrHeadNotFound     = errors.New("YTFS: head not found")
 	ErrDataNotFound     = errors.New("YTFS: data not found")
 	ErrDataOverflow     = errors.New("YTFS: overflow happens, all data disk full")
+	ErrContextOverflow  = errors.New("YTFS: context can not support >32bit address")
 	ErrConfigCache      = errors.New("YTFS: Cache size config error")
 	ErrStorageSize      = errors.New("YTFS: storage size does not meet settings")
 	ErrContextIDMapping = errors.New("YTFS: context mapping global id to device failed")

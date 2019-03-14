@@ -2,7 +2,7 @@ package ytfs
 
 import (
 	"fmt"
-	// "math"
+	"math"
 	"sync"
 
 	ydcommon "github.com/yottachain/YTFS/common"
@@ -35,54 +35,61 @@ type storagePointer struct {
 // Context - the running YTFS context
 type Context struct {
 	config   *opt.Options
-	sp       storagePointer
+	sp       *storagePointer
 	storages []*storageContext
 	// cm     		*cache.Manager
 	lock sync.RWMutex
 }
 
 // NewContext creates a new YTFS context
-func NewContext(dir string, config *opt.Options) (*Context, error) {
-	storages, sp, err := initStorages(config)
+func NewContext(dir string, config *opt.Options, dataCount uint64) (*Context, error) {
+	storages, err := initStorages(config)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Context{
+	if dataCount > math.MaxUint32 {
+		return nil, errors.ErrContextOverflow
+	}
+
+	context := &Context{
 		config:   config,
-		sp:       *sp,
+		sp:       nil,
 		storages: storages,
 		lock:     sync.RWMutex{},
-	}, nil
+	}
+
+	context.SetStoragePointer(uint32(dataCount))
+	fmt.Println("Create YTFS content success, current sp = ", context.sp)
+	return context, nil
 }
 
-func initStorages(config *opt.Options) ([]*storageContext, *storagePointer, error) {
+func initStorages(config *opt.Options) ([]*storageContext, error) {
 	contexts := []*storageContext{}
-	sp := &storagePointer{0, 0, 0}
-	moveToNextDev := true
-	for devID, storageOpt := range config.Storages {
+	for _, storageOpt := range config.Storages {
 		disk, err := storage.OpenYottaDisk(&storageOpt)
 		if err != nil {
 			// TODO: handle error if necessary, like keep using successed storages.
-			return nil, nil, err
+			return nil, err
 		}
 		contexts = append(contexts, &storageContext{
 			Name: storageOpt.StorageName,
 			Cap:  disk.Capability(),
-			Len:  disk.Stat(),
+			Len:  0,
 			Disk: disk,
 		})
-
-		if moveToNextDev {
-			sp.dev = uint8(devID)
-			sp.posIdx = disk.Stat()
-			sp.index += disk.Stat()
-			moveToNextDev = (sp.posIdx == disk.Capability())
-		}
 	}
 
-	fmt.Println("Create YTFS content success, current sp = ", sp)
-	return contexts, sp, nil
+	return contexts, nil
+}
+
+// SetStoragePointer set the storage pointer position of current storage context
+func (c *Context) SetStoragePointer(globalID uint32) error {
+	sp, err := c.locate(globalID)
+	if sp != nil {
+		c.sp = sp
+	}
+	return err
 }
 
 // Locate find the correct offset in correct device
@@ -104,15 +111,19 @@ func (c *Context) locate(idx uint32) (*storagePointer, error) {
 		dev++
 	}
 
-	return nil, errors.ErrContextIDMapping
+	return &storagePointer{
+		uint8(len(c.storages)),
+		0,
+		0,
+	}, errors.ErrContextIDMapping
 }
 
 func (c *Context) forward() error {
-	sp := &c.sp
+	sp := c.sp
 	sp.posIdx++
 	if sp.posIdx == c.storages[sp.dev].Cap {
-		if int(sp.dev + 1) == len(c.storages) {
-			return ErrDataOverflow
+		if int(sp.dev+1) == len(c.storages) {
+			return errors.ErrDataOverflow
 		}
 		if debugPrint {
 			fmt.Println("Move to next dev", sp.dev+1)
@@ -126,12 +137,12 @@ func (c *Context) forward() error {
 }
 
 func (c *Context) eof() bool {
-	sp := &c.sp
-	return sp.dev == uint8(len(c.storages)-1) && sp.posIdx == c.storages[sp.dev].Cap
+	sp := c.sp
+	return sp.dev >= uint8(len(c.storages)) || (sp.dev == uint8(len(c.storages)-1) && sp.posIdx == c.storages[sp.dev].Cap)
 }
 
-func (c *Context) setEof() {
-	sp := &c.sp
+func (c *Context) setEOF() {
+	sp := c.sp
 	sp.dev = uint8(len(c.storages) - 1)
 	sp.posIdx = c.storages[sp.dev].Cap
 }
@@ -152,39 +163,61 @@ func (c *Context) Get(globalIdx ydcommon.IndexTableValue) (value []byte, err err
 	return c.storages[sp.dev].Disk.ReadData(ydcommon.IndexTableValue(sp.posIdx))
 }
 
-// Put puts the vale to offset of the corrent device
+// Put puts the vale to offset that current sp points to of the corrent device
 func (c *Context) Put(value []byte) (uint32, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	index, err := c.putAt(value, c.sp)
+	if err != nil {
+		return index, err
+	}
+	c.forward()
+	return index, nil
+}
+
+// PutAt puts the vale to specific offset of the corrent device
+func (c *Context) PutAt(value []byte, globalID uint32) (uint32, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	sp, err := c.locate(globalID)
+	if err != nil {
+		return 0, err
+	}
+	index, err := c.putAt(value, sp)
+	if err != nil {
+		return index, err
+	}
+	return index, nil
+}
+
+func (c *Context) putAt(value []byte, sp *storagePointer) (uint32, error) {
 	if c.eof() {
-		return 0, ErrDataOverflow
+		return 0, errors.ErrDataOverflow
 	}
 
 	if debugPrint {
-		fmt.Printf("put data %v @ %v\n", value[:32], c.sp)
+		fmt.Printf("put data %v @ %v\n", value[:32], sp)
 	}
 
-	dataPos := c.sp.posIdx
-	err := c.storages[c.sp.dev].Disk.WriteData(ydcommon.IndexTableValue(dataPos), value)
+	dataPos := sp.posIdx
+	err := c.storages[sp.dev].Disk.WriteData(ydcommon.IndexTableValue(dataPos), value)
 	if err != nil {
-		return c.sp.index, err
+		return sp.index, err
 	}
-	index := c.sp.index
-	c.forward()
-	return index, nil
+	return sp.index, nil
 }
 
 // Close finishes all actions and close all storages
 func (c *Context) Close() {
 	for _, storage := range c.storages {
 		storage.Disk.Close()
-		c.setEof()
+		c.setEOF()
 	}
 }
 
 // Reset reset current context.
 func (c *Context) Reset() {
-	c.sp = storagePointer{0, 0, 0}
+	c.sp = &storagePointer{0, 0, 0}
 	for _, storage := range c.storages {
 		storage.Disk.Format()
 	}

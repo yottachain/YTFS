@@ -8,11 +8,11 @@ type Header struct {
 	YtfsCapability uint64  `json:"ytfsCaps"` // max supported size.
 	YtfsSize       uint64  `json:"ytfsSize"` // current enabled, i.e, sum of plugin storage. for consistency check.
 	DataBlockSize  uint32  `json:"dataBlkSize"`
-	RangeCaps      uint32  `json:"rangeCaps"`
+	RangeCapacity  uint32  `json:"rangeCapacity"`
 	RangeCoverage  uint32  `json:"rangeCoverage"`
 	HashOffset     uint32  `json:"hashOffset"`
-	DataCount      uint64  `json:"dataCount"`
-	ResolveOffset  uint64  `json:"resolveOffset"`
+	DataEndPoint   uint64  `json:"dataEndPoint"` // if no del, it is the data count, if have del, it tells the sp of context.
+	RecycleOffset  uint64  `json:"RecycleOffset"`
 	Reserved       uint64  `json:"reserved"`
 }
 
@@ -23,7 +23,6 @@ type StorageHeader struct {
 	DiskCaps      uint64  `json:"diskCaps"`
 	DataBlockSize uint32  `json:"dataBlkSize"`
 	DataOffset    uint32  `json:"dataOffset"`
-	DataCount     uint32  `json:"dataCount"`
-	DataCaps      uint32  `json:"dataCaps"`
-	Reserved      uint64  `json:"reserved"`
+	DataCapacity  uint32  `json:"DataCapacity"`
+	Reserved      uint32  `json:"reserved"`
 }
