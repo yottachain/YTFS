@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sync"
 
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
@@ -13,9 +14,11 @@ import (
 // YTFS is a data block save/load lib based on key-value styled db APIs.
 type YTFS struct {
 	// key-value db which saves hash <-> position
-	db *IndexDB
+	db      *IndexDB
 	// running context
 	context *Context
+	// lock of YTFS
+	mutex   *sync.Mutex
 }
 
 // Open opens or creates a YTFS for the given storage.
@@ -92,6 +95,7 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	ytfs := &YTFS{
 		db:      indexDB,
 		context: context,
+		mutex:   new(sync.Mutex),
 	}
 
 	fmt.Println("Open YTFS success @" + dir)
@@ -144,6 +148,8 @@ func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
 // It is safe to modify the contents of the arguments after Put returns but not
 // before.
 func (ytfs *YTFS) Put(key ydcommon.IndexTableKey, buf []byte) error {
+	ytfs.mutex.Lock()
+	defer ytfs.mutex.Unlock()
 	_, err := ytfs.db.Get(key)
 	if err == nil {
 		return ErrDataConflict

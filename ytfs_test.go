@@ -157,7 +157,65 @@ func TestYTFSFullWriteRead(t *testing.T) {
 	}
 }
 
-func TestYTFSConcurrentAccess(t *testing.T) {
+func TestYTFSConcurrentAccessWriteSameKey(t *testing.T) {
+	rootDir, err := ioutil.TempDir("/tmp", "ytfsTest")
+	config := opt.DefaultOptions()
+	// defer os.Remove(config.StorageName)
+
+	ytfs, err := Open(rootDir, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ytfs.Close()
+
+	testKey := (types.IndexTableKey)(common.HexToHash(fmt.Sprintf("%032X", 1)))
+	bufIn := makeData(dataBlockSize)
+	errCh := make(chan error)
+	wg := sync.WaitGroup{}
+
+	parallel := 8
+	for i := 0; i < parallel; i++ {
+		wg.Add(1);go func(){errCh <- ytfs.Put(testKey, bufIn);wg.Done()}()
+	}
+
+	success := 0
+	failure := 0
+	exit := make(chan interface{})
+	go func() {
+		for ;; {
+			select {
+			case x, ok:= <- errCh:
+				if !ok {
+					exit <- struct{}{}
+					return
+				}
+				if x == nil {
+					success++
+				}else{
+					failure++
+				}
+			}
+		}
+	}()
+
+	wg.Wait()
+	close(errCh)
+	<-exit
+	if success != 1 || failure != parallel-1 {
+		t.Fatal(fmt.Sprintf("Error: expected success/failure [1, %d], but got [%d, %d]", parallel-1, success, failure))
+	}
+
+	bufOut, err := ytfs.Get(testKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if bytes.Compare(bufIn, bufOut) != 0 {
+		t.Fatal(fmt.Sprintf("Fatal: test fail, want:\n%x\n, get:\n%x\n", bufIn[:10], bufOut[:10]))
+	}
+}
+
+func TestYTFSConcurrentAccessFullWrite(t *testing.T) {
 	rootDir, err := ioutil.TempDir("/tmp", "ytfsTest")
 	config := opt.DefaultOptions()
 
