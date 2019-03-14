@@ -2,25 +2,26 @@
 	"ytfs": "ytfs default setting",
 	"storages": [
 	{
-        "storage": "/var/folders/sy/wvdjv01n0s71tyw1l15xvn980000gn/T/yotta-play-1781595343",
+        "storage": "/tmp/yotta-test-A",
         "type": 0,
-        "readonly": false,
-        "writesync": false,
+        "dataBlockSize": 32768,
         "storageSize": 1048576,
-        "dataBlockSize": 32768
+	"syncPeriod": 1,
+        "readonly": false
 	},
 	{
-        "storage": "/var/folders/sy/wvdjv01n0s71tyw1l15xvn980000gn/T/yotta-play-2127581154",
+        "storage": "/tmp/yotta-test-B",
         "type": 0,
-        "readonly": false,
-        "writesync": false,
         "storageSize": 1048576,
-        "dataBlockSize": 32768
+        "dataBlockSize": 32768,
+	"syncPeriod": 1,
+        "readonly": false
 	}
 	],
+	"syncPeriod": 1,
 	"readonly": false,
-	"M": 256,
+	"C": 2147483648,
 	"N": 16384,
 	"D": 32768,
-	"C": 2147483648
+	"M": 0
 }
