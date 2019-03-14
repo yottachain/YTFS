@@ -24,16 +24,18 @@ const (
 
 // config errors
 var (
-	ErrConfigC = errors.New("yotta config: config.C should in range [sum(Ti), MaxDiskCapability]")
-	ErrConfigN = errors.New("yotta config: config.N should be power of 2 and less than MAX_RANGE")
-	ErrConfigD = errors.New("yotta config: config.D should be consistent with YTFS")
-	ErrConfigM = errors.New("yotta config: config.M setting is incorrect")
+	ErrConfigC          = errors.New("yotta config: config.C should in range [sum(Ti), MaxDiskCapability]")
+	ErrConfigN          = errors.New("yotta config: config.N should be power of 2 and less than MAX_RANGE")
+	ErrConfigD          = errors.New("yotta config: config.D should be consistent with YTFS")
+	ErrConfigM          = errors.New("yotta config: config.M setting is incorrect")
+	ErrConfigSyncPeriod = errors.New("yotta config: config.SyncPeriod setting is not power of 2")
 )
 
 // Options Config options
 type Options struct {
 	YTFSTag        string           `json:"ytfs"`
 	Storages       []StorageOptions `json:"storages"`
+	SyncPeriod     uint32           `json:"syncPeriod"`
 	ReadOnly       bool             `json:"readonly"`
 	IndexTableCols uint32           `json:"M"`
 	IndexTableRows uint32           `json:"N"`
@@ -78,7 +80,7 @@ func DefaultOptions() *Options {
 				StorageName:   tmpFile1.Name(),
 				StorageType:   ytfs.FileStorageType,
 				ReadOnly:      false,
-				Sync:          false,
+				SyncPeriod:    1,
 				StorageVolume: 1 << 20,
 				DataBlockSize: 1 << 15,
 			},
@@ -86,12 +88,13 @@ func DefaultOptions() *Options {
 				StorageName:   tmpFile2.Name(),
 				StorageType:   ytfs.FileStorageType,
 				ReadOnly:      false,
-				Sync:          false,
+				SyncPeriod:    1,
 				StorageVolume: 1 << 20,
 				DataBlockSize: 1 << 15,
 			},
 		},
 		ReadOnly:       false,
+		SyncPeriod:     1,
 		IndexTableCols: 0,
 		IndexTableRows: 1 << 13,
 		DataBlockSize:  1 << 15, // Just save HashLen for test.
@@ -171,10 +174,18 @@ func FinalizeConfig(config *Options) (*Options, error) {
 		return nil, ErrConfigN
 	}
 
+	if !ytfs.IsPowerOfTwo((uint64)(config.SyncPeriod)) {
+		return nil, ErrConfigSyncPeriod
+	}
+
 	// check if YTFS param consistency with YTFS storage.
 	for _, storageOpt := range config.Storages {
 		if (storageOpt.DataBlockSize != config.DataBlockSize) || !ytfs.IsPowerOfTwo((uint64)(config.DataBlockSize)) {
 			return nil, ErrConfigD
+		}
+
+		if !ytfs.IsPowerOfTwo((uint64)(storageOpt.SyncPeriod)) {
+			return nil, ErrConfigSyncPeriod
 		}
 	}
 

@@ -21,7 +21,12 @@ type YottaDisk struct {
 	config *opt.StorageOptions
 	meta   ydcommon.StorageHeader
 	store  Storage
+	stat   diskStatistics
 	sync.Mutex
+}
+
+type diskStatistics struct {
+	writeOps uint32
 }
 
 // Capability reports the YottaDisk's capability of datablocks.
@@ -95,16 +100,8 @@ func (disk *YottaDisk) WriteData(dataOffsetIndex ydcommon.IndexTableValue, data 
 		return err
 	}
 
-	// disk.meta.DataCount++
-	// valueBuf := make([]byte, 4)
-	// binary.LittleEndian.PutUint32(valueBuf, uint32(disk.meta.DataCount))
-	// writer.Seek(int64(unsafe.Offsetof(disk.meta.DataCount)), io.SeekStart)
-	// _, err = writer.Write(valueBuf)
-	// if err != nil {
-	// 	return err
-	// }
-
-	if disk.config.Sync {
+	disk.stat.writeOps++
+	if disk.stat.writeOps & (disk.config.SyncPeriod - 1) == 0{
 		return writer.Sync()
 	}
 
@@ -137,6 +134,7 @@ func OpenYottaDisk(yottaConfig *opt.StorageOptions) (*YottaDisk, error) {
 		yottaConfig,
 		*header,
 		storage,
+		diskStatistics{0},
 		sync.Mutex{},
 	}
 

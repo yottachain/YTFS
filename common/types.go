@@ -27,16 +27,19 @@ type IndexItem struct {
 	OffsetIdx IndexTableValue
 }
 
+// IsPowerOfTwo tells if x is power of 2
 func IsPowerOfTwo(x uint64) bool {
-	return (x != 0) && ((x & (x - 1)) == 0)
+	return (x == 0) || ((x != 0) && ((x & (x - 1)) == 0))
 }
 
+// YottaAssert asserts condition
 func YottaAssert(condition bool) {
 	if !condition {
-		panic(errors.New("Assert Failed!"))
+		panic(errors.New("Assert Failed"))
 	}
 }
 
+// YottaAssertMsg asserts condition with message
 func YottaAssertMsg(condition bool, msg string) {
 	if !condition {
 		panic(msg)

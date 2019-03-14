@@ -20,7 +20,7 @@ type StorageOptions struct {
 	StorageName   string           `json:"storage"`
 	StorageType   ytfs.StorageType `json:"type"`
 	ReadOnly      bool             `json:"readonly"`
-	Sync          bool             `json:"writesync"`
+	SyncPeriod    uint32           `json:"syncPeriod"`
 	StorageVolume uint64           `json:"storageSize"`
 	DataBlockSize uint32           `json:"dataBlockSize"`
 }
@@ -41,7 +41,7 @@ func DefaultStorageOptions() *StorageOptions {
 		StorageName:   tmpFile.Name(),
 		StorageType:   ytfs.FileStorageType,
 		ReadOnly:      false,
-		Sync:          true,
+		SyncPeriod:    1,
 		StorageVolume: 1 << 20, // 1M for default
 		DataBlockSize: 32,      // Just save HashLen for test.
 	}

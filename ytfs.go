@@ -13,6 +13,8 @@ import (
 
 // YTFS is a data block save/load lib based on key-value styled db APIs.
 type YTFS struct {
+	// config of this YTFS
+	config  *opt.Options
 	// key-value db which saves hash <-> position
 	db      *IndexDB
 	// running context
@@ -36,12 +38,12 @@ type YTFS struct {
 //		}
 //		defer ytfs.Close()
 //		err = ytfs.Put(ydcommon.IndexTableKey, ydcommon.IndexTableValue)
-///		if err != nil {
+//		if err != nil {
 //			panic(err)
 //		}
 //
 //		ydcommon.IndexTableValue, err = ytfs.Gut(ydcommon.IndexTableKey)
-///		if err != nil {
+//		if err != nil {
 //			panic(err)
 //		}
 //		...

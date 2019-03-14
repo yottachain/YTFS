@@ -13,7 +13,6 @@ import (
 	// use eth hash related func.
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/yottachain/YTFS/cache"
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/errors"
 	"github.com/yottachain/YTFS/opt"
@@ -27,13 +26,20 @@ type rangeTableInfo struct {
 	sizes []uint32 // data len of each table.
 }
 
+type indexStatistics struct {
+	putCount uint32
+	delCount uint32
+	getCount uint32
+}
+
 // YTFSIndexFile main struct of YTFS index
 // it defines the read/write logic of index file structure.
 type YTFSIndexFile struct {
-	meta  *ydcommon.Header
-	index rangeTableInfo
-	store Storage
-	cm    *cache.Manager
+	meta   *ydcommon.Header
+	index  rangeTableInfo
+	store  Storage
+	config *opt.Options
+	stat   indexStatistics
 	sync.Mutex
 }
 
@@ -236,7 +242,9 @@ func (indexFile *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.I
 		fmt.Println("IndexDB put", key, value)
 	}
 
-	writer.Sync()
+	if (indexFile.stat.putCount & (indexFile.config.SyncPeriod - 1)) == 0 {
+		writer.Sync()
+	}
 	return err
 }
 
@@ -248,15 +256,15 @@ func (indexFile *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.I
 // The returned YTFSIndexFile instance is safe for concurrent use.
 // The YTFSIndexFile must be closed after use, by calling Close method.
 //
-func OpenYTFSIndexFile(path string, yottaConfig *opt.Options) (*YTFSIndexFile, error) {
-	storage, err := openIndexStorage(path, yottaConfig)
+func OpenYTFSIndexFile(path string, ytfsConfig *opt.Options) (*YTFSIndexFile, error) {
+	storage, err := openIndexStorage(path, ytfsConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	header, err := readIndexHeader(storage)
 	if err != nil {
-		header, err = initializeIndexStorage(storage, yottaConfig)
+		header, err = initializeIndexStorage(storage, ytfsConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -266,7 +274,8 @@ func OpenYTFSIndexFile(path string, yottaConfig *opt.Options) (*YTFSIndexFile, e
 		header,
 		rangeTableInfo{sizes: make([]uint32, header.RangeCapacity+1, header.RangeCapacity+1)}, // +1 for overflow region
 		storage,
-		nil,
+		ytfsConfig,
+		indexStatistics{0, 0, 0},
 		sync.Mutex{},
 	}
 
