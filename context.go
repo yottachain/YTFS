@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	debugPrint bool = opt.DebugPrint
+	debugPrint = opt.DebugPrint
 )
 
 type storageContext struct {

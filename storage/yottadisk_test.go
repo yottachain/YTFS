@@ -46,7 +46,6 @@ func TestValidateYottaDiskWithFileStorage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer yd.Close()
 
 	yd.WriteData(0, []byte{0})
 	yd.WriteData(1, []byte{1})
@@ -58,7 +57,7 @@ func TestValidateYottaDiskWithFileStorage(t *testing.T) {
 	}
 	defer ydRef1.Close()
 
-	if reflect.DeepEqual(yd.meta, ydRef1.meta) {
+	if !reflect.DeepEqual(yd.meta, ydRef1.meta) {
 		t.Fatal()
 	}
 

@@ -34,7 +34,7 @@ func TestHeaderPrint(t *testing.T) {
 		unsafe.Offsetof(header.RangeCapacity), unsafe.Sizeof(header.RangeCapacity),
 		unsafe.Offsetof(header.RangeCoverage), unsafe.Sizeof(header.RangeCoverage),
 		unsafe.Offsetof(header.HashOffset), unsafe.Sizeof(header.HashOffset),
-		unsafe.Offsetof(header.DataCount), unsafe.Sizeof(header.DataCount),
+		unsafe.Offsetof(header.DataEndPoint), unsafe.Sizeof(header.DataEndPoint),
 		unsafe.Offsetof(header.RecycleOffset), unsafe.Sizeof(header.RecycleOffset),
 		unsafe.Offsetof(header.Reserved), unsafe.Sizeof(header.Reserved))
 }
