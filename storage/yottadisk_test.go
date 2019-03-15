@@ -8,10 +8,7 @@ import (
 
 	types "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
-)
-
-const (
-	dataBlockSize = 16
+	"github.com/yottachain/YTFS/errors"
 )
 
 func testOptions() *opt.StorageOptions {
@@ -24,7 +21,7 @@ func testOptions() *opt.StorageOptions {
 		StorageName:   tmpfile.Name(),
 		StorageType:   types.FileStorageType,
 		ReadOnly:      false,
-		Sync:          true,
+		SyncPeriod:    0,
 		StorageVolume: 1 << 20, // 1m
 		DataBlockSize: 1 << 15, // 32k
 	}
@@ -75,5 +72,31 @@ func TestValidateYottaDiskWithFileStorage(t *testing.T) {
 
 	if !reflect.DeepEqual(yd.meta, ydRef2.meta) {
 		t.Fatal()
+	}
+}
+
+func TestOpenYottaDiskWithAnotherConfig(t *testing.T) {
+	config := testOptions()
+	defer os.Remove(config.StorageName)
+
+	yd, err := OpenYottaDisk(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	yd.Close()
+
+	config.StorageVolume /= 2
+	opt.IgnoreStorageHeaderErr = true
+	ydNew, err := OpenYottaDisk(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ydNew.Close()
+
+	config.StorageVolume /= 2
+	opt.IgnoreStorageHeaderErr = false
+	_, err = OpenYottaDisk(config)
+	if err != errors.ErrStorageHeader {
+		t.Fatal(err)
 	}
 }

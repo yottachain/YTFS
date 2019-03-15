@@ -6,7 +6,7 @@ import (
 	// "syscall"
 
 	types "github.com/yottachain/YTFS/common"
-	"github.com/yottachain/YTFS/errors"
+	// "github.com/yottachain/YTFS/errors"
 	"github.com/yottachain/YTFS/opt"
 )
 
@@ -30,7 +30,7 @@ func OpenBlockStorage(path string, opt *opt.StorageOptions) (Storage, error) {
 		mu:       sync.RWMutex{},
 		fd: &FileDesc{
 			Type: types.BlockStorageType,
-			Caps: 0,
+			Cap:  0,
 			Path: path,
 		},
 	}
@@ -87,9 +87,10 @@ func (file *BlockStorage) Close() error {
 }
 
 func (file *BlockStorage) validateStorageParam(opt *opt.StorageOptions) error {
-	if file.fd.Caps > opt.StorageVolume {
-		return errors.ErrStorageSize
-	}
+	// TODO: enable size check
+	// if file.fd.Cap < opt.StorageVolume {
+	// 	return errors.ErrStorageSize
+	// }
 
 	return nil
 }
@@ -100,7 +101,7 @@ func (file *BlockStorage) validateStorageParam(opt *opt.StorageOptions) error {
 func (file *BlockStorage) Open(fd FileDesc) (Reader, error) {
 	file.fd = &FileDesc{
 		Type: types.BlockStorageType,
-		Caps: uint64(fd.Caps),
+		Cap:  uint64(fd.Cap),
 		Path: fd.Path,
 	}
 

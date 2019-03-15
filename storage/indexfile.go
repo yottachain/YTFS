@@ -18,7 +18,7 @@ import (
 	"github.com/yottachain/YTFS/opt"
 )
 
-const (
+var (
 	debugPrint = opt.DebugPrint
 )
 

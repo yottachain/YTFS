@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	types "github.com/yottachain/YTFS/common"
-	"github.com/yottachain/YTFS/errors"
+	// "github.com/yottachain/YTFS/errors"
 	"github.com/yottachain/YTFS/opt"
 )
 
@@ -88,9 +88,10 @@ func (file *FileStorage) Close() error {
 }
 
 func (file *FileStorage) validateStorageParam(opt *opt.StorageOptions) error {
-	if file.fd.Caps > opt.StorageVolume {
-		return errors.ErrStorageSize
-	}
+	// TODO: enable pre-alloc file
+	// if file.fd.Caps < opt.StorageVolume {
+	// 	return errors.ErrStorageSize
+	// }
 
 	return nil
 }

@@ -1,7 +1,8 @@
 package opt
 
 // properties for internal use.
-const (
-	DebugPrint   bool    = false
-	expendRatioM float32 = 1.2
+var (
+	DebugPrint             = false // Debug print
+	IgnoreStorageHeaderErr = true  // Ignore storage header mismatch with config.
+	expendRatioM           = 1.2   // Expending ratio of M (col of index table)
 )

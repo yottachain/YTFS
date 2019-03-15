@@ -13,6 +13,7 @@ var (
 	ErrContextOverflow  = errors.New("YTFS: context can not support >32bit address")
 	ErrConfigCache      = errors.New("YTFS: Cache size config error")
 	ErrStorageSize      = errors.New("YTFS: storage size does not meet settings")
+	ErrStorageHeader    = errors.New("YTFS: existing storage header does not meet settings")
 	ErrContextIDMapping = errors.New("YTFS: context mapping global id to device failed")
 	ErrConflict         = errors.New("YTFS: conflict hash value")
 	ErrRangeFull        = errors.New("YTFS: Range is full")

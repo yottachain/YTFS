@@ -101,7 +101,7 @@ func (disk *YottaDisk) WriteData(dataOffsetIndex ydcommon.IndexTableValue, data 
 	}
 
 	disk.stat.writeOps++
-	if disk.stat.writeOps & (disk.config.SyncPeriod - 1) == 0{
+	if disk.stat.writeOps&(disk.config.SyncPeriod-1) == 0 {
 		return writer.Sync()
 	}
 
@@ -130,6 +130,17 @@ func OpenYottaDisk(yottaConfig *opt.StorageOptions) (*YottaDisk, error) {
 		}
 	}
 
+	if !validateHeader(header, yottaConfig) {
+		if opt.IgnoreStorageHeaderErr {
+			header, err = initializeStorage(storage, yottaConfig)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, errors.ErrStorageHeader
+		}
+	}
+
 	yd := &YottaDisk{
 		yottaConfig,
 		*header,
@@ -140,6 +151,10 @@ func OpenYottaDisk(yottaConfig *opt.StorageOptions) (*YottaDisk, error) {
 
 	fmt.Println("Open YottaDisk success @" + yottaConfig.StorageName)
 	return yd, nil
+}
+
+func validateHeader(header *ydcommon.StorageHeader, yottaConfig *opt.StorageOptions) bool {
+	return header.DataBlockSize == yottaConfig.DataBlockSize && header.DiskCapacity == yottaConfig.StorageVolume
 }
 
 func initializeStorage(store Storage, config *opt.StorageOptions) (*ydcommon.StorageHeader, error) {
@@ -157,7 +172,7 @@ func initializeStorage(store Storage, config *opt.StorageOptions) (*ydcommon.Sto
 	header := ydcommon.StorageHeader{
 		Tag:           [4]byte{'S', 'T', 'O', 'R'},
 		Version:       [4]byte{0x0, '.', 0x0, 0x1},
-		DiskCaps:      t,
+		DiskCapacity:  t,
 		DataBlockSize: uint32(d),
 		DataOffset:    dataOffset,
 		DataCapacity:  uint32((t - h) / d),

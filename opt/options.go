@@ -168,7 +168,7 @@ func FinalizeConfig(config *Options) (*Options, error) {
 	if m < 4 || m >= MaxRangeCoverage {
 		return nil, ErrConfigM
 	}
-	config.IndexTableCols = uint32((float32)(m) * expendRatioM)
+	config.IndexTableCols = uint32((float64)(m) * expendRatioM)
 
 	if config.IndexTableRows > MaxRangeNumber || !ytfs.IsPowerOfTwo((uint64)(config.IndexTableRows)) {
 		return nil, ErrConfigN
