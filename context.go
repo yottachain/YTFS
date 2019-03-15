@@ -11,7 +11,7 @@ import (
 	"github.com/yottachain/YTFS/storage"
 )
 
-const (
+var (
 	debugPrint bool = opt.DebugPrint
 )
 

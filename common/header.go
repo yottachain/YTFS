@@ -20,7 +20,7 @@ type Header struct {
 type StorageHeader struct {
 	Tag           [4]byte `json:"tag"`
 	Version       [4]byte `json:"version"`
-	DiskCaps      uint64  `json:"diskCaps"`
+	DiskCapacity  uint64  `json:"diskCapacity"`
 	DataBlockSize uint32  `json:"dataBlkSize"`
 	DataOffset    uint32  `json:"dataOffset"`
 	DataCapacity  uint32  `json:"DataCapacity"`

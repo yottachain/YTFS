@@ -29,7 +29,7 @@ func OpenFileStorage(opt *opt.StorageOptions) (Storage, error) {
 		mu:       sync.RWMutex{},
 		fd: &FileDesc{
 			Type: types.DummyStorageType,
-			Caps: 0,
+			Cap:  0,
 			Path: opt.StorageName,
 		},
 	}
@@ -89,7 +89,7 @@ func (file *FileStorage) Close() error {
 
 func (file *FileStorage) validateStorageParam(opt *opt.StorageOptions) error {
 	// TODO: enable pre-alloc file
-	// if file.fd.Caps < opt.StorageVolume {
+	// if file.fd.Cap < opt.StorageVolume {
 	// 	return errors.ErrStorageSize
 	// }
 
@@ -107,7 +107,7 @@ func (file *FileStorage) Open(fd FileDesc) (Reader, error) {
 
 	file.fd = &FileDesc{
 		Type: types.FileStorageType,
-		Caps: uint64(fd.Caps),
+		Cap:  uint64(fd.Cap),
 		Path: fd.Path,
 	}
 

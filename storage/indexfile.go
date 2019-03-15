@@ -350,7 +350,7 @@ func openIndexStorage(path string, opt *opt.Options) (Storage, error) {
 		mu:       sync.RWMutex{},
 		fd: &FileDesc{
 			Type: ydcommon.DummyStorageType,
-			Caps: 0,
+			Cap:  0,
 			Path: path,
 		},
 	}
