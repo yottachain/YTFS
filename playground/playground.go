@@ -4,22 +4,24 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"runtime/pprof"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/yottachain/YTFS"
-	"github.com/yottachain/YTFS/opt"
+	ytfs "github.com/yottachain/YTFS"
 	ydcommon "github.com/yottachain/YTFS/common"
+	"github.com/yottachain/YTFS/opt"
 )
 
 var (
 	configName string
+	home       string
 	format     *bool
 	testMode   string
 	cpuprofile string
@@ -31,6 +33,7 @@ func init() {
 	flag.StringVar(&cpuprofile, "cpuprofile", "", "cpuprofile")
 	flag.StringVar(&memprofile, "memprofile", "", "memprofile")
 	flag.StringVar(&testMode, "test", "", "Testmode: simple, stress, hybrid")
+	flag.StringVar(&home, "home", "", "root directory of YTFS")
 	format = flag.Bool("format", false, "format storage")
 }
 
@@ -57,30 +60,38 @@ func main() {
 		config = opt.DefaultOptions()
 	}
 
-	yd, err := yottadisk.OpenYottaDisk(config)
+	rootDir := home
+	if rootDir == "" {
+		rootDir, err = ioutil.TempDir("/tmp", "ytfsPlayground")
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	ytfs, err := ytfs.Open(rootDir, config)
 	if err != nil {
 		panic(err)
 	}
-	defer yd.Close()
+	defer ytfs.Close()
 
 	if *format {
-		err = yd.FormatYottaDisk()
+		err = ytfs.Reset()
 	} else {
 		switch testMode {
 		case "simple":
-			err = simpleTest(yd)
+			err = simpleTest(ytfs)
 		case "stress":
-			err = stressTestReadAfterWrite(yd)
+			err = stressTestReadAfterWrite(ytfs)
 		case "hybrid":
-			err = hybridTestReadAfterWrite(yd)
+			err = hybridTestReadAfterWrite(ytfs)
 		case "read":
-			err = stressRead(yd)
+			err = stressRead(ytfs)
 		case "write":
-			err = stressWrite(yd)
-		case "report" :
-			err = reportInfo(yd)
+			err = stressWrite(ytfs)
+		case "report":
+			err = reportInfo(ytfs)
 		default:
-			err = simpleTest(yd)
+			err = simpleTest(ytfs)
 		}
 	}
 
@@ -91,15 +102,15 @@ func main() {
 	fmt.Println("play completed.")
 }
 
-func simpleTest(yd *yottadisk.YottaDisk) error {
+func simpleTest(ytfs *ytfs.YTFS) error {
 	type KeyValuePair struct {
 		hash common.Hash
 		buf  []byte
 	}
 
 	dataPair := []KeyValuePair{}
-	for i := 0; i < 256; i++ {
-		printProgress((uint64)(i), 255)
+	for i := 0; i < 10; i++ {
+		printProgress((uint64)(i), 9)
 		testHash := common.HexToHash(fmt.Sprintf("%032X", i))
 		dataPair = append(dataPair, KeyValuePair{
 			hash: testHash,
@@ -108,14 +119,14 @@ func simpleTest(yd *yottadisk.YottaDisk) error {
 	}
 
 	for i := 0; i < len(dataPair); i++ {
-		err := yd.Put((ydcommon.IndexTableKey)(dataPair[i].hash), dataPair[i].buf[:])
+		err := ytfs.Put((ydcommon.IndexTableKey)(dataPair[i].hash), dataPair[i].buf[:])
 		if err != nil {
 			panic(err)
 		}
 	}
 
 	for i := 0; i < len(dataPair); i++ {
-		buf, err := yd.Get((ydcommon.IndexTableKey)(dataPair[i].hash))
+		buf, err := ytfs.Get((ydcommon.IndexTableKey)(dataPair[i].hash))
 		if err != nil {
 			panic(err)
 		}
@@ -125,7 +136,7 @@ func simpleTest(yd *yottadisk.YottaDisk) error {
 		}
 	}
 
-	fmt.Println(yd)
+	// fmt.Println(ytfs)
 	return nil
 }
 
@@ -149,48 +160,46 @@ func printProgress(cursor, volume uint64) {
 	}
 }
 
-func stressWrite(yd *yottadisk.YottaDisk) error {
+func stressWrite(ytfs *ytfs.YTFS) error {
 	type KeyValuePair struct {
 		hash common.Hash
 		buf  []byte
 	}
 
-	meta := yd.Meta()
-	dataCaps := (uint64)(meta.RangeCaps) * (uint64)(meta.RangeCoverage)
+	dataCaps := ytfs.Cap()
 	fmt.Printf("Starting insert %d data blocks\n", dataCaps)
 
 	for i := (uint64)(0); i < dataCaps; i++ {
-		printProgress(i, dataCaps - 1)
+		printProgress(i, dataCaps-1)
 		testHash := common.HexToHash(fmt.Sprintf("%032X", i))
 		dataPair := KeyValuePair{
 			hash: testHash,
 			buf:  testHash[:],
 		}
-		err := yd.Put((ydcommon.IndexTableKey)(dataPair.hash), dataPair.buf[:])
+		err := ytfs.Put((ydcommon.IndexTableKey)(dataPair.hash), dataPair.buf[:])
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	fmt.Println(yd)
+	fmt.Println(ytfs)
 	return nil
 }
 
-func stressRead(yd *yottadisk.YottaDisk) error {
+func stressRead(ytfs *ytfs.YTFS) error {
 	type KeyValuePair struct {
 		hash common.Hash
 		buf  []byte
 	}
 
-	meta := yd.Meta()
-	dataCaps := (uint64)(meta.RangeCaps) * (uint64)(meta.RangeCoverage)
+	dataCaps := ytfs.Cap()
 	fmt.Printf("Starting validata %d data blocks\n", dataCaps)
 
 	r := rand.New(rand.NewSource(time.Now().Unix()))
 	for seq, i := range r.Perm((int)(dataCaps)) {
-		printProgress((uint64)(seq), dataCaps - 1)
+		printProgress((uint64)(seq), dataCaps-1)
 		testHash := common.HexToHash(fmt.Sprintf("%032X", i))
-		buf, err := yd.Get((ydcommon.IndexTableKey)(testHash))
+		buf, err := ytfs.Get((ydcommon.IndexTableKey)(testHash))
 		if err != nil {
 			fmt.Println(fmt.Sprintf("\nFatal: %d test fail, hash %v, err %v\n\n", seq, testHash, err))
 			panic(err)
@@ -204,8 +213,8 @@ func stressRead(yd *yottadisk.YottaDisk) error {
 	return nil
 }
 
-func stressTestReadAfterWrite(yd *yottadisk.YottaDisk) error {
-	err := stressWrite(yd)
+func stressTestReadAfterWrite(ytfs *ytfs.YTFS) error {
+	err := stressWrite(ytfs)
 	if err != nil {
 		panic(err)
 	}
@@ -214,7 +223,7 @@ func stressTestReadAfterWrite(yd *yottadisk.YottaDisk) error {
 	for i := 0; i < runtime.NumCPU(); i++ {
 		wg.Add(1)
 		go func(id int) {
-			err := stressRead(yd)
+			err := stressRead(ytfs)
 			if err != nil {
 				panic(err)
 			}
@@ -225,47 +234,44 @@ func stressTestReadAfterWrite(yd *yottadisk.YottaDisk) error {
 	return err
 }
 
-func hybridTestReadAfterWrite(yd *yottadisk.YottaDisk) error {
+func hybridTestReadAfterWrite(ytfs *ytfs.YTFS) error {
 	type KeyValuePair struct {
 		hash common.Hash
 		buf  []byte
 	}
 
-	meta := yd.Meta()
-	dataCaps := (uint64)(meta.RangeCaps) * (uint64)(meta.RangeCoverage)
-	fmt.Printf("Starting hybrid test on %d data blocks\n", dataCaps)
-	wg := sync.WaitGroup{}
-	done := make(chan interface{})
-	exit := make(chan interface{})
+	dataCaps := ytfs.Cap()
 	count := 0
-	parallel := 0
+	inqueue := 0
+	maxQueue := 10000
+	exit := make(chan interface{})
+	done := make(chan interface{})
+	sema := make(chan interface{}, maxQueue)
 	go func() {
 		for {
 			select {
-			case <- done:
+			case <-done:
 				count++
-				parallel--
 				printProgress((uint64)(count), dataCaps)
-			case <- exit:
+			case <-exit:
 				return
 			}
 		}
 	}()
 
+	fmt.Printf("Starting hybrid test on %d data blocks\n", dataCaps)
+	wg := sync.WaitGroup{}
 	r := rand.New(rand.NewSource(time.Now().Unix()))
 	for _, i := range r.Perm((int)(dataCaps)) {
 		wg.Add(1)
-		if parallel >= 2000 {
-			time.Sleep(100*time.Millisecond)
-		}
-		parallel++
+		inqueue++
 		go func(id uint64) {
 			testHash := common.HexToHash(fmt.Sprintf("%032X", id))
-			err := yd.Put((ydcommon.IndexTableKey)(testHash), testHash[:])
+			err := ytfs.Put((ydcommon.IndexTableKey)(testHash), testHash[:])
 			if err != nil {
 				panic(err)
 			}
-			buf, err := yd.Get((ydcommon.IndexTableKey)(testHash))
+			buf, err := ytfs.Get((ydcommon.IndexTableKey)(testHash))
 			if err != nil {
 				fmt.Println(fmt.Sprintf("\nFatal: %d test fail, hash %v, err %v\n\n", id, testHash, err))
 				panic(err)
@@ -274,7 +280,9 @@ func hybridTestReadAfterWrite(yd *yottadisk.YottaDisk) error {
 			if bytes.Compare(buf[:len(testHash)], testHash[:]) != 0 {
 				panic(fmt.Sprintf("Fatal: %d test fail, want:\n%x\n, get:\n%x\n", id, testHash, buf[:len(testHash)]))
 			}
-			done <- struct{}{};
+			done <- struct{}{}
+			sema <- struct{}{}
+			defer func() { <-sema }()
 			wg.Done()
 		}((uint64)(i))
 	}
@@ -284,7 +292,7 @@ func hybridTestReadAfterWrite(yd *yottadisk.YottaDisk) error {
 	return nil
 }
 
-func reportInfo(yd *yottadisk.YottaDisk) error {
-	fmt.Println(yd)
+func reportInfo(ytfs *ytfs.YTFS) error {
+	fmt.Println(ytfs)
 	return nil
 }

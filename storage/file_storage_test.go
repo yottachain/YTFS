@@ -4,32 +4,10 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	// "log"
 	"testing"
-
-	"github.com/yottachain/YTFS/common"
-	"github.com/yottachain/YTFS/opt"
 )
-
-func testOptions() *opt.Options {
-	tmpfile, err := ioutil.TempFile("", "yotta-test")
-	if err != nil {
-		panic(err)
-	}
-
-	return &opt.Options{
-		StorageName: tmpfile.Name(),
-		StorageType: common.FileStorageType,
-		ReadOnly: false,
-		Sync: true,
-		M: 0,
-		N: 32,		// 32
-		T: 1 << 16, // 64k
-		D: 16, 		// 16
-	}
-}
 
 func TestFileStorageRW(t *testing.T) {
 	config := testOptions()
@@ -54,10 +32,10 @@ func TestFileStorageRW(t *testing.T) {
 	binary.Write(writer, binary.LittleEndian, []byte{0x4, 0x5, 0x6})
 
 	buf := struct {
-			Data []uint16
-		} {
-			Data: []uint16{0x2020, 0x2021, 0x2022},
-		}
+		Data []uint16
+	}{
+		Data: []uint16{0x2020, 0x2021, 0x2022},
+	}
 	writer.Seek(40, io.SeekStart)
 	err = binary.Write(writer, binary.LittleEndian, buf.Data)
 	if err != nil {
@@ -81,7 +59,6 @@ func TestFileStorageRW(t *testing.T) {
 	var f uint16
 	reader.Seek(40, io.SeekStart)
 	binary.Read(reader, binary.LittleEndian, &f)
-
 
 	fmt.Println(a, b, c, d, e, f)
 }

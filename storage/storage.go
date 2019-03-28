@@ -15,7 +15,7 @@ type Locker interface {
 // FileDesc is a 'file descriptor'.
 type FileDesc struct {
 	Type types.StorageType
-	Caps uint64
+	Cap  uint64
 	Path string
 }
 
