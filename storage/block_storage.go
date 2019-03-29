@@ -24,14 +24,14 @@ type BlockStorage struct {
 // same path will fail.
 //
 // The storage must be closed after use, by calling Close method.
-func OpenBlockStorage(path string, opt *opt.StorageOptions) (Storage, error) {
+func OpenBlockStorage(opt *opt.StorageOptions) (Storage, error) {
 	blkStorage := BlockStorage{
 		readOnly: opt.ReadOnly,
 		mu:       sync.RWMutex{},
 		fd: &FileDesc{
 			Type: types.BlockStorageType,
 			Cap:  0,
-			Path: path,
+			Path: opt.StorageName,
 		},
 	}
 

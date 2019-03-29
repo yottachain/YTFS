@@ -117,7 +117,7 @@ func (disk *YottaDisk) WriteData(dataOffsetIndex ydcommon.IndexTableValue, data 
 // The YottaDisk must be closed after use, by calling Close method.
 //
 func OpenYottaDisk(yottaConfig *opt.StorageOptions) (*YottaDisk, error) {
-	storage, err := OpenFileStorage(yottaConfig)
+	storage, err := openStorage(yottaConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -151,6 +151,25 @@ func OpenYottaDisk(yottaConfig *opt.StorageOptions) (*YottaDisk, error) {
 
 	fmt.Println("Open YottaDisk success @" + yottaConfig.StorageName)
 	return yd, nil
+}
+
+func openStorage(storageConfig *opt.StorageOptions) (Storage, error) {
+	var storage Storage
+	var err error
+	switch storageConfig.StorageType {
+	case ydcommon.FileStorageType:
+		storage, err = OpenFileStorage(storageConfig)
+	case ydcommon.BlockStorageType:
+		storage, err = OpenBlockStorage(storageConfig)
+	default:
+		err = errors.ErrStorageType
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return storage, nil
 }
 
 func validateHeader(header *ydcommon.StorageHeader, yottaConfig *opt.StorageOptions) bool {
