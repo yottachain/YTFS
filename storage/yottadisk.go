@@ -70,8 +70,7 @@ func (disk *YottaDisk) ReadData(dataIndex ydcommon.IndexTableValue) ([]byte, err
 
 	reader, err := disk.store.Reader()
 	dataBlock := make([]byte, disk.meta.DataBlockSize, disk.meta.DataBlockSize)
-	reader.Seek((int64)(disk.meta.DataOffset+
-		disk.meta.DataBlockSize*(uint32)(dataIndex)), io.SeekStart)
+	reader.Seek(int64(disk.meta.DataOffset)+int64(disk.meta.DataBlockSize)*int64(dataIndex), io.SeekStart)
 	_, err = reader.Read(dataBlock)
 	if err != nil {
 		return nil, err
@@ -93,8 +92,7 @@ func (disk *YottaDisk) WriteData(dataOffsetIndex ydcommon.IndexTableValue, data 
 	ydcommon.YottaAssert(len(data) <= (int)(disk.meta.DataBlockSize))
 	dataBlock := make([]byte, disk.meta.DataBlockSize, disk.meta.DataBlockSize)
 	copy(dataBlock, data)
-	writer.Seek((int64)(disk.meta.DataOffset+
-		disk.meta.DataBlockSize*(uint32)(dataOffsetIndex)), io.SeekStart)
+	writer.Seek(int64(disk.meta.DataOffset)+int64(disk.meta.DataBlockSize)*int64(dataOffsetIndex), io.SeekStart)
 	_, err = writer.Write(dataBlock)
 	if err != nil {
 		return err
@@ -117,7 +115,7 @@ func (disk *YottaDisk) WriteData(dataOffsetIndex ydcommon.IndexTableValue, data 
 // The YottaDisk must be closed after use, by calling Close method.
 //
 func OpenYottaDisk(yottaConfig *opt.StorageOptions) (*YottaDisk, error) {
-	storage, err := OpenFileStorage(yottaConfig)
+	storage, err := openStorage(yottaConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -151,6 +149,25 @@ func OpenYottaDisk(yottaConfig *opt.StorageOptions) (*YottaDisk, error) {
 
 	fmt.Println("Open YottaDisk success @" + yottaConfig.StorageName)
 	return yd, nil
+}
+
+func openStorage(storageConfig *opt.StorageOptions) (Storage, error) {
+	var storage Storage
+	var err error
+	switch storageConfig.StorageType {
+	case ydcommon.FileStorageType:
+		storage, err = OpenFileStorage(storageConfig)
+	case ydcommon.BlockStorageType:
+		storage, err = OpenBlockStorage(storageConfig)
+	default:
+		err = errors.ErrStorageType
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return storage, nil
 }
 
 func validateHeader(header *ydcommon.StorageHeader, yottaConfig *opt.StorageOptions) bool {
