@@ -136,7 +136,7 @@ func (indexFile *YTFSIndexFile) loadTableFromStorage(tbIndex uint32) (map[ydcomm
 	reader.Read(sizeBuf)
 	tableSize := binary.LittleEndian.Uint32(sizeBuf)
 	if debugPrint {
-		fmt.Println("read table size :=", sizeBuf, "from", indexFile.meta.HashOffset+tbIndex*tableAllocationSize)
+		fmt.Println("read table size :=", sizeBuf, "from", int64(indexFile.meta.HashOffset)+int64(tbIndex)*int64(tableAllocationSize))
 	}
 
 	// read table contents
@@ -203,7 +203,7 @@ func (indexFile *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.I
 	writer, _ := indexFile.store.Writer()
 	itemSize := uint32(unsafe.Sizeof(ydcommon.IndexTableKey{}) + unsafe.Sizeof(ydcommon.IndexTableValue(0)))
 	tableAllocationSize := indexFile.meta.RangeCoverage*itemSize + 4
-	tableBeginPos := (int64)(indexFile.meta.HashOffset + idx*tableAllocationSize)
+	tableBeginPos := int64(indexFile.meta.HashOffset) + int64(idx)*int64(tableAllocationSize)
 
 	valueBuf := make([]byte, 4)
 	writer.Seek(tableBeginPos, io.SeekStart)
