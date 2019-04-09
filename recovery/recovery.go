@@ -135,7 +135,7 @@ func (codec *DataRecoverEngine) validateTask(td *TaskDescription) error {
 func (codec *DataRecoverEngine) doRecoverData(td *TaskDescription, done chan interface{}) {
 	if ytfsOpt.DebugPrint {
 		for i:=0;i<len(td.RecoverIDs);i++{
-			fmt.Printf("Recovery: start working on td(%d), recover hash = %v\n", td.ID, td.Hashes[td.RecoverIDs[i]])
+			fmt.Printf("Recovery: start working on td(%d), recover hash = %x\n", td.ID, td.Hashes[td.RecoverIDs[i]])
 		}
 	}
 

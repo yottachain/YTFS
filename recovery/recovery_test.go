@@ -79,7 +79,7 @@ func TestDataRecovery(t *testing.T) {
 	p2p, locs, hashes, shards := createP2PAndDistributeData(recConfig.DataShards, recConfig.ParityShards)
 
 	for i:=0;i<len(shards);i++{
-		fmt.Printf("shard[%d] = %v\n", i, shards[i][:20])
+		fmt.Printf("Data[%d] = %x:%x\n", i, hashes[i], shards[i][:20])
 	}
 
 	codec, err := NewDataCodec(yd, p2p, recConfig)
