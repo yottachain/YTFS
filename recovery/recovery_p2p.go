@@ -1,6 +1,6 @@
 package recovery
 
-import(
+import (
 	// "fmt"
 	// "bytes"
 	"time"
@@ -17,13 +17,13 @@ type P2PNetwork interface {
 }
 
 // P2PMock mocks a p2p network for test
-type P2PMock struct{
+type P2PMock struct {
 	network map[P2PLocation][]byte
 }
 
 // RetrieveData get data from p2p network address
 func (mock P2PMock) RetrieveData(peer P2PLocation, msgByte []byte) error {
-	time.Sleep(50*time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	copy(msgByte, mock.network[peer])
 	return nil
 }
@@ -34,10 +34,8 @@ func InititalP2PMock(peers []P2PLocation, dataBlks [][]byte) (P2PNetwork, error)
 		map[P2PLocation][]byte{},
 	}
 
-	for i:=0;i<len(peers);i++{
-		p2p.network[peers[i]]=dataBlks[i]
+	for i := 0; i < len(peers); i++ {
+		p2p.network[peers[i]] = dataBlks[i]
 	}
 	return p2p, nil
 }
-
-

@@ -3,18 +3,18 @@ package recovery
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"io/ioutil"
-	"crypto/sha256"
 	"math/rand"
 	"testing"
 	"time"
 
-	"github.com/klauspost/reedsolomon"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/klauspost/reedsolomon"
 	"github.com/yottachain/YTFS"
-	ytfsOpt "github.com/yottachain/YTFS/opt"
 	ytfsCommon "github.com/yottachain/YTFS/common"
+	ytfsOpt "github.com/yottachain/YTFS/opt"
 )
 
 func TestNewDataRecovery(t *testing.T) {
@@ -33,20 +33,20 @@ func randomFill(size uint32) []byte {
 }
 
 func createShards(dataShards, parityShards int) ([]common.Hash, [][]byte) {
-	shards := make([][]byte, dataShards + parityShards)
-	hashes := make([]common.Hash, dataShards + parityShards)
+	shards := make([][]byte, dataShards+parityShards)
+	hashes := make([]common.Hash, dataShards+parityShards)
 	dataBlkSize := ytfsOpt.DefaultOptions().DataBlockSize
-	for i:=0;i<dataShards;i++{
+	for i := 0; i < dataShards; i++ {
 		shards[i] = randomFill(dataBlkSize)
 		sum256 := sha256.Sum256(shards[i])
 		hashes[i] = common.BytesToHash(sum256[:])
 	}
 
-	for i:=dataShards;i<dataShards+parityShards;i++{
+	for i := dataShards; i < dataShards+parityShards; i++ {
 		shards[i] = make([]byte, dataBlkSize)
 	}
 
-	return hashes,shards
+	return hashes, shards
 }
 
 func createP2PAndDistributeData(dataShards, parityShards int) (P2PNetwork, []P2PLocation, []common.Hash, [][]byte) {
@@ -55,12 +55,12 @@ func createP2PAndDistributeData(dataShards, parityShards int) (P2PNetwork, []P2P
 	enc, _ := reedsolomon.New(dataShards, parityShards)
 	enc.Encode(shards)
 	//update parity hash
-	for i:=dataShards;i<dataShards+parityShards;i++{
+	for i := dataShards; i < dataShards+parityShards; i++ {
 		sum256 := sha256.Sum256(shards[i])
 		hashes[i] = common.BytesToHash(sum256[:])
 	}
 
-	for i:=0;i<dataShards+parityShards;i++{
+	for i := 0; i < dataShards+parityShards; i++ {
 		locations[i] = P2PLocation(common.BytesToAddress(hashes[i][:]))
 	}
 
@@ -78,7 +78,7 @@ func TestDataRecovery(t *testing.T) {
 	recConfig := DefaultRecoveryOption()
 	p2p, locs, hashes, shards := createP2PAndDistributeData(recConfig.DataShards, recConfig.ParityShards)
 
-	for i:=0;i<len(shards);i++{
+	for i := 0; i < len(shards); i++ {
 		fmt.Printf("Data[%d] = %x:%x\n", i, hashes[i], shards[i][:20])
 	}
 
@@ -88,7 +88,7 @@ func TestDataRecovery(t *testing.T) {
 	}
 
 	tdList := []*TaskDescription{}
-	for i:=0;i<len(shards);i++{
+	for i := 0; i < len(shards); i++ {
 		td := &TaskDescription{
 			uint64(i),
 			hashes,
@@ -99,8 +99,8 @@ func TestDataRecovery(t *testing.T) {
 		tdList = append(tdList, td)
 	}
 
-	time.Sleep(2*time.Second)
-	for _,td := range tdList{
+	time.Sleep(2 * time.Second)
+	for _, td := range tdList {
 		tdStatus := codec.RecoverStatus(td)
 		if tdStatus.Status != SuccessTask {
 			t.Fatalf("ERROR: td status(%d): %s", tdStatus.Status, tdStatus.Desc)
@@ -108,9 +108,9 @@ func TestDataRecovery(t *testing.T) {
 			data, err := yd.Get(ytfsCommon.IndexTableKey(td.Hashes[td.RecoverIDs[0]]))
 			if err != nil || bytes.Compare(data, shards[td.RecoverIDs[0]]) != 0 {
 				t.Fatalf("Error: err(%v), dataCompare (%d). hash(%v) data(%v) shards(%v)",
-				err, bytes.Compare(data, shards[td.RecoverIDs[0]]),
-				td.Hashes[td.RecoverIDs[0]],
-				data[:20], shards[td.RecoverIDs[0]][:20])
+					err, bytes.Compare(data, shards[td.RecoverIDs[0]]),
+					td.Hashes[td.RecoverIDs[0]],
+					data[:20], shards[td.RecoverIDs[0]][:20])
 			}
 		}
 	}
@@ -126,7 +126,7 @@ func TestMultiplyDataRecovery(t *testing.T) {
 	recConfig := DefaultRecoveryOption()
 	p2p, locs, hashes, shards := createP2PAndDistributeData(recConfig.DataShards, recConfig.ParityShards)
 
-	for i:=0;i<len(shards);i++{
+	for i := 0; i < len(shards); i++ {
 		fmt.Printf("Data[%d] = %x:%x\n", i, hashes[i], shards[i][:20])
 	}
 
@@ -135,26 +135,26 @@ func TestMultiplyDataRecovery(t *testing.T) {
 		t.Fail()
 	}
 
-	td:= &TaskDescription{
-			uint64(2),
-			hashes,
-			locs,
-			[]uint32{0,1,2},
-		}
+	td := &TaskDescription{
+		uint64(2),
+		hashes,
+		locs,
+		[]uint32{0, 1, 2},
+	}
 	codec.RecoverData(td)
 
-	time.Sleep(2*time.Second)
+	time.Sleep(2 * time.Second)
 	tdStatus := codec.RecoverStatus(td)
 	if tdStatus.Status != SuccessTask {
 		t.Fatalf("ERROR: td status(%d): %s", tdStatus.Status, tdStatus.Desc)
 	} else {
-		for i:=0;i<len(td.RecoverIDs);i++{
+		for i := 0; i < len(td.RecoverIDs); i++ {
 			data, err := yd.Get(ytfsCommon.IndexTableKey(td.Hashes[td.RecoverIDs[i]]))
 			if err != nil || bytes.Compare(data, shards[td.RecoverIDs[i]]) != 0 {
 				t.Fatalf("Error: err(%v), dataCompare (%d). hash(%v) data(%v) shards(%v)",
-				err, bytes.Compare(data, shards[td.RecoverIDs[i]]),
-				td.Hashes[td.RecoverIDs[i]],
-				data[:20], shards[td.RecoverIDs[i]][:20])
+					err, bytes.Compare(data, shards[td.RecoverIDs[i]]),
+					td.Hashes[td.RecoverIDs[i]],
+					data[:20], shards[td.RecoverIDs[i]][:20])
 			}
 		}
 	}
@@ -171,7 +171,7 @@ func TestDataRecoveryError(t *testing.T) {
 	recConfig.TimeoutInMS = 10
 	p2p, locs, hashes, shards := createP2PAndDistributeData(recConfig.DataShards, recConfig.ParityShards)
 
-	for i:=0;i<len(shards);i++{
+	for i := 0; i < len(shards); i++ {
 		fmt.Printf("Data[%d] = %x:%x\n", i, hashes[i], shards[i][:20])
 	}
 
@@ -181,11 +181,11 @@ func TestDataRecoveryError(t *testing.T) {
 	}
 
 	recIds := make([]uint32, recConfig.ParityShards+1)
-	for i:=0;i<len(recIds);i++{
-		recIds[i]=uint32(i)
+	for i := 0; i < len(recIds); i++ {
+		recIds[i] = uint32(i)
 	}
 
-	td:= &TaskDescription{
+	td := &TaskDescription{
 		uint64(0),
 		hashes,
 		locs,
@@ -200,7 +200,6 @@ func TestDataRecoveryError(t *testing.T) {
 		t.Log("Expected error:", tdStatus)
 	}
 
-
 	td = &TaskDescription{
 		uint64(1),
 		hashes,
@@ -208,13 +207,11 @@ func TestDataRecoveryError(t *testing.T) {
 		[]uint32{0},
 	}
 	codec.RecoverData(td)
-	time.Sleep(2*time.Second)
+	time.Sleep(2 * time.Second)
 	tdStatus = codec.RecoverStatus(td)
 	if tdStatus.Status != ErrorTask {
 		t.Fatalf("ERROR: td status(%d): %s", tdStatus.Status, tdStatus.Desc)
 	} else {
 		t.Log("Expected error:", tdStatus)
 	}
-
 }
-

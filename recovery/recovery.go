@@ -15,33 +15,34 @@ import (
 
 // DataRecoverEngine the rs codec to recovery data
 type DataRecoverEngine struct {
-	recoveryEnc	reedsolomon.Encoder
+	recoveryEnc reedsolomon.Encoder
 	config      *DataCodecOptions
 	ytfs        *ytfs.YTFS
 
-	p2p         P2PNetwork
+	p2p P2PNetwork
 
-	taskList	[]*TaskDescription
-	taskCh		chan *TaskDescription
-	taskStatus  map[uint64]TaskResponse
+	taskList   []*TaskDescription
+	taskCh     chan *TaskDescription
+	taskStatus map[uint64]TaskResponse
 
-	lock        sync.Mutex
+	lock sync.Mutex
 }
 
 // TaskDescription describes the recovery task.
 type TaskDescription struct {
 	// ID of this TaskDescription
-	ID         uint64
+	ID uint64
 	// [M+N] hashes, and nil indicates those missed
-	Hashes	   []common.Hash
+	Hashes []common.Hash
 	// [M+N] locations, as Yotta keeps relative data in different location
-	Locations  []P2PLocation
+	Locations []P2PLocation
 	// Index of recovery data in shards, should be obey the RS enc law
 	RecoverIDs []uint32
 }
 
 // ResponseCode represent a task status.
 type ResponseCode int
+
 // task status code.
 const (
 	SuccessTask ResponseCode = iota
@@ -50,17 +51,22 @@ const (
 	ErrorTask
 )
 
-func (response ResponseCode) String() string{
-	switch response{
-	case SuccessTask    : return "SuccessTask"
-	case ProcessingTask : return "ProcessingTask"
-	case PendingTask    : return "PendingTask"
-	case ErrorTask      : return "ErrorTask"
-	default: return "UnkownStatus"
+func (response ResponseCode) String() string {
+	switch response {
+	case SuccessTask:
+		return "SuccessTask"
+	case ProcessingTask:
+		return "ProcessingTask"
+	case PendingTask:
+		return "PendingTask"
+	case ErrorTask:
+		return "ErrorTask"
+	default:
+		return "UnkownStatus"
 	}
 }
 
-// TaskResponse descirbes the status of the task 
+// TaskResponse descirbes the status of the task
 type TaskResponse struct {
 	Status ResponseCode
 	Desc   string
@@ -96,16 +102,15 @@ func NewDataCodec(ytfs *ytfs.YTFS, p2p P2PNetwork, opt *DataCodecOptions) (*Data
 func (codec *DataRecoverEngine) startRecieveTask() {
 	running := 0
 	done := make(chan interface{})
-	for ;; {
-		// TODO: use numberred semiphone
+	for {
 		select {
-		case td := <- codec.taskCh:
+		case td := <-codec.taskCh:
 			codec.taskList = append(codec.taskList, td)
-		case <- done:
+		case <-done:
 			running--
 		}
 
-		for len(codec.taskList) != 0 &&  running < codec.config.MaxTaskInParallel {
+		for len(codec.taskList) != 0 && running < codec.config.MaxTaskInParallel {
 			running++
 			task := codec.taskList[0]
 			codec.taskList = codec.taskList[1:]
@@ -144,7 +149,7 @@ func (codec *DataRecoverEngine) validateTask(td *TaskDescription) error {
 
 func (codec *DataRecoverEngine) doRecoverData(td *TaskDescription, done chan interface{}) {
 	if ytfsOpt.DebugPrint {
-		for i:=0;i<len(td.RecoverIDs);i++{
+		for i := 0; i < len(td.RecoverIDs); i++ {
 			fmt.Printf("Recovery: start working on td(%d), recover hash = %x\n", td.ID, td.Hashes[td.RecoverIDs[i]])
 		}
 	}
@@ -164,7 +169,7 @@ func (codec *DataRecoverEngine) doRecoverData(td *TaskDescription, done chan int
 	}
 
 	if codec.ytfs != nil {
-		for i:=uint32(0);i<uint32(len(td.RecoverIDs));i++{
+		for i := uint32(0); i < uint32(len(td.RecoverIDs)); i++ {
 			err = codec.ytfs.Put(ytfsCommon.IndexTableKey(td.Hashes[td.RecoverIDs[i]]), shards[td.RecoverIDs[i]])
 			if err != nil {
 				codec.recordError(td, err)
@@ -180,7 +185,7 @@ func (codec *DataRecoverEngine) doRecoverData(td *TaskDescription, done chan int
 func (codec *DataRecoverEngine) prepareDataShards(td *TaskDescription) ([][]byte, error) {
 	recoverIndexSet := map[uint32]interface{}{}
 	shards := make([][]byte, codec.config.DataShards+codec.config.ParityShards)
-	for i:=uint32(0);i<uint32(len(td.RecoverIDs));i++{
+	for i := uint32(0); i < uint32(len(td.RecoverIDs)); i++ {
 		shards[td.RecoverIDs[i]] = nil
 		recoverIndexSet[td.RecoverIDs[i]] = struct{}{}
 	}
@@ -193,7 +198,7 @@ func (codec *DataRecoverEngine) prepareDataShards(td *TaskDescription) ([][]byte
 	errCh := make(chan error, 1)
 	//Stop those incompleted goroutine by using stopCh
 	stopSigCh := make(chan interface{})
-	for i:=0;i<len(td.Hashes);i++{
+	for i := 0; i < len(td.Hashes); i++ {
 		if _, ok := recoverIndexSet[uint32(i)]; !ok {
 			go func(shardID uint32) {
 				hash, loc, timeout := td.Hashes[shardID], td.Locations[shardID], codec.config.TimeoutInMS
@@ -209,8 +214,8 @@ func (codec *DataRecoverEngine) prepareDataShards(td *TaskDescription) ([][]byte
 	codec.recordTaskResponse(td, TaskResponse{ProcessingTask, "Retrieving data from P2P network"})
 
 	dataReceived := 0
-	for ;; {
-		select{
+	for {
+		select {
 		case res := <-resCh:
 			dataReceived++
 			shards[res.shardSliceID] = res.data
@@ -262,13 +267,13 @@ func (codec *DataRecoverEngine) getShardFromNetwork(hash common.Hash, loc P2PLoc
 	}()
 
 	select {
-	case <- success:
+	case <-success:
 		return shard, nil
-	case err := <- errCh:
+	case err := <-errCh:
 		return nil, err
-	case <- time.After(timeoutMS*time.Millisecond):
+	case <-time.After(timeoutMS * time.Millisecond):
 		return nil, fmt.Errorf("Error: p2p get %x from %x timeout", hash, loc)
-	case <- stopSigCh:
+	case <-stopSigCh:
 		return nil, nil
 	}
 }
