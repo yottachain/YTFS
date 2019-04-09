@@ -10,6 +10,7 @@ import (
 	"github.com/klauspost/reedsolomon"
 	"github.com/yottachain/YTFS"
 	ytfsCommon "github.com/yottachain/YTFS/common"
+	ytfsOpt "github.com/yottachain/YTFS/opt"
 )
 
 // DataRecoverEngine the rs codec to recovery data
@@ -30,22 +31,22 @@ type DataRecoverEngine struct {
 // TaskDescription describes the recovery task.
 type TaskDescription struct {
 	// ID of this TaskDescription
-	ID        uint64
+	ID         uint64
 	// [M+N] hashes, and nil indicates those missed
-	Hashes	  []common.Hash
+	Hashes	   []common.Hash
 	// [M+N] locations, as Yotta keeps relative data in different location
-	Locations []P2PLocation
-	// Index of recovery data in shards
-	Index     uint32
+	Locations  []P2PLocation
+	// Index of recovery data in shards, should be obey the RS enc law
+	RecoverIDs []uint32
 }
 
 // ResponseCode represent a task status.
 type ResponseCode int
 // task status code.
 const (
-	PendingTask ResponseCode = iota
+	SuccessTask ResponseCode = iota
 	ProcessingTask
-	SuccessTask
+	PendingTask
 	ErrorTask
 )
 
@@ -86,71 +87,73 @@ func (codec *DataRecoverEngine) startRecieveTask() {
 	running := 0
 	done := make(chan interface{})
 	for ;; {
+		// TODO: use numberred semiphone
 		select {
-		case <- codec.taskCh:
-			if running < codec.config.MaxTaskInParallel {
-				running++
-				codec.recordTaskResponse(codec.taskList[0], TaskResponse{PendingTask, ""})
-				go codec.doRecoverData(codec.taskList[0], done)
-				codec.taskList = codec.taskList[1:]
-			}
+		case td := <- codec.taskCh:
+			codec.taskList = append(codec.taskList, *td)
 		case <- done:
 			running--
+		}
+
+		for len(codec.taskList) != 0 &&  running < codec.config.MaxTaskInParallel {
+			running++
+			task := codec.taskList[0]
+			codec.taskList = codec.taskList[1:]
+			codec.recordTaskResponse(task, TaskResponse{PendingTask, ""})
+			go codec.doRecoverData(task, done)
 		}
 	}
 }
 
 // RecoverData recieves a recovery task and start working later on
 func (codec *DataRecoverEngine) RecoverData(td TaskDescription) TaskResponse {
-	codec.lock.Lock()
-	defer codec.lock.Unlock()
 	err := codec.validateTask(td)
 	if err != nil {
 		return TaskResponse{ErrorTask, err.Error()}
 	}
 
-	codec.taskList = append(codec.taskList, td)
+	// sequenced op on chan
 	codec.taskCh <- &td
 
-	return codec.taskStatus[td.ID]
+	return codec.RecoverStatus(td)
 }
 
 func (codec *DataRecoverEngine) validateTask(td TaskDescription) error {
 	// verify hash
-	parityShards := 0
-	for _, hash := range td.Hashes {
-		if hash == (common.Hash{}) {
-			parityShards++
-		}
+	if len(td.RecoverIDs) > codec.config.ParityShards {
+		return fmt.Errorf("Recovered data should be < ParityShards")
 	}
 
 	if len(td.Hashes) != codec.config.DataShards+codec.config.ParityShards {
 		return fmt.Errorf("Input hashes length != DataShards+ParityShards")
 	}
 
-	if parityShards > codec.config.ParityShards {
-		return fmt.Errorf("Input parityShards > config.ParityShards")
-	}
-
-	// verify network
+	// TODO: verify network
 	return nil
 }
 
 func (codec *DataRecoverEngine) doRecoverData(td TaskDescription, done chan interface{}) {
 	shardReady := make(chan interface{})
 	timeoutCh := make(chan common.Hash)
-	shards := make([][]byte, codec.config.DataShards+codec.config.ParityShards)
-	for i:=uint32(0);i<uint32(len(shards));i++{
-		if i == td.Index {
-			shards[i] = nil
-		} else {
-			shards[i] = make([]byte, codec.ytfs.Meta().DataBlockSize)
+
+	if ytfsOpt.DebugPrint {
+		for i:=0;i<len(td.RecoverIDs);i++{
+			fmt.Printf("Recovery: start working on td(%d), recover hash = %v\n", td.ID, td.Hashes[td.RecoverIDs[i]])
 		}
 	}
 
+	//TODO: simplify the shards initialization
+	shards := make([][]byte, codec.config.DataShards+codec.config.ParityShards)
+	for i:=uint32(0);i<uint32(len(shards));i++{
+		shards[i] = make([]byte, codec.ytfs.Meta().DataBlockSize)
+	}
+	for i:=uint32(0);i<uint32(len(td.RecoverIDs));i++{
+		shards[i] = nil
+	}
+
 	for i:=0;i<len(td.Hashes);i++{
-		if td.Hashes[i] != (common.Hash{}) {
-			go codec.getShardFromNetwork(td.Hashes[i], td.Locations[i], shards, i, codec.config.TimeoutInMS, shardReady, timeoutCh)
+		if shards[i] != nil {
+			go codec.getShardFromNetwork(td.Hashes[i], td.Locations[i], shards[i], codec.config.TimeoutInMS, shardReady, timeoutCh)
 		}
 	}
 
@@ -180,10 +183,12 @@ func (codec *DataRecoverEngine) doRecoverData(td TaskDescription, done chan inte
 	}
 
 	if codec.ytfs != nil {
-		err = codec.ytfs.Put(ytfsCommon.IndexTableKey(td.Hashes[td.Index]), shards[td.Index])
-		if err != nil {
-			codec.recordError(td, err)
-			return	
+		for i:=uint32(0);i<uint32(len(td.RecoverIDs));i++{
+			err = codec.ytfs.Put(ytfsCommon.IndexTableKey(td.Hashes[td.RecoverIDs[i]]), shards[td.RecoverIDs[i]])
+			if err != nil {
+				codec.recordError(td, err)
+				return
+			}
 		}
 	}
 
@@ -193,6 +198,8 @@ func (codec *DataRecoverEngine) doRecoverData(td TaskDescription, done chan inte
 
 // RecoverStatus queries the status of a task
 func (codec *DataRecoverEngine) RecoverStatus(td TaskDescription) TaskResponse {
+	codec.lock.Lock()
+	defer codec.lock.Unlock()
 	return codec.taskStatus[td.ID]
 }
 
@@ -202,16 +209,18 @@ func (codec *DataRecoverEngine) recordError(td TaskDescription, err error) {
 
 func (codec *DataRecoverEngine) recordTaskResponse(td TaskDescription, res TaskResponse) {
 	//TODO: link to levelDB
+	codec.lock.Lock()
+	defer codec.lock.Unlock()
 	codec.taskStatus[td.ID] = res
 }
 
 func (codec *DataRecoverEngine) getShardFromNetwork(hash common.Hash, loc P2PLocation,
-						shards [][]byte, i int, timeoutMS time.Duration,
+						shard []byte, timeoutMS time.Duration,
 						shardReady chan interface{}, timeoutCh chan common.Hash) {
 	success := make(chan interface{})
 	go func() {
 		//recieve data
-		codec.retrieveData(loc, hash, shards[i])
+		codec.retrieveData(loc, hash, shard)
 		success <- struct{}{}
 	}()
 
