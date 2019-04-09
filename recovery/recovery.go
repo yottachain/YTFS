@@ -50,6 +50,16 @@ const (
 	ErrorTask
 )
 
+func (response ResponseCode) String() string{
+	switch response{
+	case SuccessTask    : return "SuccessTask"
+	case ProcessingTask : return "ProcessingTask"
+	case PendingTask    : return "PendingTask"
+	case ErrorTask      : return "ErrorTask"
+	default: return "UnkownStatus"
+	}
+}
+
 // TaskResponse descirbes the status of the task 
 type TaskResponse struct {
 	Status ResponseCode
@@ -99,7 +109,6 @@ func (codec *DataRecoverEngine) startRecieveTask() {
 			running++
 			task := codec.taskList[0]
 			codec.taskList = codec.taskList[1:]
-			codec.recordTaskResponse(task, TaskResponse{PendingTask, ""})
 			go codec.doRecoverData(task, done)
 		}
 	}
@@ -109,12 +118,13 @@ func (codec *DataRecoverEngine) startRecieveTask() {
 func (codec *DataRecoverEngine) RecoverData(td *TaskDescription) TaskResponse {
 	err := codec.validateTask(td)
 	if err != nil {
-		return TaskResponse{ErrorTask, err.Error()}
+		codec.recordError(td, err)
+		return codec.RecoverStatus(td)
 	}
 
 	// sequenced op on chan
 	codec.taskCh <- td
-
+	codec.recordTaskResponse(td, TaskResponse{PendingTask, "Task is pending"})
 	return codec.RecoverStatus(td)
 }
 
@@ -257,7 +267,7 @@ func (codec *DataRecoverEngine) getShardFromNetwork(hash common.Hash, loc P2PLoc
 	case err := <- errCh:
 		return nil, err
 	case <- time.After(timeoutMS*time.Millisecond):
-		return nil, fmt.Errorf("Error: p2p get %v from %v timeout", hash, loc)
+		return nil, fmt.Errorf("Error: p2p get %x from %x timeout", hash, loc)
 	case <- stopSigCh:
 		return nil, nil
 	}
@@ -265,7 +275,6 @@ func (codec *DataRecoverEngine) getShardFromNetwork(hash common.Hash, loc P2PLoc
 
 func (codec *DataRecoverEngine) retrieveData(loc P2PLocation, hash common.Hash, data []byte) error {
 	// Read p2p network
-	// time.Sleep(30*time.Millisecond)
 	codec.p2p.RetrieveData(loc, data)
 	return nil
 }

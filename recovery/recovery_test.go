@@ -88,7 +88,6 @@ func TestDataRecovery(t *testing.T) {
 	}
 
 	tdList := []*TaskDescription{}
-	// for i:=0;i<1;i++{
 	for i:=0;i<len(shards);i++{
 		td := &TaskDescription{
 			uint64(i),
@@ -116,3 +115,106 @@ func TestDataRecovery(t *testing.T) {
 		}
 	}
 }
+
+func TestMultiplyDataRecovery(t *testing.T) {
+	rootDir, err := ioutil.TempDir("/tmp", "ytfsTest")
+	config := ytfsOpt.DefaultOptions()
+	// defer os.Remove(config.StorageName)
+
+	yd, err := ytfs.Open(rootDir, config)
+
+	recConfig := DefaultRecoveryOption()
+	p2p, locs, hashes, shards := createP2PAndDistributeData(recConfig.DataShards, recConfig.ParityShards)
+
+	for i:=0;i<len(shards);i++{
+		fmt.Printf("Data[%d] = %x:%x\n", i, hashes[i], shards[i][:20])
+	}
+
+	codec, err := NewDataCodec(yd, p2p, recConfig)
+	if err != nil {
+		t.Fail()
+	}
+
+	td:= &TaskDescription{
+			uint64(2),
+			hashes,
+			locs,
+			[]uint32{0,1,2},
+		}
+	codec.RecoverData(td)
+
+	time.Sleep(2*time.Second)
+	tdStatus := codec.RecoverStatus(td)
+	if tdStatus.Status != SuccessTask {
+		t.Fatalf("ERROR: td status(%d): %s", tdStatus.Status, tdStatus.Desc)
+	} else {
+		for i:=0;i<len(td.RecoverIDs);i++{
+			data, err := yd.Get(ytfsCommon.IndexTableKey(td.Hashes[td.RecoverIDs[i]]))
+			if err != nil || bytes.Compare(data, shards[td.RecoverIDs[i]]) != 0 {
+				t.Fatalf("Error: err(%v), dataCompare (%d). hash(%v) data(%v) shards(%v)",
+				err, bytes.Compare(data, shards[td.RecoverIDs[i]]),
+				td.Hashes[td.RecoverIDs[i]],
+				data[:20], shards[td.RecoverIDs[i]][:20])
+			}
+		}
+	}
+}
+
+func TestDataRecoveryError(t *testing.T) {
+	rootDir, err := ioutil.TempDir("/tmp", "ytfsTest")
+	config := ytfsOpt.DefaultOptions()
+	// defer os.Remove(config.StorageName)
+
+	yd, err := ytfs.Open(rootDir, config)
+
+	recConfig := DefaultRecoveryOption()
+	recConfig.TimeoutInMS = 10
+	p2p, locs, hashes, shards := createP2PAndDistributeData(recConfig.DataShards, recConfig.ParityShards)
+
+	for i:=0;i<len(shards);i++{
+		fmt.Printf("Data[%d] = %x:%x\n", i, hashes[i], shards[i][:20])
+	}
+
+	codec, err := NewDataCodec(yd, p2p, recConfig)
+	if err != nil {
+		t.Fail()
+	}
+
+	recIds := make([]uint32, recConfig.ParityShards+1)
+	for i:=0;i<len(recIds);i++{
+		recIds[i]=uint32(i)
+	}
+
+	td:= &TaskDescription{
+		uint64(0),
+		hashes,
+		locs,
+		recIds,
+	}
+	codec.RecoverData(td)
+
+	tdStatus := codec.RecoverStatus(td)
+	if tdStatus.Status != ErrorTask {
+		t.Fatalf("ERROR: td status(%d): %s", tdStatus.Status, tdStatus.Desc)
+	} else {
+		t.Log("Expected error:", tdStatus)
+	}
+
+
+	td = &TaskDescription{
+		uint64(1),
+		hashes,
+		locs,
+		[]uint32{0},
+	}
+	codec.RecoverData(td)
+	time.Sleep(2*time.Second)
+	tdStatus = codec.RecoverStatus(td)
+	if tdStatus.Status != ErrorTask {
+		t.Fatalf("ERROR: td status(%d): %s", tdStatus.Status, tdStatus.Desc)
+	} else {
+		t.Log("Expected error:", tdStatus)
+	}
+
+}
+

@@ -15,9 +15,9 @@ type DataCodecOptions struct{
 // DefaultRecoveryOption gives the default data recovery codec config
 func DefaultRecoveryOption() *DataCodecOptions {
 	return &DataCodecOptions{
-		5,
 		3,
-		2,
+		4,
+		12,
 		5000,
 	}
 }

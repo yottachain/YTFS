@@ -3,6 +3,7 @@ package recovery
 import(
 	// "fmt"
 	// "bytes"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -22,6 +23,7 @@ type P2PMock struct{
 
 // RetrieveData get data from p2p network address
 func (mock P2PMock) RetrieveData(peer P2PLocation, msgByte []byte) error {
+	time.Sleep(50*time.Millisecond)
 	copy(msgByte, mock.network[peer])
 	return nil
 }
