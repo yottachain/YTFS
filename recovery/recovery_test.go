@@ -87,10 +87,10 @@ func TestDataRecovery(t *testing.T) {
 		t.Fail()
 	}
 
-	tdList := []TaskDescription{}
+	tdList := []*TaskDescription{}
 	// for i:=0;i<1;i++{
 	for i:=0;i<len(shards);i++{
-		td := TaskDescription{
+		td := &TaskDescription{
 			uint64(i),
 			hashes,
 			locs,
@@ -100,10 +100,9 @@ func TestDataRecovery(t *testing.T) {
 		tdList = append(tdList, td)
 	}
 
-	time.Sleep(5*time.Second)
+	time.Sleep(2*time.Second)
 	for _,td := range tdList{
 		tdStatus := codec.RecoverStatus(td)
-		fmt.Println(td.ID, tdStatus)
 		if tdStatus.Status != SuccessTask {
 			t.Fatalf("ERROR: td status(%d): %s", tdStatus.Status, tdStatus.Desc)
 		} else {
