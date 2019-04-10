@@ -7,19 +7,21 @@ import org.apache.commons.codec.binary.Hex;
 public class UploadShardRequestSerial {
 
     public static void main(String[] args) throws IOException {
-        UploadShardRequest.UploadShardRequestBuf.Builder builder = UploadShardRequest.UploadShardRequestBuf.newBuilder();
+        Message.UploadShardRequest.Builder builder = Message.UploadShardRequest.newBuilder();
+        builder.setSHARDID(5);
         builder.setBPDID(1);
         builder.setBPDSIGN(ByteString.copyFrom("aa".getBytes()));
         builder.setDAT(ByteString.copyFrom("bb".getBytes()));
         builder.setUSERSIGN(ByteString.copyFrom("cc".getBytes()));
         builder.setVBI(2);
         builder.setVHF(ByteString.copyFrom("dd".getBytes()));
-        UploadShardRequest.UploadShardRequestBuf info = builder.build();
+        Message.UploadShardRequest info = builder.build();
         byte[] result = info.toByteArray();
         String ss = Hex.encodeHexString(result);
         System.out.println(ss);
 
         UploadShardReq req = new UploadShardReq();
+        req.setSHARDID(5);
         req.setBPDID(1);
         req.setBPDSIGN("aa".getBytes());
         req.setDAT("bb".getBytes());
