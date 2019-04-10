@@ -1,3 +1,3 @@
-protoc ./UploadShardRequest.proto --java_out=./../../../../../../test/java/
+protoc ./message.proto --java_out=./../../../../../../test/java/
 
 
