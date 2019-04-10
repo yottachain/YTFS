@@ -215,3 +215,18 @@ func TestDataRecoveryError(t *testing.T) {
 		t.Log("Expected error:", tdStatus)
 	}
 }
+
+func BenchmarkDataRecovery(b *testing.B) {
+	dataShards, parityShards := 2, 3
+	_, _, _, shards := createP2PAndDistributeData(dataShards, parityShards)
+	rsEnc, err := reedsolomon.New(dataShards, parityShards)
+	if err != nil {
+		b.Fatal(err)
+	}
+	missID := rand.Int() % len(shards)
+	shards[missID] = nil
+
+	for n := 0; n < b.N; n++ {
+		rsEnc.Reconstruct(shards)
+	}
+}
