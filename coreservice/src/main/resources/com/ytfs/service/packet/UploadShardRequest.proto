@@ -1,0 +1,13 @@
+package protobuf; 
+option java_package = "com.ytfs.service.packet"; 
+option java_outer_classname = "UploadShardRequest"; 
+
+message UploadShardRequestBuf  { 
+  required int32 BPDID = 1; 
+  required int64 VBI = 2; 
+  required bytes BPDSIGN=3; 
+  required bytes DAT=4; 
+  required bytes VHF=5; 
+  required bytes USERSIGN=6; 
+}
+

@@ -1,0 +1,8 @@
+package protobuf; 
+option java_package = "com.ytfs.service.packet"; 
+option java_outer_classname = "UploadShardResponse"; 
+
+message UploadShardResponseBuf  { 
+  required int32 RES = 1; 
+}
+
