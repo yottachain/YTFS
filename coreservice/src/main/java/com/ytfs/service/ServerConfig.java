@@ -21,4 +21,10 @@ public class ServerConfig {
     //**************************可配置参数********************************
     //服务端超级节点编号,本服务节点编号
     public static int superNodeID;
+
+    //私钥
+    public static String privateKey;
+
+    //端口
+    public static int port;
 }

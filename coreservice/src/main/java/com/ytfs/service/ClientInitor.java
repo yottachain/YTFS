@@ -2,28 +2,43 @@ package com.ytfs.service;
 
 import static com.ytfs.service.UserConfig.*;
 import com.ytfs.service.codec.Base58;
-import com.ytfs.service.net.P2PClient;
+import com.ytfs.service.net.P2PUtils;
 import com.ytfs.service.node.Node;
-import com.ytfs.service.servlet.MessageDispatcher;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import org.apache.log4j.Logger;
 
 public class ClientInitor {
 
+    private static final Logger LOG = Logger.getLogger(ClientInitor.class);
+
     public static void init() {
         try {
-            LogConfigurator.configPath();
+            LogConfigurator.configPath(new File("logs"), "INFO");
             load();
-            int i = P2PClient.start(new MessageDispatcher());
-            if (i != 0) {
-                throw new Exception("P2P initialization failed.");
-            }
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(0);//循环初始化
+        }
+        String key = Base58.encode(UserConfig.KUSp);
+        for (int ii = 0; ii < 10; ii++) {
+            try {
+                int port = UserConfig.port + ii;
+                P2PUtils.start(port, key);
+                LOG.info("P2P initialization completed, port " + port);
+                break;
+            } catch (Exception r) {
+                LOG.info("P2P initialization failed!", r);
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException ex) {
+                }
+                P2PUtils.stop();
+            }
         }
     }
 
@@ -89,6 +104,12 @@ public class ClientInitor {
             KUSp = Base58.decode(ss);
         } catch (IllegalArgumentException d) {
             throw new IOException("The 'KUSp' parameter is not configured.");
+        }
+        try {
+            String ss = p.getProperty("port").trim();
+            port = Integer.parseInt(ss);
+        } catch (NumberFormatException d) {
+            throw new IOException("The 'port' parameter is not configured.");
         }
     }
 }

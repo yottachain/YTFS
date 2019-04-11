@@ -2,7 +2,7 @@ package com.ytfs.service.node;
 
 import com.ytfs.service.ServerConfig;
 import com.ytfs.service.UserConfig;
-import com.ytfs.service.net.P2PClient;
+import com.ytfs.service.net.P2PUtils;
 import com.ytfs.service.packet.ListSuperNodeReq;
 import com.ytfs.service.packet.ListSuperNodeResp;
 import com.ytfs.service.packet.ServiceException;
@@ -24,7 +24,7 @@ public class SuperNodeList {
             if (superList == null) {
                 ListSuperNodeReq req = new ListSuperNodeReq();
                 try {
-                    ListSuperNodeResp res = (ListSuperNodeResp) P2PClient.requestBPU(req, UserConfig.superNode);
+                    ListSuperNodeResp res = (ListSuperNodeResp) P2PUtils.requestBPU(req, UserConfig.superNode);
                     superList = res.getSuperList();
                 } catch (ServiceException ex) {
                     try {

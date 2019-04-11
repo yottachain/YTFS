@@ -1,7 +1,7 @@
 package com.ytfs.service;
 
 import com.ytfs.service.codec.ObjectRefer;
-import com.ytfs.service.net.P2PClient;
+import com.ytfs.service.net.P2PUtils;
 import com.ytfs.service.packet.DownloadObjectInitReq;
 import com.ytfs.service.packet.DownloadObjectInitResp;
 import com.ytfs.service.packet.ServiceException;
@@ -21,7 +21,7 @@ public class DownloadObject {
     private void init() throws ServiceException {
         DownloadObjectInitReq req = new DownloadObjectInitReq();
         req.setVHW(VHW);
-        DownloadObjectInitResp resp = (DownloadObjectInitResp) P2PClient.requestBPU(req, UserConfig.superNode);
+        DownloadObjectInitResp resp = (DownloadObjectInitResp) P2PUtils.requestBPU(req, UserConfig.superNode);
         refers = ObjectRefer.parse(resp.getRefers());
     }
 

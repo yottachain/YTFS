@@ -3,7 +3,7 @@ package com.ytfs.service.servlet;
 import com.ytfs.service.codec.ObjectRefer;
 import com.ytfs.service.dao.ObjectAccessor;
 import com.ytfs.service.dao.ObjectMeta;
-import com.ytfs.service.net.P2PClient;
+import com.ytfs.service.net.P2PUtils;
 import com.ytfs.service.node.Node;
 import com.ytfs.service.node.SuperNodeList;
 import com.ytfs.service.packet.QueryObjectMetaReq;
@@ -26,7 +26,7 @@ public class SuperReqestHandler {
      */
     static SaveObjectMetaResp saveObjectMetaCall(SaveObjectMetaReq req) throws ServiceException {
         Node node = SuperNodeList.getBlockSuperNodeByUserId(req.getUserID());
-        SaveObjectMetaResp resp = (SaveObjectMetaResp) P2PClient.requestBP(req, node);
+        SaveObjectMetaResp resp = (SaveObjectMetaResp) P2PUtils.requestBP(req, node);
         return resp;
     }
 

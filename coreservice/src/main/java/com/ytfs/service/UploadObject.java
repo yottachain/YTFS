@@ -6,7 +6,7 @@ import com.ytfs.service.codec.KeyStoreCoder;
 import com.ytfs.service.codec.ShardAESEncryptor;
 import com.ytfs.service.codec.ShardRSEncoder;
 import com.ytfs.service.codec.YTFile;
-import com.ytfs.service.net.P2PClient;
+import com.ytfs.service.net.P2PUtils;
 import com.ytfs.service.node.Node;
 import com.ytfs.service.node.SuperNodeList;
 import com.ytfs.service.packet.ServiceException;
@@ -39,7 +39,7 @@ public class UploadObject {
 
     public byte[] upload() throws ServiceException, IOException, InterruptedException {
         UploadObjectInitReq req = new UploadObjectInitReq(ytfile.getLength(), ytfile.getVHW());
-        UploadObjectInitResp res = (UploadObjectInitResp) P2PClient.requestBPU(req, UserConfig.superNode);
+        UploadObjectInitResp res = (UploadObjectInitResp) P2PUtils.requestBPU(req, UserConfig.superNode);
         if (!res.isRepeat()) {
             ytfile.init(res.getVNU().toHexString());
             ytfile.handle();
@@ -76,7 +76,7 @@ public class UploadObject {
     private void complete(byte[] VHW) throws ServiceException {
         UploadObjectEndReq req = new UploadObjectEndReq();
         req.setVHW(VHW);
-        P2PClient.requestBPU(req, UserConfig.superNode);
+        P2PUtils.requestBPU(req, UserConfig.superNode);
     }
 
     //上传块
@@ -86,7 +86,7 @@ public class UploadObject {
         ShardRSEncoder rs = new ShardRSEncoder(b);
         rs.encode();
         UploadBlockInitReq req = new UploadBlockInitReq(vnu, b.getVHP(), rs.getShardCount(), id);
-        Object resp = P2PClient.requestBPU(req, node);
+        Object resp = P2PUtils.requestBPU(req, node);
         if (resp instanceof VoidResp) {//已经上传
             return;
         }
@@ -98,13 +98,13 @@ public class UploadObject {
                 uploadBlockDupReq.setOriginalSize(b.getOriginalSize());
                 uploadBlockDupReq.setRealSize(b.getRealSize());
                 uploadBlockDupReq.setVNU(vnu);
-                P2PClient.requestBPU(uploadBlockDupReq, node);
+                P2PUtils.requestBPU(uploadBlockDupReq, node);
             } else {
                 if (!rs.needEncode()) {
                     UploadBlockToDB(b, vnu, id, node);
                 } else {//请求分配节点
                     UploadBlockInit2Req req2 = new UploadBlockInit2Req(req);
-                    UploadBlockInitResp resp1 = (UploadBlockInitResp) P2PClient.requestBPU(req2, node);
+                    UploadBlockInitResp resp1 = (UploadBlockInitResp) P2PUtils.requestBPU(req2, node);
                     UploadBlock ub = new UploadBlock(rs, id, resp1.getNodes(), resp1.getVBI(), node);
                     ub.upload();
                 }
@@ -134,7 +134,7 @@ public class UploadObject {
         req.setKED(KeyStoreCoder.encryped(ks, b.getKD()));
         req.setOriginalSize(b.getOriginalSize());
         req.setData(enc.getData());
-        P2PClient.requestBPU(req, node);
+        P2PUtils.requestBPU(req, node);
     }
 
     //检查重复

@@ -4,7 +4,7 @@ import static com.ytfs.service.Function.long2bytes;
 import static com.ytfs.service.ServerConfig.REDIS_BLOCK_EXPIRE;
 import static com.ytfs.service.ServerConfig.REDIS_EXPIRE;
 import com.ytfs.service.dao.RedisSource;
-import com.ytfs.service.net.P2PClient;
+import com.ytfs.service.net.P2PUtils;
 import com.ytfs.service.node.Node;
 import com.ytfs.service.node.SuperNodeList;
 import com.ytfs.service.packet.QueryObjectMetaReq;
@@ -141,7 +141,7 @@ public class CacheAccessor {
             req.setUserID(userid);
             req.setVNU(VNU);
             Node node = SuperNodeList.getBlockSuperNodeByUserId(userid);
-            QueryObjectMetaResp resp = (QueryObjectMetaResp) P2PClient.requestBP(req, node);
+            QueryObjectMetaResp resp = (QueryObjectMetaResp) P2PUtils.requestBP(req, node);
             cache = new UploadObjectCache();
             cache.setFilesize(resp.getLength());
             cache.setUserid(userid);

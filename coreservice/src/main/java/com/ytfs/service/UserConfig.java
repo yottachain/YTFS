@@ -44,5 +44,10 @@ public class UserConfig {
 
     //用户签名私钥
     public static byte[] KUSp;
+    
+    //端口
+    public static int port;
+    
+    
 
 }

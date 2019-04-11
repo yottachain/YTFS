@@ -2,7 +2,7 @@ package com.ytfs.service;
 
 import static com.ytfs.service.UploadShardRes.RES_NETIOERR;
 import static com.ytfs.service.UserConfig.UPLOADSHARDTHREAD;
-import com.ytfs.service.net.P2PClient;
+import com.ytfs.service.net.P2PUtils;
 import com.ytfs.service.node.Node;
 import com.ytfs.service.packet.ServiceException;
 import com.ytfs.service.packet.ShardNode;
@@ -42,7 +42,7 @@ public class UploadShard implements Runnable {
             res.setSHARDID(req.getSHARDID());
             res.setNODEID(node.getNodeId());
             try {
-                UploadShard2CResp resp = (UploadShard2CResp) P2PClient.requestNode(req, node);
+                UploadShard2CResp resp = (UploadShard2CResp) P2PUtils.requestNode(req, node);
                 res.setRES(resp.getRES());
             } catch (ServiceException ex) {
                 res.setRES(RES_NETIOERR);

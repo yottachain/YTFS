@@ -6,7 +6,7 @@ import com.ytfs.service.codec.KeyStoreCoder;
 import com.ytfs.service.codec.Shard;
 import com.ytfs.service.codec.ShardAESEncryptor;
 import com.ytfs.service.codec.ShardRSEncoder;
-import com.ytfs.service.net.P2PClient;
+import com.ytfs.service.net.P2PUtils;
 import com.ytfs.service.node.Node;
 import com.ytfs.service.packet.ServiceException;
 import com.ytfs.service.packet.ShardNode;
@@ -63,7 +63,7 @@ public class UploadBlock {
         req.setOriginalSize(rs.getBlock().getOriginalSize());
         req.setRealSize(rs.getBlock().getRealSize());
         req.setRsShard(enc.getShards().get(0).isRsShard());
-        P2PClient.requestBPU(req, bpdNode);
+        P2PUtils.requestBPU(req, bpdNode);
     }
 
     private void firstUpload(ShardAESEncryptor enc) throws InterruptedException {
@@ -96,7 +96,7 @@ public class UploadBlock {
             if (uloadBlockSubReq == null) {
                 return;
             }
-            UploadBlockSubResp resp = (UploadBlockSubResp) P2PClient.requestBPU(uloadBlockSubReq, bpdNode);
+            UploadBlockSubResp resp = (UploadBlockSubResp) P2PUtils.requestBPU(uloadBlockSubReq, bpdNode);
             if (resp.getNodes() == null || resp.getNodes().length == 0) {
                 return;
             }

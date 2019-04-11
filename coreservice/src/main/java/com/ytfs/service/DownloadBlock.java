@@ -6,7 +6,7 @@ import com.ytfs.service.codec.ObjectRefer;
 import com.ytfs.service.codec.Shard;
 import com.ytfs.service.codec.ShardAESDecryptor;
 import com.ytfs.service.codec.ShardAESEncryptor;
-import com.ytfs.service.net.P2PClient;
+import com.ytfs.service.net.P2PUtils;
 import com.ytfs.service.node.Node;
 import com.ytfs.service.node.SuperNodeList;
 import com.ytfs.service.packet.DownloadBlockDBResp;
@@ -39,7 +39,7 @@ public class DownloadBlock {
         DownloadBlockInitReq req = new DownloadBlockInitReq();
         req.setVBI(refer.getVBI());
         Node pbd = SuperNodeList.getBlockSuperNode(refer.getSuperID());
-        Object resp = P2PClient.requestBPU(req, pbd);
+        Object resp = P2PUtils.requestBPU(req, pbd);
         if (resp instanceof DownloadBlockDBResp) {
             this.data = aesDBDecode(((DownloadBlockDBResp) resp).getData());
         } else {
@@ -98,7 +98,7 @@ public class DownloadBlock {
                 Node n = initresp.getNodes()[index];
                 byte[] VHF = initresp.getVHF()[index];
                 req.setVHF(VHF);
-                DownloadShardResp resp = (DownloadShardResp) P2PClient.requestNode(req, n);
+                DownloadShardResp resp = (DownloadShardResp) P2PUtils.requestNode(req, n);
                 if (resp.verify(VHF)) {
                     return aesCopyDecode(resp.getData());
                 }

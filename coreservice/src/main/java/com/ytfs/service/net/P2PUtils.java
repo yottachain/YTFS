@@ -4,27 +4,34 @@ import com.ytfs.service.node.Node;
 import com.ytfs.service.packet.SerializationUtil;
 import static com.ytfs.service.packet.ServiceErrorCode.INTERNAL_ERROR;
 import com.ytfs.service.packet.ServiceException;
+import com.ytfs.service.servlet.FromBPMsgDispatcher;
+import com.ytfs.service.servlet.FromNodeMsgDispatcher;
+import com.ytfs.service.servlet.FromUserMsgDispatcher;
+import io.yottachain.p2phost.YottaP2P;
+import io.yottachain.p2phost.core.exception.P2pHostException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class P2PClient {
+public class P2PUtils {
 
     private static final List<String> CONNECTS = Collections.synchronizedList(new ArrayList());
 
     /**
      * 初始化P2P工具
      *
-     * @param listener
-     * @return 初始化失败，可返回-1，成功0
+     * @param port
+     * @param privateKey
+     * @throws java.lang.Exception
      */
-    public static int start(P2PMessageListener listener) {
-        try {
-            //初始化p2p网络
-            return 0;
-        } catch (Exception e) {
-            return -1;
-        }
+    public static void start(int port, String privateKey) throws Exception {
+        YottaP2P.start(port, privateKey);
+    }
+
+    public static void register() {
+        YottaP2P.registerUserCallback(new FromUserMsgDispatcher());
+        YottaP2P.registerBPNodeCallback(new FromBPMsgDispatcher());
+        YottaP2P.registerNodeCallback(new FromNodeMsgDispatcher());
     }
 
     public static final int MSG_2BPU = 0;
@@ -45,7 +52,11 @@ public class P2PClient {
 
     public static Object request(Object obj, Node node, int type) throws ServiceException {
         if (!CONNECTS.contains(node.getKey())) {
-            connect(node.getKey(), node.getAddr());
+            try {
+                YottaP2P.connect(node.getKey(), node.getAddr());
+            } catch (P2pHostException ex) {
+                throw new ServiceException(INTERNAL_ERROR, ex.getMessage());
+            }
             CONNECTS.add(node.getKey());
         }
         byte[] data = SerializationUtil.serialize(obj);
@@ -53,13 +64,13 @@ public class P2PClient {
         try {                    //访问p2p网络
             switch (type) {
                 case MSG_2BPU:
-                    bs = sendToBPUMsg(node.getKey(), data);
+                    bs = YottaP2P.sendToBPUMsg(node.getKey(), data);
                     break;
                 case MSG_2BP:
-                    bs = sendToBPMsg(node.getKey(), data);
+                    bs = YottaP2P.sendToBPMsg(node.getKey(), data);
                     break;
                 default:
-                    bs = sendToNodeMsg(node.getKey(), data);
+                    bs = YottaP2P.sendToNodeMsg(node.getKey(), data);
                     break;
             }
         } catch (Throwable e) {
@@ -72,25 +83,13 @@ public class P2PClient {
         return res;
     }
 
-    public static void connect(String nodeid, String[] addrs) {
-    }
-
-    public static byte[] sendToBPUMsg(String nodekey, byte[] msg) throws Throwable {
-        return null;
-    }
-
-    public static byte[] sendToBPMsg(String nodekey, byte[] msg) throws Throwable {
-        return null;
-    }
-
-    public static byte[] sendToNodeMsg(String nodekey, byte[] msg) throws Throwable {
-        return null;
-    }
-
     /**
      * 销毁
      */
     public static void stop() {
-        //销毁P2P
+        try {
+            YottaP2P.close();
+        } catch (P2pHostException ex) {
+        }
     }
 }

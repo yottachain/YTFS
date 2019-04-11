@@ -1,11 +1,10 @@
 package com.ytfs.service;
 
 import static com.ytfs.service.UserConfig.DOWNLOADSHARDTHREAD;
-import com.ytfs.service.net.P2PClient;
+import com.ytfs.service.net.P2PUtils;
 import com.ytfs.service.node.Node;
 import com.ytfs.service.packet.DownloadShardReq;
 import com.ytfs.service.packet.DownloadShardResp;
-import com.ytfs.service.packet.SerializationUtil;
 import com.ytfs.service.packet.ServiceException;
 import java.util.concurrent.ArrayBlockingQueue;
 
@@ -40,7 +39,7 @@ public class DownloadShare implements Runnable {
         try {
             DownloadShardResp resp = new DownloadShardResp();
             try {
-                resp = (DownloadShardResp) P2PClient.requestNode(req, node);
+                resp = (DownloadShardResp) P2PUtils.requestNode(req, node);
             } catch (ServiceException ex) {
             }
             downloadBlock.onResponse(resp);
