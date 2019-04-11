@@ -18,7 +18,7 @@ import (
 )
 
 func TestNewDataRecovery(t *testing.T) {
-	_, err := NewDataCodec(nil, nil, DefaultRecoveryOption())
+	_, err := NewDataRecoverEngine(nil, nil, DefaultRecoveryOption())
 	if err != nil {
 		t.Fail()
 	}
@@ -33,11 +33,11 @@ func randomFill(size uint32) []byte {
 	return buf
 }
 
-func createShards(dataShards, parityShards int) ([]common.Hash, [][]byte) {
+func createShards(dataShards, parityShards uint32) ([]common.Hash, [][]byte) {
 	shards := make([][]byte, dataShards+parityShards)
 	hashes := make([]common.Hash, dataShards+parityShards)
 	dataBlkSize := ytfsOpt.DefaultOptions().DataBlockSize
-	for i := 0; i < dataShards; i++ {
+	for i := uint32(0); i < dataShards; i++ {
 		shards[i] = randomFill(dataBlkSize)
 		sum256 := sha256.Sum256(shards[i])
 		hashes[i] = common.BytesToHash(sum256[:])
@@ -50,9 +50,9 @@ func createShards(dataShards, parityShards int) ([]common.Hash, [][]byte) {
 	return hashes, shards
 }
 
-func createData(dataShards, parityShards int) ([]common.Hash, [][]byte) {
+func createData(dataShards, parityShards uint32) ([]common.Hash, [][]byte) {
 	hashes, shards := createShards(dataShards, parityShards)
-	enc, _ := reedsolomon.New(dataShards, parityShards)
+	enc, _ := reedsolomon.New(int(dataShards), int(parityShards))
 	enc.Encode(shards)
 	//update parity hash
 	for i := dataShards; i < dataShards+parityShards; i++ {
@@ -88,7 +88,7 @@ func TestDataRecovery(t *testing.T) {
 		fmt.Printf("Data[%d] = %x:%x\n", i, hashes[i], shards[i][:20])
 	}
 
-	codec, err := NewDataCodec(yd, p2pNet, recConfig)
+	dataRecoverEngine, err := NewDataRecoverEngine(yd, p2pNet, recConfig)
 	if err != nil {
 		t.Fail()
 	}
@@ -101,13 +101,13 @@ func TestDataRecovery(t *testing.T) {
 			p2pNodes,
 			[]uint32{uint32(i)},
 		}
-		codec.RecoverData(td)
+		dataRecoverEngine.RecoverData(td)
 		tdList = append(tdList, td)
 	}
 
 	time.Sleep(2 * time.Second)
 	for _, td := range tdList {
-		tdStatus := codec.RecoverStatus(td)
+		tdStatus := dataRecoverEngine.RecoverStatus(td)
 		if tdStatus.Status != SuccessTask {
 			t.Fatalf("ERROR: td status(%d): %s", tdStatus.Status, tdStatus.Desc)
 		} else {
@@ -137,7 +137,7 @@ func TestMultiplyDataRecovery(t *testing.T) {
 		fmt.Printf("Data[%d] = %x:%x\n", i, hashes[i], shards[i][:20])
 	}
 
-	codec, err := NewDataCodec(yd, p2pNet, recConfig)
+	dataRecoverEngine, err := NewDataRecoverEngine(yd, p2pNet, recConfig)
 	if err != nil {
 		t.Fail()
 	}
@@ -148,10 +148,10 @@ func TestMultiplyDataRecovery(t *testing.T) {
 		p2pNodes,
 		[]uint32{0, 1, 2},
 	}
-	codec.RecoverData(td)
+	dataRecoverEngine.RecoverData(td)
 
 	time.Sleep(2 * time.Second)
-	tdStatus := codec.RecoverStatus(td)
+	tdStatus := dataRecoverEngine.RecoverStatus(td)
 	if tdStatus.Status != SuccessTask {
 		t.Fatalf("ERROR: td status(%d): %s", tdStatus.Status, tdStatus.Desc)
 	} else {
@@ -183,7 +183,7 @@ func TestDataRecoveryError(t *testing.T) {
 		fmt.Printf("Data[%d] = %x:%x\n", i, hashes[i], shards[i][:20])
 	}
 
-	codec, err := NewDataCodec(yd, p2pNet, recConfig)
+	dataRecoverEngine, err := NewDataRecoverEngine(yd, p2pNet, recConfig)
 	if err != nil {
 		t.Fail()
 	}
@@ -199,9 +199,9 @@ func TestDataRecoveryError(t *testing.T) {
 		p2pNodes,
 		recIds,
 	}
-	codec.RecoverData(td)
+	dataRecoverEngine.RecoverData(td)
 
-	tdStatus := codec.RecoverStatus(td)
+	tdStatus := dataRecoverEngine.RecoverStatus(td)
 	if tdStatus.Status != ErrorTask {
 		t.Fatalf("ERROR: td status(%d): %s", tdStatus.Status, tdStatus.Desc)
 	} else {
@@ -214,9 +214,9 @@ func TestDataRecoveryError(t *testing.T) {
 		p2pNodes,
 		[]uint32{0},
 	}
-	codec.RecoverData(td)
+	dataRecoverEngine.RecoverData(td)
 	time.Sleep(2 * time.Second)
-	tdStatus = codec.RecoverStatus(td)
+	tdStatus = dataRecoverEngine.RecoverStatus(td)
 	if tdStatus.Status != ErrorTask {
 		t.Fatalf("ERROR: td status(%d): %s", tdStatus.Status, tdStatus.Desc)
 	} else {
@@ -224,18 +224,18 @@ func TestDataRecoveryError(t *testing.T) {
 	}
 }
 
-func setupBenchmarkEnv(recConfig *DataCodecOptions, p2pDelays...time.Duration) (*DataRecoverEngine, []common.Hash, []P2PLocation) {
+func setupBenchmarkEnv(recConfig *DataRecoverOptions, p2pDelays ...time.Duration) (*DataRecoverEngine, []common.Hash, []P2PLocation) {
 	hashes, shards := createData(recConfig.DataShards, recConfig.ParityShards)
 	p2pNet, p2pNodes := initailP2PMockWithShards(hashes, shards, p2pDelays...)
 
-	codec, _ := NewDataCodec(nil, p2pNet, recConfig)
-	return codec, hashes, p2pNodes
+	dataRecoverEngine, _ := NewDataRecoverEngine(nil, p2pNet, recConfig)
+	return dataRecoverEngine, hashes, p2pNodes
 }
 
 func BenchmarkPureDataRecovery(b *testing.B) {
-	dataShards, parityShards := 5, 3
+	var dataShards, parityShards uint32 = 5, 3
 	_, shards := createData(dataShards, parityShards)
-	rsEnc, err := reedsolomon.New(dataShards, parityShards)
+	rsEnc, err := reedsolomon.New(int(dataShards), int(parityShards))
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -249,7 +249,7 @@ func BenchmarkPureDataRecovery(b *testing.B) {
 
 func BenchmarkFastP2PDataRecovery(b *testing.B) {
 	recConfig := DefaultRecoveryOption()
-	codec, hashes, p2pNodes := setupBenchmarkEnv(recConfig, []time.Duration{250,250,250,250,250,250,250}...)
+	dataRecoverEngine, hashes, p2pNodes := setupBenchmarkEnv(recConfig, []time.Duration{250, 250, 250, 250, 250, 250, 250}...)
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
@@ -260,13 +260,13 @@ func BenchmarkFastP2PDataRecovery(b *testing.B) {
 			p2pNodes,
 			[]uint32{uint32(rand.Intn(len(hashes)))},
 		}
-		codec.doRecoverData(td, done)
+		dataRecoverEngine.doRecoverData(td, done)
 	}
 }
 
 func BenchmarkSlowP2PDataRecovery(b *testing.B) {
 	recConfig := DefaultRecoveryOption()
-	codec, hashes, p2pNodes := setupBenchmarkEnv(recConfig, []time.Duration{25,25,25,25,25,25,25}...)
+	dataRecoverEngine, hashes, p2pNodes := setupBenchmarkEnv(recConfig, []time.Duration{25, 25, 25, 25, 25, 25, 25}...)
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
@@ -277,13 +277,13 @@ func BenchmarkSlowP2PDataRecovery(b *testing.B) {
 			p2pNodes,
 			[]uint32{uint32(rand.Intn(len(hashes)))},
 		}
-		codec.doRecoverData(td, done)
+		dataRecoverEngine.doRecoverData(td, done)
 	}
 }
 
 func BenchmarkUnevenP2PDataRecovery(b *testing.B) {
 	recConfig := DefaultRecoveryOption()
-	codec, hashes, p2pNodes := setupBenchmarkEnv(recConfig, []time.Duration{250,211,173,136,99,62,25}...)
+	dataRecoverEngine, hashes, p2pNodes := setupBenchmarkEnv(recConfig, []time.Duration{250, 211, 173, 136, 99, 62, 25}...)
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
@@ -294,6 +294,6 @@ func BenchmarkUnevenP2PDataRecovery(b *testing.B) {
 			p2pNodes,
 			[]uint32{uint32(rand.Intn(len(hashes)))},
 		}
-		codec.doRecoverData(td, done)
+		dataRecoverEngine.doRecoverData(td, done)
 	}
 }

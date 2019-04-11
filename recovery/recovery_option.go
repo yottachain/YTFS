@@ -4,17 +4,17 @@ import (
 	"time"
 )
 
-// DataCodecOptions describes the options of recovery module
-type DataCodecOptions struct {
-	DataShards        int
-	ParityShards      int
-	MaxTaskInParallel int
+// DataRecoverOptions describes the options of recovery module
+type DataRecoverOptions struct {
+	DataShards        uint32
+	ParityShards      uint32
+	MaxTaskInParallel uint32
 	TimeoutInMS       time.Duration
 }
 
-// DefaultRecoveryOption gives the default data recovery codec config
-func DefaultRecoveryOption() *DataCodecOptions {
-	return &DataCodecOptions{
+// DefaultRecoveryOption gives the default data recovery engine config
+func DefaultRecoveryOption() *DataRecoverOptions {
+	return &DataRecoverOptions{
 		3,
 		4,
 		12,
