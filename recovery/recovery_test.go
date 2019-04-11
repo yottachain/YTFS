@@ -18,7 +18,7 @@ import (
 )
 
 func TestNewDataRecovery(t *testing.T) {
-	_, err := NewDataRecoverEngine(nil, nil, DefaultRecoveryOption())
+	_, err := NewEngine(nil, nil, DefaultRecoveryOption())
 	if err != nil {
 		t.Fail()
 	}
@@ -88,7 +88,7 @@ func TestDataRecovery(t *testing.T) {
 		fmt.Printf("Data[%d] = %x:%x\n", i, hashes[i], shards[i][:20])
 	}
 
-	dataRecoverEngine, err := NewDataRecoverEngine(yd, p2pNet, recConfig)
+	dataRecoverEngine, err := NewEngine(yd, p2pNet, recConfig)
 	if err != nil {
 		t.Fail()
 	}
@@ -137,7 +137,7 @@ func TestMultiplyDataRecovery(t *testing.T) {
 		fmt.Printf("Data[%d] = %x:%x\n", i, hashes[i], shards[i][:20])
 	}
 
-	dataRecoverEngine, err := NewDataRecoverEngine(yd, p2pNet, recConfig)
+	dataRecoverEngine, err := NewEngine(yd, p2pNet, recConfig)
 	if err != nil {
 		t.Fail()
 	}
@@ -183,7 +183,7 @@ func TestDataRecoveryError(t *testing.T) {
 		fmt.Printf("Data[%d] = %x:%x\n", i, hashes[i], shards[i][:20])
 	}
 
-	dataRecoverEngine, err := NewDataRecoverEngine(yd, p2pNet, recConfig)
+	dataRecoverEngine, err := NewEngine(yd, p2pNet, recConfig)
 	if err != nil {
 		t.Fail()
 	}
@@ -228,7 +228,7 @@ func setupBenchmarkEnv(recConfig *DataRecoverOptions, p2pDelays ...time.Duration
 	hashes, shards := createData(recConfig.DataShards, recConfig.ParityShards)
 	p2pNet, p2pNodes := initailP2PMockWithShards(hashes, shards, p2pDelays...)
 
-	dataRecoverEngine, _ := NewDataRecoverEngine(nil, p2pNet, recConfig)
+	dataRecoverEngine, _ := NewEngine(nil, p2pNet, recConfig)
 	return dataRecoverEngine, hashes, p2pNodes
 }
 

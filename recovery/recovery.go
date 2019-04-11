@@ -20,13 +20,13 @@ type DataRecoverEngine struct {
 	config      *DataRecoverOptions
 	ytfs        *ytfs.YTFS
 
-	p2p P2PNetwork
+	p2p         P2PNetwork
 
-	taskList   []*TaskDescription
-	taskCh     chan *TaskDescription
-	taskStatus map[uint64]TaskResponse
+	taskList    []*TaskDescription
+	taskCh      chan *TaskDescription
+	taskStatus  map[uint64]TaskResponse
 
-	lock sync.Mutex
+	lock        sync.Mutex
 }
 
 // TaskDescription describes the recovery task.
@@ -73,8 +73,8 @@ type TaskResponse struct {
 	Desc   string
 }
 
-// NewDataRecoverEngine creates recovery data engine
-func NewDataRecoverEngine(ytfs *ytfs.YTFS, p2p P2PNetwork, opt *DataRecoverOptions) (*DataRecoverEngine, error) {
+// NewEngine creates recovery data engine
+func NewEngine(ytfs *ytfs.YTFS, p2p P2PNetwork, opt *DataRecoverOptions) (*DataRecoverEngine, error) {
 	enc, error := reedsolomon.New(int(opt.DataShards), int(opt.ParityShards))
 	if error != nil {
 		return nil, error
@@ -121,7 +121,7 @@ func (recoverEngine *DataRecoverEngine) startRecieveTask() {
 }
 
 // RecoverData recieves a recovery task and start working later on
-func (recoverEngine *DataRecoverEngine) RecoverData(td *TaskDescription, successCB ...func() TaskResponse) TaskResponse {
+func (recoverEngine *DataRecoverEngine) RecoverData(td *TaskDescription) TaskResponse {
 	err := recoverEngine.validateTask(td)
 	if err != nil {
 		recoverEngine.recordError(td, err)
