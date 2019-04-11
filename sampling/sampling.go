@@ -175,3 +175,8 @@ func (engine *DataSampleEngine) recordTaskResponse(task *TaskDescription, res Re
 		desc,
 	}
 }
+
+func (engine *DataSampleEngine) String() string {
+	return fmt.Sprintf("\nDataSampleEngine Info:\n" + engine.config.String() +
+					   "\nqueue: %d\n", len(engine.taskList))
+}

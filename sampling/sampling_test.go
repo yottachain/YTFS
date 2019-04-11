@@ -195,3 +195,28 @@ func TestStatusError(t *testing.T) {
 		}
 	}
 }
+
+func TestTaskFanIn(t *testing.T) {
+	opt.DebugPrint = true
+	config := DefaultOption()
+	config.FrequenceInSecond = 300
+	n := 10000
+	hashes, data := createData(1)
+	p2pNet, p2pNodes := initailP2PMockWithShards(hashes, data, 500)
+
+	se, err := NewEngine(p2pNet, config)
+	if err != nil {
+		t.Fail()
+	}
+
+	for i:=0;i<n;i++{
+		task := &TaskDescription{
+			uint64(i),
+			hashes[0],
+			p2pNodes[0],
+		}
+		se.RequestSampling(task)
+	}
+
+	t.Log(se)
+}
