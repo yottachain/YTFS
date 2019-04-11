@@ -36,6 +36,15 @@ func (mock P2PMock) RetrieveData(peer P2PLocation, hash common.Hash) ([]byte, er
 	return msgByte, nil
 }
 
+// NodeList reports all node addresses in this p2p network
+func (mock P2PMock) NodeList() []P2PLocation {
+	nodes := []P2PLocation{}
+	for key := range mock.networkData {
+		nodes = append(nodes, key)
+	}
+	return nodes
+}
+
 // InititalP2PMock initializes P2P mock module
 func InititalP2PMock(peers []P2PLocation, dataBlks [][]byte, networkParams ...time.Duration) (P2PNetwork, error) {
 	p2p := P2PMock{
