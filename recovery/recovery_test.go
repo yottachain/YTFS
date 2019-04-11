@@ -27,6 +27,7 @@ func TestNewDataRecovery(t *testing.T) {
 func randomFill(size uint32) []byte {
 	buf := make([]byte, size, size)
 	head := make([]byte, 16, 16)
+	rand.Seed(int64(time.Now().Nanosecond()))
 	rand.Read(head)
 	copy(buf, head)
 	return buf
@@ -49,9 +50,8 @@ func createShards(dataShards, parityShards int) ([]common.Hash, [][]byte) {
 	return hashes, shards
 }
 
-func createP2PAndDistributeData(dataShards, parityShards int) (P2PNetwork, []P2PLocation, []common.Hash, [][]byte) {
+func createData(dataShards, parityShards int) ([]common.Hash, [][]byte) {
 	hashes, shards := createShards(dataShards, parityShards)
-	locations := make([]P2PLocation, len(hashes))
 	enc, _ := reedsolomon.New(dataShards, parityShards)
 	enc.Encode(shards)
 	//update parity hash
@@ -60,12 +60,17 @@ func createP2PAndDistributeData(dataShards, parityShards int) (P2PNetwork, []P2P
 		hashes[i] = common.BytesToHash(sum256[:])
 	}
 
-	for i := 0; i < dataShards+parityShards; i++ {
+	return hashes, shards
+}
+
+func initailP2PMockWithShards(hashes []common.Hash, shards [][]byte, delays ...time.Duration) (P2PNetwork, []P2PLocation) {
+	locations := make([]P2PLocation, len(hashes))
+	for i := 0; i < len(hashes); i++ {
 		locations[i] = P2PLocation(common.BytesToAddress(hashes[i][:]))
 	}
 
-	p2p, _ := InititalP2PMock(locations, shards)
-	return p2p, locations, hashes, shards
+	p2p, _ := InititalP2PMock(locations, shards, delays...)
+	return p2p, locations
 }
 
 func TestDataRecovery(t *testing.T) {
@@ -76,13 +81,14 @@ func TestDataRecovery(t *testing.T) {
 	yd, err := ytfs.Open(rootDir, config)
 
 	recConfig := DefaultRecoveryOption()
-	p2p, locs, hashes, shards := createP2PAndDistributeData(recConfig.DataShards, recConfig.ParityShards)
+	hashes, shards := createData(recConfig.DataShards, recConfig.ParityShards)
+	p2pNet, p2pNodes := initailP2PMockWithShards(hashes, shards)
 
 	for i := 0; i < len(shards); i++ {
 		fmt.Printf("Data[%d] = %x:%x\n", i, hashes[i], shards[i][:20])
 	}
 
-	codec, err := NewDataCodec(yd, p2p, recConfig)
+	codec, err := NewDataCodec(yd, p2pNet, recConfig)
 	if err != nil {
 		t.Fail()
 	}
@@ -92,7 +98,7 @@ func TestDataRecovery(t *testing.T) {
 		td := &TaskDescription{
 			uint64(i),
 			hashes,
-			locs,
+			p2pNodes,
 			[]uint32{uint32(i)},
 		}
 		codec.RecoverData(td)
@@ -124,13 +130,14 @@ func TestMultiplyDataRecovery(t *testing.T) {
 	yd, err := ytfs.Open(rootDir, config)
 
 	recConfig := DefaultRecoveryOption()
-	p2p, locs, hashes, shards := createP2PAndDistributeData(recConfig.DataShards, recConfig.ParityShards)
+	hashes, shards := createData(recConfig.DataShards, recConfig.ParityShards)
+	p2pNet, p2pNodes := initailP2PMockWithShards(hashes, shards)
 
 	for i := 0; i < len(shards); i++ {
 		fmt.Printf("Data[%d] = %x:%x\n", i, hashes[i], shards[i][:20])
 	}
 
-	codec, err := NewDataCodec(yd, p2p, recConfig)
+	codec, err := NewDataCodec(yd, p2pNet, recConfig)
 	if err != nil {
 		t.Fail()
 	}
@@ -138,7 +145,7 @@ func TestMultiplyDataRecovery(t *testing.T) {
 	td := &TaskDescription{
 		uint64(2),
 		hashes,
-		locs,
+		p2pNodes,
 		[]uint32{0, 1, 2},
 	}
 	codec.RecoverData(td)
@@ -169,13 +176,14 @@ func TestDataRecoveryError(t *testing.T) {
 
 	recConfig := DefaultRecoveryOption()
 	recConfig.TimeoutInMS = 10
-	p2p, locs, hashes, shards := createP2PAndDistributeData(recConfig.DataShards, recConfig.ParityShards)
+	hashes, shards := createData(recConfig.DataShards, recConfig.ParityShards)
+	p2pNet, p2pNodes := initailP2PMockWithShards(hashes, shards)
 
 	for i := 0; i < len(shards); i++ {
 		fmt.Printf("Data[%d] = %x:%x\n", i, hashes[i], shards[i][:20])
 	}
 
-	codec, err := NewDataCodec(yd, p2p, recConfig)
+	codec, err := NewDataCodec(yd, p2pNet, recConfig)
 	if err != nil {
 		t.Fail()
 	}
@@ -188,7 +196,7 @@ func TestDataRecoveryError(t *testing.T) {
 	td := &TaskDescription{
 		uint64(0),
 		hashes,
-		locs,
+		p2pNodes,
 		recIds,
 	}
 	codec.RecoverData(td)
@@ -203,7 +211,7 @@ func TestDataRecoveryError(t *testing.T) {
 	td = &TaskDescription{
 		uint64(1),
 		hashes,
-		locs,
+		p2pNodes,
 		[]uint32{0},
 	}
 	codec.RecoverData(td)
@@ -216,9 +224,17 @@ func TestDataRecoveryError(t *testing.T) {
 	}
 }
 
-func BenchmarkDataRecovery(b *testing.B) {
-	dataShards, parityShards := 2, 3
-	_, _, _, shards := createP2PAndDistributeData(dataShards, parityShards)
+func setupBenchmarkEnv(recConfig *DataCodecOptions, p2pDelays...time.Duration) (*DataRecoverEngine, []common.Hash, []P2PLocation) {
+	hashes, shards := createData(recConfig.DataShards, recConfig.ParityShards)
+	p2pNet, p2pNodes := initailP2PMockWithShards(hashes, shards, p2pDelays...)
+
+	codec, _ := NewDataCodec(nil, p2pNet, recConfig)
+	return codec, hashes, p2pNodes
+}
+
+func BenchmarkPureDataRecovery(b *testing.B) {
+	dataShards, parityShards := 5, 3
+	_, shards := createData(dataShards, parityShards)
 	rsEnc, err := reedsolomon.New(dataShards, parityShards)
 	if err != nil {
 		b.Fatal(err)
@@ -228,5 +244,56 @@ func BenchmarkDataRecovery(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		rsEnc.Reconstruct(shards)
+	}
+}
+
+func BenchmarkFastP2PDataRecovery(b *testing.B) {
+	recConfig := DefaultRecoveryOption()
+	codec, hashes, p2pNodes := setupBenchmarkEnv(recConfig, []time.Duration{250,250,250,250,250,250,250}...)
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		done := make(chan interface{}, 1)
+		td := &TaskDescription{
+			uint64(rand.Int63()),
+			hashes,
+			p2pNodes,
+			[]uint32{uint32(rand.Intn(len(hashes)))},
+		}
+		codec.doRecoverData(td, done)
+	}
+}
+
+func BenchmarkSlowP2PDataRecovery(b *testing.B) {
+	recConfig := DefaultRecoveryOption()
+	codec, hashes, p2pNodes := setupBenchmarkEnv(recConfig, []time.Duration{25,25,25,25,25,25,25}...)
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		done := make(chan interface{}, 1)
+		td := &TaskDescription{
+			uint64(rand.Int63()),
+			hashes,
+			p2pNodes,
+			[]uint32{uint32(rand.Intn(len(hashes)))},
+		}
+		codec.doRecoverData(td, done)
+	}
+}
+
+func BenchmarkUnevenP2PDataRecovery(b *testing.B) {
+	recConfig := DefaultRecoveryOption()
+	codec, hashes, p2pNodes := setupBenchmarkEnv(recConfig, []time.Duration{250,211,173,136,99,62,25}...)
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		done := make(chan interface{}, 1)
+		td := &TaskDescription{
+			uint64(rand.Int63()),
+			hashes,
+			p2pNodes,
+			[]uint32{uint32(rand.Intn(len(hashes)))},
+		}
+		codec.doRecoverData(td, done)
 	}
 }

@@ -120,7 +120,7 @@ func (codec *DataRecoverEngine) startRecieveTask() {
 }
 
 // RecoverData recieves a recovery task and start working later on
-func (codec *DataRecoverEngine) RecoverData(td *TaskDescription) TaskResponse {
+func (codec *DataRecoverEngine) RecoverData(td *TaskDescription, successCB... func() TaskResponse) TaskResponse {
 	err := codec.validateTask(td)
 	if err != nil {
 		codec.recordError(td, err)
@@ -255,20 +255,19 @@ func (codec *DataRecoverEngine) recordTaskResponse(td *TaskDescription, res Task
 func (codec *DataRecoverEngine) getShardFromNetwork(hash common.Hash, loc P2PLocation, timeoutMS time.Duration, stopSigCh chan interface{}) ([]byte, error) {
 	success := make(chan interface{})
 	errCh := make(chan error)
-	shard := make([]byte, codec.ytfs.Meta().DataBlockSize)
 	go func() {
 		//recieve data
-		err := codec.retrieveData(loc, hash, shard)
+		shard, err := codec.retrieveData(loc, hash)
 		if err != nil {
 			errCh <- err
 		} else {
-			success <- struct{}{}
+			success <- shard
 		}
 	}()
 
 	select {
-	case <-success:
-		return shard, nil
+	case shard := <-success:
+		return shard.([]byte), nil
 	case err := <-errCh:
 		return nil, err
 	case <-time.After(timeoutMS * time.Millisecond):
@@ -278,8 +277,8 @@ func (codec *DataRecoverEngine) getShardFromNetwork(hash common.Hash, loc P2PLoc
 	}
 }
 
-func (codec *DataRecoverEngine) retrieveData(loc P2PLocation, hash common.Hash, data []byte) error {
+func (codec *DataRecoverEngine) retrieveData(loc P2PLocation, hash common.Hash) ([]byte, error) {
 	// Read p2p network
-	codec.p2p.RetrieveData(loc, data)
-	return nil
+	data, _ := codec.p2p.RetrieveData(loc, hash)
+	return data, nil
 }
