@@ -13,24 +13,6 @@ public class Test {
         Block b = new Block("asfaxvbfsebgser".getBytes());
         System.out.println(b.getData().length);
 
-        BlockAESEncryptor code = new BlockAESEncryptor(b, key);
-        code.encrypt();
-        System.out.println(code.getData().length);
-        byte[] hash = code.getVHB();
-        
-        System.out.println(Hex.encodeHexString(hash));
-
-        code = new BlockAESEncryptor(b, key);
-        code.encrypt();
-        hash = code.getVHB();
-        System.out.println(code.getData().length);
-        System.out.println(Hex.encodeHexString(hash));
-        
-        code = new BlockAESEncryptor(b, key);
-        code.encrypt();
-        hash = code.getVHB();
-        System.out.println(code.getData().length);
-        System.out.println(Hex.encodeHexString(hash));
-
+      
     }
 }

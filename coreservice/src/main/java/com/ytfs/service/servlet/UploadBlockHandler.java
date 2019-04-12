@@ -1,7 +1,7 @@
 package com.ytfs.service.servlet;
 
 import com.ytfs.service.*;
-import com.ytfs.service.codec.BlockAESEncryptor;
+import com.ytfs.service.codec.BlockEncrypted;
 import com.ytfs.service.dao.*;
 import com.ytfs.service.node.*;
 import static com.ytfs.service.packet.ServiceErrorCode.*;
@@ -57,7 +57,9 @@ public class UploadBlockHandler {
         if (progress.exists(req.getVNU(), req.getId())) {
             return new VoidResp();
         }
-        req.verify(BlockAESEncryptor.makeVHB(req.getData()));
+        BlockEncrypted b = new BlockEncrypted();
+        b.setData(req.getData());
+        req.verify(b.getVHB());
         BlockMeta meta = req.makeBlockMeta(Sequence.generateBlockID(1));
         BlockAccessor.saveBlockData(meta.getVBI(), req.getData());
         BlockAccessor.saveBlockMeta(meta);

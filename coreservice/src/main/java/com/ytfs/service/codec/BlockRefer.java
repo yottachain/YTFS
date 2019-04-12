@@ -73,6 +73,7 @@ public class BlockRefer {
     public void setNodeid(int nodeid) {
         this.nodeid = nodeid;
     }
+
     private int shardid;  //序号
     private byte[] VHF;
     private int nodeid;

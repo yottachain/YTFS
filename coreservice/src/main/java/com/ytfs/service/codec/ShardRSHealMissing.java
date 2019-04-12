@@ -46,7 +46,7 @@ public class ShardRSHealMissing {
             reedSolomon.decodeMissing(datas, shardPresent, 1, shardsize);
             for (int ii = 0; ii < reedSolomon.getTotalShardCount(); ii++) {
                 if (shardPresent[ii] == false) {
-                    Shard shd = new Shard(datas[ii]);
+                    Shard shd = new Shard(datas[ii], ShardRSEncoder.sha(datas[ii]));
                     shards.add(shd);
                 }
             }

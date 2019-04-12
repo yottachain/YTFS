@@ -1,5 +1,6 @@
 package com.ytfs.service.codec;
 
+import com.ytfs.service.Function;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,11 +31,7 @@ public class BlockInputStream extends InputStream {
     }
 
     private void readHead() {
-        head <<= 8;
-        head |= (data[0] & 0xff);
-        head <<= 8;
-        head |= (data[1] & 0xff);
-        head = head & 0x0FFFF;
+        head = (short) Function.bytes2Integer(data, 0, 2);
         if (head == 0) {
             in = new InflaterInputStream(new ByteArrayInputStream(data, 2, data.length - 2));
         } else if (head < 0) {

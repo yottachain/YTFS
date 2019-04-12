@@ -1,5 +1,6 @@
 package com.ytfs.service.codec;
 
+import com.ytfs.service.Function;
 import static com.ytfs.service.UserConfig.Compress_Reserve_Size;
 import static com.ytfs.service.UserConfig.Default_Block_Size;
 import static com.ytfs.service.UserConfig.Max_Memory_Usage;
@@ -140,8 +141,7 @@ public class YTFile {
     private void pack(InputStream is) throws IOException {
         byte[] data = new byte[Default_Block_Size];
         int len = -1;//不压缩,head置-1
-        data[0] = (byte) (len >>> 8);
-        data[1] = (byte) (len);
+        Function.short2bytes((short) len, data, 0);
         len = is.read(data, 2, data.length - 2);
         if (len < data.length - 2) {
             byte[] newdata = new byte[2 + len];
@@ -192,8 +192,7 @@ public class YTFile {
                         totalIn = totalIn + len;
                         bos.write(bs, 0, len);
                         byte[] data = bos.toByteArray();//后续有原文字节,head置len
-                        data[0] = (byte) (len >>> 8);
-                        data[1] = (byte) (len);
+                        Function.short2bytes((short) len, data, 0);
                         write(data, totalIn);
                         if (len < remainSize) {
                             finished = true;

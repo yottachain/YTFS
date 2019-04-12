@@ -3,6 +3,19 @@ package com.ytfs.service;
 public class Function {
 
     /**
+     * byte[]->short
+     *
+     * @param bs
+     * @return int
+     */
+    public static short bytes2Short(byte[] bs) {
+        if (bs == null || bs.length < 1 || bs.length > 2) {
+            throw new java.lang.IllegalArgumentException();
+        }
+        return (short) bytes2Integer(bs, 0, 2);
+    }
+
+    /**
      * byte[]->int
      *
      * @param bs
@@ -36,6 +49,17 @@ public class Function {
         }
         return num;
     }
+
+    /*
+    public static void integer2Bytes(long n, byte[] bs, int off, int len) {
+        if (bs == null || bs.length < off + len) {
+            throw new java.lang.IllegalArgumentException();
+        }
+        for(int ii=0;ii<len;ii++){
+            bs[off+ii]=(byte)(n >>> )
+            
+        }
+    }*/
 
     /**
      * short->byte[]

@@ -4,8 +4,6 @@ import com.ytfs.service.codec.BlockAESDecryptor;
 import com.ytfs.service.codec.KeyStoreCoder;
 import com.ytfs.service.codec.ObjectRefer;
 import com.ytfs.service.codec.Shard;
-import com.ytfs.service.codec.ShardAESDecryptor;
-import com.ytfs.service.codec.ShardAESEncryptor;
 import com.ytfs.service.net.P2PUtils;
 import com.ytfs.service.node.Node;
 import com.ytfs.service.node.SuperNodeList;
@@ -41,7 +39,7 @@ public class DownloadBlock {
         Node pbd = SuperNodeList.getBlockSuperNode(refer.getSuperID());
         Object resp = P2PUtils.requestBPU(req, pbd);
         if (resp instanceof DownloadBlockDBResp) {
-            this.data = aesDBDecode(((DownloadBlockDBResp) resp).getData());
+   //         this.data = aesDBDecode(((DownloadBlockDBResp) resp).getData());
         } else {
             DownloadBlockInitResp initresp = (DownloadBlockInitResp) resp;
             if (initresp.getVNF() < 0) {
@@ -63,7 +61,7 @@ public class DownloadBlock {
         return null;
     }
 
-    private void firstDownload(ShardAESEncryptor enc) throws InterruptedException {
+    private void firstDownload(   ) throws InterruptedException {
         /*
         List<Shard> shards = enc.getEnc_shards();
         int nodeindex = 0;
@@ -100,7 +98,7 @@ public class DownloadBlock {
                 req.setVHF(VHF);
                 DownloadShardResp resp = (DownloadShardResp) P2PUtils.requestNode(req, n);
                 if (resp.verify(VHF)) {
-                    return aesCopyDecode(resp.getData());
+                   // return aesCopyDecode(resp.getData());
                 }
                 index++;
             } catch (ServiceException e) {
@@ -109,7 +107,7 @@ public class DownloadBlock {
         }
         throw t == null ? new ServiceException(INVALID_SHARD) : t;
     }
-
+/*
     private byte[] aesCopyDecode(byte[] data) {
         ShardAESDecryptor dec = new ShardAESDecryptor(new Shard(data), ks);
         dec.decrypt();
@@ -124,4 +122,5 @@ public class DownloadBlock {
         dec.decrypt();
         return dec.getBlock().getData();
     }
+*/
 }

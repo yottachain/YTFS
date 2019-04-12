@@ -6,6 +6,9 @@ import com.ytfs.service.dao.RedisSource;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import org.bson.types.ObjectId;
+import redis.clients.jedis.BasicCommands;
+import redis.clients.jedis.BinaryJedis;
+import redis.clients.jedis.BinaryJedisCluster;
 import redis.clients.jedis.JedisCluster;
 
 public class UploadObjectCache {
@@ -41,7 +44,6 @@ public class UploadObjectCache {
         this.filesize = filesize;
     }
 
-    
     public static byte[] getCacheKey(ObjectId VNU) {
         byte[] key = new byte[16];
         System.arraycopy(VNU.toByteArray(), 0, key, 0, 12);
@@ -60,9 +62,11 @@ public class UploadObjectCache {
             }
             return false;
         }
-        JedisCluster jedis = RedisSource.getJedisCluster();
+        BasicCommands jedis = RedisSource.getJedis();
         byte[] key = getCacheKey(VNU);
-        byte[] value = jedis.get(key);
+        byte[] value = (jedis instanceof BinaryJedis)
+                ? ((BinaryJedis) jedis).get(key)
+                : ((BinaryJedisCluster) jedis).get(key);
         if (value == null) {
             return false;
         } else {
@@ -78,20 +82,28 @@ public class UploadObjectCache {
     }
 
     public void setBlockNums(ObjectId VNU, short[] num) {
-        JedisCluster jedis = RedisSource.getJedisCluster();
+        BasicCommands jedis = RedisSource.getJedis();
         byte[] key = getCacheKey(VNU);
         ByteBuffer buf = ByteBuffer.allocate(num.length * 2);
         for (short s : num) {
             buf.putShort(s);
         }
         buf.flip();
-        jedis.setex(key, REDIS_EXPIRE, buf.array());
+        if (jedis instanceof BinaryJedis) {
+            ((BinaryJedis) jedis).setex(key, REDIS_EXPIRE, buf.array());
+        } else {
+            ((BinaryJedisCluster) jedis).setex(key, REDIS_EXPIRE, buf.array());
+        }
         blockids = num;
     }
 
     public static void setBlockNum(ObjectId VNU, short num) {
-        JedisCluster jedis = RedisSource.getJedisCluster();
+        BasicCommands jedis = RedisSource.getJedis();
         byte[] key = getCacheKey(VNU);
-        jedis.append(key, Function.short2bytes(num));
+        if (jedis instanceof BinaryJedis) {
+            ((BinaryJedis) jedis).append(key, Function.short2bytes(num));
+        } else {
+            ((BinaryJedisCluster) jedis).append(key, Function.short2bytes(num));
+        }
     }
 }

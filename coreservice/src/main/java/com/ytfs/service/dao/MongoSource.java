@@ -152,8 +152,8 @@ public class MongoSource {
                 LOG.info("[" + addr.toString() + "]添加到服务器列表中...");
             }
         }
-        if (addrs.size() < 3) {
-            throw new MongoException("Mongo至少得有3台服务器");
+        if (addrs.isEmpty()) {
+            throw new MongoException("MongoSource.properties文件中没有指定serverlist");
         }
         MongoCredential credential = null;
         String username = p.getProperty("username", "").trim();

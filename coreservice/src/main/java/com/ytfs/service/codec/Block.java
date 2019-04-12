@@ -1,5 +1,7 @@
 package com.ytfs.service.codec;
 
+import com.ytfs.service.UserConfig;
+import static com.ytfs.service.UserConfig.Default_PND;
 import static com.ytfs.service.UserConfig.Default_Shard_Size;
 import java.io.File;
 import java.io.FileInputStream;
@@ -12,10 +14,6 @@ import java.security.NoSuchAlgorithmException;
 import org.bson.Document;
 
 public class Block {
-
-    public static boolean isReplicaMode(int blocksize) {
-        return blocksize / (Default_Shard_Size - 1) == 0;
-    }
 
     private long originalSize;  //编码前长度
     private int realSize;  //实际长度
@@ -176,5 +174,5 @@ public class Block {
     public void setRealSize(int realSize) {
         this.realSize = realSize;
     }
-
+ 
 }

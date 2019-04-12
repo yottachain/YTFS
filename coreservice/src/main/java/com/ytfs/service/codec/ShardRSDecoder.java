@@ -8,23 +8,25 @@ import java.util.List;
 public class ShardRSDecoder {
 
     private final List<Shard> shards;
-    private final int blockRealSize;
+    private final int encryptedBlockSize;
 
-    public ShardRSDecoder(List<Shard> shards, int blockRealSize) {
+    public ShardRSDecoder(List<Shard> shards, int encryptedBlockSize) {
         this.shards = shards;
-        this.blockRealSize = blockRealSize;
+        this.encryptedBlockSize = encryptedBlockSize;
     }
 
-    public Block decode() throws IOException {
+    public BlockEncrypted decode() throws IOException {
         Shard shard = shards.get(0);
         if (!shard.isRsShard()) {//副本
-            byte[] data = new byte[blockRealSize];
-            System.arraycopy(shard.getData(), 1, data, 0, blockRealSize);
-            return new Block(data);
+            byte[] data = new byte[encryptedBlockSize];
+            System.arraycopy(shard.getData(), 1, data, 0, encryptedBlockSize);
+            BlockEncrypted b = new BlockEncrypted();
+            b.setData(data);
+            return b;
         } else {
             int shardsize = shard.getData().length - 1;
-            int dataShardCount = blockRealSize / shardsize;
-            int remainSize = blockRealSize % shardsize;
+            int dataShardCount = encryptedBlockSize / shardsize;
+            int remainSize = encryptedBlockSize % shardsize;
             ReedSolomon reedSolomon = ReedSolomon.create(dataShardCount + (remainSize > 0 ? 1 : 0), Default_PND);
             byte[][] datas = new byte[reedSolomon.getTotalShardCount()][];
             for (Shard shd : shards) {
@@ -53,12 +55,14 @@ public class ShardRSDecoder {
                 reedSolomon.decodeMissing(datas, shardPresent, 1, shardsize);
             }
             byte[] data = readShard(datas, dataShardCount, shardsize, remainSize);
-            return new Block(data);
+            BlockEncrypted b = new BlockEncrypted();
+            b.setData(data);
+            return b;
         }
     }
 
     private byte[] readShard(byte[][] datas, int dataShardCount, int shardsize, int remainSize) {
-        byte[] data = new byte[blockRealSize];
+        byte[] data = new byte[encryptedBlockSize];
         for (int ii = 0; ii < dataShardCount; ii++) {
             byte[] bs = datas[ii];
             System.arraycopy(bs, 1, data, ii * shardsize, shardsize);

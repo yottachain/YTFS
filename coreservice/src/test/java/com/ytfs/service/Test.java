@@ -3,11 +3,19 @@ package com.ytfs.service;
 public class Test {
 
     public static void main(String[] args) throws Exception {
-        byte s = (byte) 155;
+        int ii = 23442;
 
-        System.out.println(s);
+        System.out.println(ii);
+
+        byte[] bs = new byte[2];
+        Function.short2bytes((short) ii, bs, 0);
         
-        int ss=  s & 0xFF;
-        System.out.println(ss);
+        int newii=(short) Function.bytes2Integer(bs, 0, 2);
+
+        //int newii = (short)Function.bytes2Integer(bs,0,2);
+        System.out.println(newii);
+
+  
+
     }
 }

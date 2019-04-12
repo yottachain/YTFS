@@ -1,13 +1,15 @@
 package com.ytfs.service;
 
 import static com.ytfs.service.UploadShardRes.RES_OK;
+import com.ytfs.service.codec.Block;
+import com.ytfs.service.codec.BlockAESEncryptor;
 import com.ytfs.service.packet.UploadShardReq;
 import com.ytfs.service.codec.KeyStoreCoder;
 import com.ytfs.service.codec.Shard;
-import com.ytfs.service.codec.ShardAESEncryptor;
 import com.ytfs.service.codec.ShardRSEncoder;
 import com.ytfs.service.net.P2PUtils;
 import com.ytfs.service.node.Node;
+import static com.ytfs.service.packet.ServiceErrorCode.SERVER_ERROR;
 import com.ytfs.service.packet.ServiceException;
 import com.ytfs.service.packet.ShardNode;
 import com.ytfs.service.packet.UploadBlockEndReq;
@@ -20,7 +22,8 @@ import java.util.Map;
 
 public class UploadBlock {
 
-    private final ShardRSEncoder rs;
+    private ShardRSEncoder rs;
+    private Block block;
     private final short id;
     private final ShardNode[] nodes;
     private final long VBI;
@@ -28,8 +31,8 @@ public class UploadBlock {
     private final List<UploadShardRes> resList = new ArrayList();
     private final Map<Integer, Shard> map = new HashMap();
 
-    public UploadBlock(ShardRSEncoder rs, short id, ShardNode[] nodes, long VBI, Node bpdNode) {
-        this.rs = rs;
+    public UploadBlock(Block block, short id, ShardNode[] nodes, long VBI, Node bpdNode) {
+        this.block = block;
         this.id = id;
         this.nodes = nodes;
         this.VBI = VBI;
@@ -44,30 +47,36 @@ public class UploadBlock {
     }
 
     void upload() throws ServiceException, InterruptedException {
-        byte[] ks = KeyStoreCoder.generateRandomKey();
-        ShardAESEncryptor enc = new ShardAESEncryptor(rs.getShardList(), ks);
-        enc.encrypt();
-        firstUpload(enc);
-        subUpload();
-        completeUploadBlock(enc, ks);
+        try {
+            byte[] ks = KeyStoreCoder.generateRandomKey();
+            BlockAESEncryptor aes = new BlockAESEncryptor(block, ks);
+            aes.encrypt();
+            rs = new ShardRSEncoder(aes.getBlockEncrypted());
+            rs.encode();
+            firstUpload();
+            subUpload();
+            completeUploadBlock(ks);
+        } catch (Exception r) {
+            throw new ServiceException(SERVER_ERROR);
+        }
     }
 
-    private void completeUploadBlock(ShardAESEncryptor enc, byte[] ks) throws ServiceException {
+    private void completeUploadBlock(byte[] ks) throws ServiceException {
         UploadBlockEndReq req = new UploadBlockEndReq();
         req.setId(id);
         req.setVBI(VBI);
-        req.setVHP(rs.getBlock().getVHP());
-        req.setVHB(enc.makeVHB());
+        req.setVHP(block.getVHP());
+        req.setVHB(rs.makeVHB());
         req.setKEU(KeyStoreCoder.rsaEncryped(ks, UserConfig.KUEp));
-        req.setKED(KeyStoreCoder.encryped(ks, rs.getBlock().getKD()));
-        req.setOriginalSize(rs.getBlock().getOriginalSize());
-        req.setRealSize(rs.getBlock().getRealSize());
-        req.setRsShard(enc.getShards().get(0).isRsShard());
+        req.setKED(KeyStoreCoder.encryped(ks, block.getKD()));
+        req.setOriginalSize(block.getOriginalSize());
+        req.setRealSize(block.getRealSize());
+        req.setRsShard(rs.getShardList().get(0).isRsShard());
         P2PUtils.requestBPU(req, bpdNode);
     }
 
-    private void firstUpload(ShardAESEncryptor enc) throws InterruptedException {
-        List<Shard> shards = enc.getEnc_shards();
+    private void firstUpload() throws InterruptedException {
+        List<Shard> shards = rs.getShardList();
         int nodeindex = 0;
         for (Shard sd : shards) {
             map.put(nodeindex, sd);

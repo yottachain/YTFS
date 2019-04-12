@@ -1,5 +1,6 @@
 package com.ytfs.service.codec;
 
+import com.ytfs.service.Function;
 import static com.ytfs.service.Function.bytes2Integer;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,24 +41,21 @@ public class ObjectRefer {
         byte[] bs = new byte[50 * ls.size()];
         int pos = 0;
         for (ObjectRefer refer : ls) {
-            bs[pos++] = (byte) (refer.getVBI() >>> 56);
-            bs[pos++] = (byte) (refer.getVBI() >>> 48);
-            bs[pos++] = (byte) (refer.getVBI() >>> 40);
-            bs[pos++] = (byte) (refer.getVBI() >>> 32);
-            bs[pos++] = (byte) (refer.getVBI() >>> 24);
-            bs[pos++] = (byte) (refer.getVBI() >>> 16);
-            bs[pos++] = (byte) (refer.getVBI() >>> 8);
-            bs[pos++] = (byte) (refer.getVBI());
+            Function.long2bytes(refer.getVBI(), bs, pos);
+            pos=pos+8;
             bs[pos++] = refer.getSuperID();
+            
             bs[pos++] = (byte) (refer.getOriginalSize() >>> 40);
             bs[pos++] = (byte) (refer.getOriginalSize() >>> 32);
             bs[pos++] = (byte) (refer.getOriginalSize() >>> 24);
             bs[pos++] = (byte) (refer.getOriginalSize() >>> 16);
             bs[pos++] = (byte) (refer.getOriginalSize() >>> 8);
             bs[pos++] = (byte) (refer.getOriginalSize());
+                        
             bs[pos++] = (byte) (refer.getRealSize() >>> 16);
             bs[pos++] = (byte) (refer.getRealSize() >>> 8);
             bs[pos++] = (byte) (refer.getRealSize());
+            
             System.arraycopy(refer.KEU, 0, bs, pos, 32);
             pos = pos + 32;
             bs[pos++] = (byte) (refer.getId() >>> 8);

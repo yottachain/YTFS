@@ -16,7 +16,9 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import org.bson.types.ObjectId;
-import redis.clients.jedis.JedisCluster;
+import redis.clients.jedis.BasicCommands;
+import redis.clients.jedis.BinaryJedis;
+import redis.clients.jedis.BinaryJedisCluster;
 
 public class CacheAccessor {
 
@@ -27,13 +29,17 @@ public class CacheAccessor {
      * @param VBI
      */
     static void clearCache(ObjectId VNU, long VBI) {
-        JedisCluster jedis = RedisSource.getJedisCluster();
+        BasicCommands jedis = RedisSource.getJedis();
         byte[] key1 = UploadObjectCache.getCacheKey(VNU);
         byte[] key2 = VNU.toByteArray();
         byte[] key3 = long2bytes(VBI);
         byte[] key4 = UploadBlockCache.getCacheKey1(VBI);
         byte[] key5 = UploadBlockCache.getCacheKey2(VBI);
-        jedis.del(new byte[][]{key1, key2, key3, key4, key5});
+        if (jedis instanceof BinaryJedis) {
+            ((BinaryJedis) jedis).del(new byte[][]{key1, key2, key3, key4, key5});
+        } else {
+            ((BinaryJedisCluster) jedis).del(new byte[][]{key1, key2, key3, key4, key5});
+        }
     }
 
     /**
@@ -43,8 +49,10 @@ public class CacheAccessor {
      * @return
      */
     static Map<Integer, UploadShardCache> getUploadShardCache(long VBI) {
-        JedisCluster jedis = RedisSource.getJedisCluster();
-        byte[] data = jedis.get(UploadBlockCache.getCacheKey1(VBI));
+        BasicCommands jedis = RedisSource.getJedis();
+        byte[] data = (jedis instanceof BinaryJedis)
+                ? ((BinaryJedis) jedis).get(UploadBlockCache.getCacheKey1(VBI))
+                : ((BinaryJedisCluster) jedis).get(UploadBlockCache.getCacheKey1(VBI));
         if (data == null || data.length == 0) {
             return null;
         }
@@ -66,8 +74,12 @@ public class CacheAccessor {
      * @param VBI
      */
     static void addUploadShardCache(UploadShardCache shardCache, long VBI) {
-        JedisCluster jedis = RedisSource.getJedisCluster();
-        jedis.append(UploadBlockCache.getCacheKey1(VBI), shardCache.toByte());
+        BasicCommands jedis = RedisSource.getJedis();
+        if (jedis instanceof BinaryJedis) {
+            ((BinaryJedis) jedis).append(UploadBlockCache.getCacheKey1(VBI), shardCache.toByte());
+        } else {
+            ((BinaryJedisCluster) jedis).append(UploadBlockCache.getCacheKey1(VBI), shardCache.toByte());
+        }
     }
 
     /**
@@ -77,8 +89,12 @@ public class CacheAccessor {
      * @param VBI
      */
     static void putUploadBlockCache(UploadBlockCache cache, long VBI) {
-        JedisCluster jedis = RedisSource.getJedisCluster();
-        jedis.setex(long2bytes(VBI), REDIS_BLOCK_EXPIRE, SerializationUtil.serialize(cache));
+        BasicCommands jedis = RedisSource.getJedis();
+        if (jedis instanceof BinaryJedis) {
+            ((BinaryJedis) jedis).setex(long2bytes(VBI), REDIS_BLOCK_EXPIRE, SerializationUtil.serialize(cache));
+        } else {
+            ((BinaryJedisCluster) jedis).setex(long2bytes(VBI), REDIS_BLOCK_EXPIRE, SerializationUtil.serialize(cache));
+        }
     }
 
     /**
@@ -88,10 +104,14 @@ public class CacheAccessor {
      * @param VBI
      */
     static void setUploadBlockCache(UploadBlockCache cache, long VBI) {
-        JedisCluster jedis = RedisSource.getJedisCluster();
-        jedis.setex(long2bytes(VBI), REDIS_BLOCK_EXPIRE, SerializationUtil.serialize(cache));
-        jedis.setex(UploadBlockCache.getCacheKey1(VBI), REDIS_BLOCK_EXPIRE, new byte[0]);
-
+        BasicCommands jedis = RedisSource.getJedis();
+        if (jedis instanceof BinaryJedis) {
+            ((BinaryJedis) jedis).setex(long2bytes(VBI), REDIS_BLOCK_EXPIRE, SerializationUtil.serialize(cache));
+            ((BinaryJedis) jedis).setex(UploadBlockCache.getCacheKey1(VBI), REDIS_BLOCK_EXPIRE, new byte[0]);
+        } else {
+            ((BinaryJedisCluster) jedis).setex(long2bytes(VBI), REDIS_BLOCK_EXPIRE, SerializationUtil.serialize(cache));
+            ((BinaryJedisCluster) jedis).setex(UploadBlockCache.getCacheKey1(VBI), REDIS_BLOCK_EXPIRE, new byte[0]);
+        }
     }
 
     /**
@@ -102,7 +122,10 @@ public class CacheAccessor {
      * @throws ServiceException
      */
     static UploadBlockCache getUploadBlockCache(long VBI) throws ServiceException {
-        byte[] bs = RedisSource.getJedisCluster().get(long2bytes(VBI));
+        BasicCommands jedis = RedisSource.getJedis();
+        byte[] bs = (jedis instanceof BinaryJedis)
+                ? ((BinaryJedis) jedis).get(long2bytes(VBI))
+                : ((BinaryJedisCluster) jedis).get(long2bytes(VBI));
         if (bs == null) {
             throw new ServiceException(INVALID_UPLOAD_ID);
         }
@@ -117,11 +140,17 @@ public class CacheAccessor {
      * @throws ServiceException
      */
     static long getUploadBlockINC(long VBI) throws ServiceException {
-        JedisCluster jedis = RedisSource.getJedisCluster();
+        BasicCommands jedis = RedisSource.getJedis();
         byte[] key = UploadBlockCache.getCacheKey2(VBI);
-        long l = jedis.incr(key);
-        jedis.expire(key, REDIS_BLOCK_EXPIRE);
-        return l;
+        if (jedis instanceof BinaryJedis) {
+            long l = ((BinaryJedis) jedis).incr(key);
+            ((BinaryJedis) jedis).expire(key, REDIS_BLOCK_EXPIRE);
+            return l;
+        } else {
+            long l = ((BinaryJedisCluster) jedis).incr(key);
+            ((BinaryJedisCluster) jedis).expire(key, REDIS_BLOCK_EXPIRE);
+            return l;
+        }
     }
 
     /**
@@ -133,8 +162,10 @@ public class CacheAccessor {
      * @throws ServiceException
      */
     static UploadObjectCache getUploadObjectCache(int userid, ObjectId VNU) throws ServiceException {
-        JedisCluster jedis = RedisSource.getJedisCluster();
-        byte[] bs = jedis.get(VNU.toByteArray());
+        BasicCommands jedis = RedisSource.getJedis();
+        byte[] bs = (jedis instanceof BinaryJedis)
+                ? ((BinaryJedis) jedis).get(VNU.toByteArray())
+                : ((BinaryJedisCluster) jedis).get(VNU.toByteArray());
         UploadObjectCache cache;
         if (bs == null) {
             QueryObjectMetaReq req = new QueryObjectMetaReq();
@@ -145,7 +176,11 @@ public class CacheAccessor {
             cache = new UploadObjectCache();
             cache.setFilesize(resp.getLength());
             cache.setUserid(userid);
-            jedis.setex(VNU.toByteArray(), REDIS_EXPIRE, SerializationUtil.serialize(cache));
+            if (jedis instanceof BinaryJedis) {
+                ((BinaryJedis) jedis).setex(VNU.toByteArray(), REDIS_EXPIRE, SerializationUtil.serialize(cache));
+            } else {
+                ((BinaryJedisCluster) jedis).setex(VNU.toByteArray(), REDIS_EXPIRE, SerializationUtil.serialize(cache));
+            }
             cache.setBlockNums(VNU, resp.getBlocknums());
         } else {
             cache = (UploadObjectCache) SerializationUtil.deserialize(bs);

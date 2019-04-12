@@ -7,7 +7,9 @@ import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import org.apache.log4j.Logger;
+import redis.clients.jedis.BasicCommands;
 import redis.clients.jedis.HostAndPort;
+import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisCluster;
 import redis.clients.jedis.exceptions.JedisException;
 
@@ -20,7 +22,7 @@ public class RedisSource {
             return;
         }
         try {
-            synchronized (MongoSource.class) {
+            synchronized (RedisSource.class) {
                 if (source == null) {
                     source = new RedisSource();
                 }
@@ -34,39 +36,42 @@ public class RedisSource {
         }
     }
 
-    public static JedisCluster getJedisCluster() {
+    public static BasicCommands getJedis() {
         newInstance();
-        return source.jedisCluster;
+        return source.jedis;
     }
 
     public static void terminate() {
         synchronized (RedisSource.class) {
             if (source != null) {
-                try {
-                    source.jedisCluster.close();
-                } catch (IOException ex) {
-                }
-                source = null;
+                source.close();
             }
         }
     }
     private static final Logger LOG = Logger.getLogger(RedisSource.class);
-    private JedisCluster jedisCluster = null;
+    private BasicCommands jedis = null;
 
     private RedisSource() throws JedisException {
         try (InputStream inStream = RedisSource.class.getResourceAsStream("/mongo.properties")) {
             Properties p = new Properties();
             p.load(inStream);
             init(p);
-
         } catch (Exception e) {
-            if (jedisCluster != null) {
+            close();
+            throw e instanceof JedisException ? (JedisException) e : new JedisException(e.getMessage());
+        }
+    }
+
+    private void close() {
+        if (jedis != null) {
+            if (jedis instanceof JedisCluster) {
                 try {
-                    jedisCluster.close();
+                    ((JedisCluster) jedis).close();
                 } catch (IOException ex) {
                 }
+            } else {
+                ((Jedis) jedis).close();
             }
-            throw e instanceof JedisException ? (JedisException) e : new JedisException(e.getMessage());
         }
     }
 
@@ -88,10 +93,15 @@ public class RedisSource {
             } catch (Exception r) {
             }
         }
-        if (nodes.size() < 3) {
-            throw new JedisException("Redis至少得有3台服务器");
+        if (nodes.isEmpty()) {
+            throw new MongoException("MongoSource.properties文件中没有指定redislist");
         }
-        jedisCluster = new JedisCluster(nodes);
+        if (nodes.size() < 3) {
+            HostAndPort hp = nodes.iterator().next();
+            jedis = new Jedis(hp.getHost(), hp.getPort());
+        } else {
+            jedis = new JedisCluster(nodes);
+        }
         LOG.info("连接服务器成功!");
     }
 }

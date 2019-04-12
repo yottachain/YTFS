@@ -23,11 +23,8 @@ public class UploadBlockInitResp {
             try {    //对id和VNU签名
                 Signature signet = java.security.Signature.getInstance("DSA");
                 signet.initSign(privateKey);
-                ByteBuffer bs = ByteBuffer.allocate(12);
-                bs.putInt(ns[ii].getNodeId());
-                bs.putLong(VBI);
-                bs.flip();
-                signet.update(bs.array());
+                String str = ns[ii].getKey() + VBI;
+                signet.update(str.getBytes());
                 byte[] signed = signet.sign();
                 nodes[ii].setSign(signed);
             } catch (Exception r) {

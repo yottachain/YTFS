@@ -8,74 +8,61 @@ public class TestShardCoder {
     private static final byte[] key = KeyStoreCoder.generateRandomKey();
 
     public static void main(String[] args) throws IOException {
-        //bigBlock();
-        //middleBlock();
+       // middleBlock();
         smallBlock();
     }
 
     private static void middleBlock() throws IOException {
-        Block block = new Block("d:\\311");
+        Block block = new Block("d:\\P2PSearcher_DWJ.rar");
         block.load();
-        ShardRSEncoder encoder = new ShardRSEncoder(block);
-        encoder.encode();
-        List<Shard> shards = encoder.getShardList();
+        
+        BlockAESEncryptor aes = new BlockAESEncryptor(block, key);
+        aes.encrypt();
+        int encryptedBlockSize = aes.getBlockEncrypted().getEncryptedBlockSize();
 
-        ShardAESEncryptor aesencoder = new ShardAESEncryptor(shards, key);
-        aesencoder.encrypt();
+        ShardRSEncoder encoder = new ShardRSEncoder(aes.getBlockEncrypted());
+        encoder.encode();
+
+        List<Shard> shards = encoder.getShardList();
 
         deleteDataShard(shards);
         //deleteParityShard(shards);
 
-        ShardAESDecryptor aesdecoder = new ShardAESDecryptor(shards, key);
-        aesdecoder.decrypt();
-        ShardRSDecoder decoder = new ShardRSDecoder(shards, block.getRealSize());
-        Block b = decoder.decode();
-        b.save("d:\\312");
+        ShardRSDecoder decoder = new ShardRSDecoder(shards, encryptedBlockSize);
+        BlockEncrypted b = decoder.decode();
 
-    }
-
-    private static void bigBlock() throws IOException {
-        Block block = new Block("d:\\aa.docx");
-        block.load();
-        ShardRSEncoder encoder = new ShardRSEncoder(block);
-        encoder.encode();
-        List<Shard> shards = encoder.getShardList();
-
-        ShardAESEncryptor aesencoder = new ShardAESEncryptor(shards, key);
-        aesencoder.encrypt();
-
-        deleteDataShard(shards);
-        //deleteParityShard(shards);
-
-        ShardAESDecryptor aesdecoder = new ShardAESDecryptor(shards, key);
+        BlockAESDecryptor aesdecoder = new BlockAESDecryptor(b.getData(), block.getRealSize(), key);
         aesdecoder.decrypt();
 
-        ShardRSDecoder decoder = new ShardRSDecoder(shards, block.getRealSize());
-        Block b = decoder.decode();
-        b.save("d:\\cc.docx");
+        block = new Block(aesdecoder.getSrcData());
+        block.save("d:\\312.rar");
 
     }
-
+ 
     private static void smallBlock() throws IOException {
         Block block = new Block("d:\\seo.txt");
         block.load();
 
-        ShardRSEncoder encoder = new ShardRSEncoder(block);
-        encoder.encode();
-        List<Shard> shards = encoder.getShardList();
+        BlockAESEncryptor aes = new BlockAESEncryptor(block, key);
+        aes.encrypt();
+        int encryptedBlockSize = aes.getBlockEncrypted().getEncryptedBlockSize();
 
-        ShardAESEncryptor aesencoder = new ShardAESEncryptor(shards, key);
-        aesencoder.encrypt();
+        ShardRSEncoder encoder = new ShardRSEncoder(aes.getBlockEncrypted());
+        encoder.encode();
+
+        List<Shard> shards = encoder.getShardList();
 
         deleteDataShard(shards);
         //deleteParityShard(shards);
 
-        ShardAESDecryptor aesdecoder = new ShardAESDecryptor(shards, key);
+        ShardRSDecoder decoder = new ShardRSDecoder(shards, encryptedBlockSize);
+        BlockEncrypted b = decoder.decode();
+
+        BlockAESDecryptor aesdecoder = new BlockAESDecryptor(b.getData(), block.getRealSize(), key);
         aesdecoder.decrypt();
 
-        ShardRSDecoder decoder = new ShardRSDecoder(shards, block.getRealSize());
-        Block b = decoder.decode();
-        b.save("d:\\cc.txt");
+        block = new Block(aesdecoder.getSrcData());
+        block.save("d:\\cc.txt");
     }
 
     private static void deleteDataShard(List<Shard> shards) {
