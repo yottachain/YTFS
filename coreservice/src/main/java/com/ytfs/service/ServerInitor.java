@@ -3,6 +3,7 @@ package com.ytfs.service;
 import static com.ytfs.service.ServerConfig.privateKey;
 import static com.ytfs.service.ServerConfig.superNodeID;
 import static com.ytfs.service.ServerConfig.port;
+import com.ytfs.service.dao.MongoSource;
 import com.ytfs.service.dao.RedisSource;
 import com.ytfs.service.net.P2PUtils;
 import java.io.File;
@@ -14,6 +15,12 @@ import org.apache.log4j.Logger;
 public class ServerInitor {
 
     private static final Logger LOG = Logger.getLogger(ServerInitor.class);
+
+    public static void stop() {
+        P2PUtils.stop();
+        MongoSource.terminate();
+        RedisSource.terminate();
+    }
 
     public static void init() {
         try {
