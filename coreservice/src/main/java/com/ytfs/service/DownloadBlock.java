@@ -1,9 +1,11 @@
 package com.ytfs.service;
 
 import com.ytfs.service.codec.BlockAESDecryptor;
+import com.ytfs.service.codec.BlockEncrypted;
 import com.ytfs.service.codec.KeyStoreCoder;
 import com.ytfs.service.codec.ObjectRefer;
 import com.ytfs.service.codec.Shard;
+import com.ytfs.service.codec.ShardRSDecoder;
 import com.ytfs.service.net.P2PUtils;
 import com.ytfs.service.node.Node;
 import com.ytfs.service.node.SuperNodeList;
@@ -12,6 +14,7 @@ import com.ytfs.service.packet.DownloadBlockInitReq;
 import com.ytfs.service.packet.DownloadBlockInitResp;
 import com.ytfs.service.packet.DownloadShardReq;
 import com.ytfs.service.packet.DownloadShardResp;
+import static com.ytfs.service.packet.ServiceErrorCode.INTERNAL_ERROR;
 import static com.ytfs.service.packet.ServiceErrorCode.INVALID_SHARD;
 import com.ytfs.service.packet.ServiceException;
 import java.util.ArrayList;
@@ -39,13 +42,17 @@ public class DownloadBlock {
         Node pbd = SuperNodeList.getBlockSuperNode(refer.getSuperID());
         Object resp = P2PUtils.requestBPU(req, pbd);
         if (resp instanceof DownloadBlockDBResp) {
-   //         this.data = aesDBDecode(((DownloadBlockDBResp) resp).getData());
+            this.data = aesDBDecode(((DownloadBlockDBResp) resp).getData());
         } else {
             DownloadBlockInitResp initresp = (DownloadBlockInitResp) resp;
             if (initresp.getVNF() < 0) {
                 this.data = loadCopyShard(initresp);
             } else {
-                this.data = loadRSShard(initresp);
+                try {
+                    this.data = loadRSShard(initresp);
+                } catch (InterruptedException e) {
+                    throw new ServiceException(INTERNAL_ERROR, e.getMessage());
+                }
             }
         }
     }
@@ -57,33 +64,48 @@ public class DownloadBlock {
         }
     }
 
-    private byte[] loadRSShard(DownloadBlockInitResp initresp) {
-        return null;
-    }
-
-    private void firstDownload(   ) throws InterruptedException {
-        /*
-        List<Shard> shards = enc.getEnc_shards();
+    private byte[] loadRSShard(DownloadBlockInitResp initresp) throws InterruptedException, ServiceException {
+        List<Shard> shards = new ArrayList();
+        int len = initresp.getVNF() - UserConfig.Default_PND;
         int nodeindex = 0;
-        for (Shard sd : shards) {
-            map.put(nodeindex, sd);
-            ShardNode n = nodes[nodeindex];
-            UploadShardReq req = new UploadShardReq();
-            req.setBPDID(bpdNode.getNodeId());
-            req.setBPDSIGN(n.getSign());
-            req.setDAT(sd.getData());
-            req.setSHARDID(nodeindex);
-            req.setVBI(VBI);
-            req.setVHF(sd.getVHF());
-            req.sign(nodes[nodeindex].getNodeId());
-            UploadShard.startUploadShard(req, n, this);
-            nodeindex++;
-        } 
-        synchronized (this) {
-            if (resList.size() != shards.size()) {
-                this.wait(1000 * 15);
+        while (true) {
+            int count = len - shards.size();
+            if (count <= 0) {
+                break;
             }
-        }*/
+            if (count > initresp.getNodes().length - nodeindex) {
+                break;
+            }
+            for (int ii = 0; ii < count; ii++) {
+                Node n = initresp.getNodes()[nodeindex];
+                byte[] VHF = initresp.getVHF()[nodeindex];
+                DownloadShardReq req = new DownloadShardReq();
+                req.setVHF(VHF);
+                DownloadShare.startDownloadShard(VHF, n, this);
+                nodeindex++;
+            }
+            synchronized (this) {
+                if (resList.size() != count) {
+                    this.wait(1000 * 15);
+                }
+            }
+            for (DownloadShardResp res : resList) {
+                if (res.getData() != null) {
+                    shards.add(new Shard(res.getData()));
+                }
+            }
+            resList.clear();
+        }
+        if (shards.size() >= len) {
+            BlockEncrypted be = new BlockEncrypted(refer.getRealSize());
+            ShardRSDecoder rsdec = new ShardRSDecoder(shards, be.getEncryptedBlockSize());
+            be = rsdec.decode();
+            BlockAESDecryptor dec = new BlockAESDecryptor(be.getData(), refer.getRealSize(), ks);
+            dec.decrypt();
+            return dec.getSrcData();
+        } else {
+            throw new ServiceException(INTERNAL_ERROR);
+        }
     }
 
     private byte[] loadCopyShard(DownloadBlockInitResp initresp) throws ServiceException {
@@ -98,7 +120,7 @@ public class DownloadBlock {
                 req.setVHF(VHF);
                 DownloadShardResp resp = (DownloadShardResp) P2PUtils.requestNode(req, n);
                 if (resp.verify(VHF)) {
-                   // return aesCopyDecode(resp.getData());
+                    return aesCopyDecode(resp.getData());
                 }
                 index++;
             } catch (ServiceException e) {
@@ -107,20 +129,20 @@ public class DownloadBlock {
         }
         throw t == null ? new ServiceException(INVALID_SHARD) : t;
     }
-/*
+
     private byte[] aesCopyDecode(byte[] data) {
-        ShardAESDecryptor dec = new ShardAESDecryptor(new Shard(data), ks);
+        BlockEncrypted be = new BlockEncrypted(refer.getRealSize());
+        ShardRSDecoder rsdec = new ShardRSDecoder(new Shard(data), be.getEncryptedBlockSize());
+        be = rsdec.decode();
+        BlockAESDecryptor dec = new BlockAESDecryptor(be.getData(), refer.getRealSize(), ks);
         dec.decrypt();
-        Shard s = dec.getDec_shard();
-        byte[] newdata = new byte[refer.getRealSize()];
-        System.arraycopy(s.getData(), 1, data, 0, newdata.length);
-        return newdata;
+        return dec.getSrcData();
     }
 
     private byte[] aesDBDecode(byte[] data) {
-        BlockAESDecryptor dec = new BlockAESDecryptor(data, ks);
+        BlockAESDecryptor dec = new BlockAESDecryptor(data, refer.getRealSize(), ks);
         dec.decrypt();
-        return dec.getBlock().getData();
+        return dec.getSrcData();
     }
-*/
+
 }

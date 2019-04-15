@@ -23,7 +23,7 @@ import java.util.Map;
 public class UploadBlock {
 
     private ShardRSEncoder rs;
-    private Block block;
+    private final Block block;
     private final short id;
     private final ShardNode[] nodes;
     private final long VBI;

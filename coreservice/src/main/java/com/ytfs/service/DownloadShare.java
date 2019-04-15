@@ -7,8 +7,11 @@ import com.ytfs.service.packet.DownloadShardReq;
 import com.ytfs.service.packet.DownloadShardResp;
 import com.ytfs.service.packet.ServiceException;
 import java.util.concurrent.ArrayBlockingQueue;
+import org.apache.log4j.Logger;
 
 public class DownloadShare implements Runnable {
+
+    private static final Logger LOG = Logger.getLogger(DownloadShare.class);
 
     private static final ArrayBlockingQueue<DownloadShare> queue;
 
@@ -40,9 +43,16 @@ public class DownloadShare implements Runnable {
             DownloadShardResp resp = new DownloadShardResp();
             try {
                 resp = (DownloadShardResp) P2PUtils.requestNode(req, node);
+                if (!resp.verify(req.getVHF())) {
+                    LOG.error("VHF inconsistency.");
+                    downloadBlock.onResponse(new DownloadShardResp());
+                } else {
+                    downloadBlock.onResponse(resp);
+                }
             } catch (ServiceException ex) {
+                LOG.error("Network error.");
+                downloadBlock.onResponse(new DownloadShardResp());
             }
-            downloadBlock.onResponse(resp);
         } finally {
             queue.add(this);
         }

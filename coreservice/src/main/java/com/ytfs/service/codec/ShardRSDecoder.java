@@ -2,21 +2,28 @@ package com.ytfs.service.codec;
 
 import static com.ytfs.service.UserConfig.Default_PND;
 import com.ytfs.service.codec.erasure.ReedSolomon;
-import java.io.IOException;
 import java.util.List;
 
 public class ShardRSDecoder {
 
     private final List<Shard> shards;
     private final int encryptedBlockSize;
+    private final Shard copyShard;
 
     public ShardRSDecoder(List<Shard> shards, int encryptedBlockSize) {
         this.shards = shards;
         this.encryptedBlockSize = encryptedBlockSize;
+        this.copyShard = null;
     }
 
-    public BlockEncrypted decode() throws IOException {
-        Shard shard = shards.get(0);
+    public ShardRSDecoder(Shard shard, int encryptedBlockSize) {
+        this.shards = null;
+        this.encryptedBlockSize = encryptedBlockSize;
+        this.copyShard = shard;
+    }
+
+    public BlockEncrypted decode() {
+        Shard shard = copyShard == null ? shards.get(0) : copyShard;
         if (!shard.isRsShard()) {//副本
             byte[] data = new byte[encryptedBlockSize];
             System.arraycopy(shard.getData(), 1, data, 0, encryptedBlockSize);

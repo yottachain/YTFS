@@ -3,7 +3,12 @@ package com.ytfs.service.codec;
 public class Shard {
 
     private final byte[] data;//数据分片内容
-    private final byte[] VHF; 
+    private final byte[] VHF;
+
+    public Shard(byte[] data) {
+        this.data = data;
+        this.VHF = null;
+    }
 
     public Shard(byte[] data, byte[] VHF) {
         this.data = data;

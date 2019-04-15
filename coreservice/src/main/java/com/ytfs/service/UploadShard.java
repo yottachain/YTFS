@@ -9,9 +9,11 @@ import com.ytfs.service.packet.ShardNode;
 import com.ytfs.service.packet.UploadShard2CResp;
 import com.ytfs.service.packet.UploadShardReq;
 import java.util.concurrent.ArrayBlockingQueue;
+import org.apache.log4j.Logger;
 
 public class UploadShard implements Runnable {
 
+    private static final Logger LOG = Logger.getLogger(UploadShard.class);
     private static final ArrayBlockingQueue<UploadShard> queue;
 
     static {
@@ -45,6 +47,7 @@ public class UploadShard implements Runnable {
                 UploadShard2CResp resp = (UploadShard2CResp) P2PUtils.requestNode(req, node);
                 res.setRES(resp.getRES());
             } catch (ServiceException ex) {
+                LOG.error("Network error.");
                 res.setRES(RES_NETIOERR);
             }
             uploadBlock.onResponse(res);
