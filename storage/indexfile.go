@@ -98,7 +98,7 @@ func (indexFile *YTFSIndexFile) Get(key ydcommon.IndexTableKey) (ydcommon.IndexT
 
 	if value, ok := table[key]; ok {
 		if debugPrint {
-			fmt.Println("IndexDB get", key, value)
+			fmt.Printf("IndexDB get %x:%x\n", key, value)
 		}
 		return value, nil
 	}
@@ -113,14 +113,14 @@ func (indexFile *YTFSIndexFile) Get(key ydcommon.IndexTableKey) (ydcommon.IndexT
 
 		if value, ok := table[key]; ok {
 			if debugPrint {
-				fmt.Println("IndexDB get @overflow table", key, value)
+				fmt.Printf("IndexDB get %x:%x @overflow table\n", key, value)
 			}
 			return value, nil
 		}
 	}
 
 	if debugPrint {
-		fmt.Println("IndexDB get", key, "failed, from table", table)
+		fmt.Printf("IndexDB get %x failed, from %d-size table\n", key, len(table))
 	}
 	return 0, errors.ErrDataNotFound
 }
@@ -136,7 +136,7 @@ func (indexFile *YTFSIndexFile) loadTableFromStorage(tbIndex uint32) (map[ydcomm
 	reader.Read(sizeBuf)
 	tableSize := binary.LittleEndian.Uint32(sizeBuf)
 	if debugPrint {
-		fmt.Println("read table size :=", sizeBuf, "from", int64(indexFile.meta.HashOffset)+int64(tbIndex)*int64(tableAllocationSize))
+		fmt.Println("read table size :=", tableSize, "from", int64(indexFile.meta.HashOffset)+int64(tbIndex)*int64(tableAllocationSize))
 	}
 
 	// read table contents
@@ -239,7 +239,7 @@ func (indexFile *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.I
 	}
 
 	if debugPrint {
-		fmt.Println("IndexDB put", key, value)
+		fmt.Printf("IndexDB put %x:%x\n", key, value)
 	}
 
 	if (indexFile.stat.putCount & (indexFile.config.SyncPeriod - 1)) == 0 {
