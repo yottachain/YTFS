@@ -196,7 +196,7 @@ func (c *Context) putAt(value []byte, sp *storagePointer) (uint32, error) {
 	}
 
 	if debugPrint {
-		fmt.Printf("put data %v @ %v\n", value[:32], sp)
+		fmt.Printf("put data %x @ %v\n", value[:32], sp)
 	}
 
 	dataPos := sp.posIdx
