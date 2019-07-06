@@ -7,10 +7,11 @@ A data block save/load lib based on key-value styled db APIs.
 ### Prerequisites
 YottaDisk is developped by Golang, so install golang developping environment first.
 Also, YottaDisk has 2 external dependencies. a simple golang-lru and ethereum.
-Install these 2 before using YottaDisk
+Install these 3 before using YottaDisk
 ```
 go get github.com/hashicorp/golang-lru
 go get github.com/ethereum/go-ethereum
+go get github.com/klauspost/reedsolomon
 ```
 
 ### Installing
