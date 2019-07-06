@@ -14,13 +14,13 @@ import (
 // YTFS is a data block save/load lib based on key-value styled db APIs.
 type YTFS struct {
 	// config of this YTFS
-	config  *opt.Options
+	config *opt.Options
 	// key-value db which saves hash <-> position
-	db      *IndexDB
+	db *IndexDB
 	// running context
 	context *Context
 	// lock of YTFS
-	mutex   *sync.Mutex
+	mutex *sync.Mutex
 }
 
 // Open opens or creates a YTFS for the given storage.
@@ -55,6 +55,23 @@ func Open(dir string, config *opt.Options) (ytfs *YTFS, err error) {
 	return openYTFS(dir, settings)
 }
 
+// NewYTFS create a YTFS by config
+func NewYTFS(dir string, config *opt.Options) (*YTFS, error) {
+	ytfs := new(YTFS)
+	indexDB, err := NewIndexDB(dir, config)
+	if err != nil {
+		return nil, err
+	}
+	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint)
+	if err != nil {
+		return nil, err
+	}
+	ytfs.db = indexDB
+	ytfs.context = context
+	ytfs.mutex = new(sync.Mutex)
+	return ytfs, nil
+}
+
 func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	//TODO: file lock to avoid re-open.
 	//1. open system dir for YTFS
@@ -69,7 +86,7 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 		}
 	} else {
 		// create new dir
-		if err := os.MkdirAll(dir, os.ModeDir | os.ModePerm); err != nil {
+		if err := os.MkdirAll(dir, os.ModeDir|os.ModePerm); err != nil {
 			return nil, err
 		}
 	}

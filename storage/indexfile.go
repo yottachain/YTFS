@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+
 	// "math"
 	"math/big"
 	"sync"
@@ -308,7 +309,7 @@ func initializeIndexStorage(store Storage, config *opt.Options) (*ydcommon.Heade
 		RangeCoverage:  m,
 		HashOffset:     h,
 		DataEndPoint:   0,
-		RecycleOffset:  uint64(h) + (uint64(n) + 1) * (uint64(m)*36 + 4),
+		RecycleOffset:  uint64(h) + (uint64(n)+1)*(uint64(m)*36+4),
 		Reserved:       0xCDCDCDCDCDCDCDCD,
 	}
 
