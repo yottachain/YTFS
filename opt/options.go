@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"math"
 	"math/bits"
+
 	// "unsafe"
 
 	// "github.com/ethereum/go-ethereum/common"
@@ -131,18 +132,6 @@ func ParseConfig(fileName string) (*Options, error) {
 
 // SaveConfig saves config to file.
 func SaveConfig(config *Options, fileName string) error {
-	//file, err := os.Create(fileName)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//defer file.Close()
-	//data, err := json.MarshalIndent(config, "	", "")
-	//n, err := file.Write(data)
-	//if n != len(data) || err != nil {
-	//	return err
-	//}
-	//file.Sync()
 	return nil
 }
 

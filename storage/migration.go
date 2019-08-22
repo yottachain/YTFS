@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+
 	"github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
 )
@@ -35,6 +36,21 @@ func (ti *TableIterator) GetTable() (common.IndexTable, error) {
 	}
 	ti.tableIndex = ti.tableIndex + 1
 	return table, nil
+}
+
+func (ti *TableIterator) GetNoNilTable() (common.IndexTable, error) {
+	for {
+		table, err := ti.GetTable()
+		if err != nil {
+			return nil, err
+		}
+		if table == nil {
+			panic(fmt.Errorf("index.db文件已损坏，无法恢复"))
+		}
+		if len(table) > 0 {
+			return table, nil
+		}
+	}
 }
 
 func (ti *TableIterator) Reset() {
