@@ -186,6 +186,10 @@ func (indexFile *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.I
 		return err
 	}
 
+	if _, ok := table[key]; ok {
+		return errors.ErrConflict
+	}
+
 	rowCount := uint32(len(table))
 	if rowCount >= indexFile.meta.RangeCoverage {
 		// move to overflow region

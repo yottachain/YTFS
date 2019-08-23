@@ -46,6 +46,18 @@ func (db *IndexDB) Put(key ydcommon.IndexTableKey, value ydcommon.IndexTableValu
 	return db.indexFile.Put(key, value)
 }
 
+// BatchPut add a set of new key value pairs to db.
+func (db *IndexDB) BatchPut(kvPairs []ydcommon.IndexItem) error {
+	var err error
+	for _, v := range kvPairs{
+			err = db.indexFile.Put(v.Hash, v.OffsetIdx)
+			if err != nil {
+					return err
+			}
+	}
+	return nil
+}
+
 // Close finishes all actions and close db connection.
 func (db *IndexDB) Close() {
 	db.indexFile.Close()

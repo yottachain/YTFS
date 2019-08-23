@@ -182,6 +182,57 @@ func (ytfs *YTFS) Put(key ydcommon.IndexTableKey, buf []byte) error {
 	return ytfs.db.Put(key, ydcommon.IndexTableValue(pos))
 }
 
+/*
+ * Batch mode func list
+*/
+func (ytfs *YTFS) restoreYTFS() {
+       //TODO: save index
+       ytfs.context.restore();
+}
+
+func (ytfs *YTFS) saveCurrentYTFS() {
+       //TODO: restore index
+       ytfs.context.save();
+}
+
+// BatchPut sets the value array for the given key array.
+// It panics if there exists any previous value for that key as YottaDisk is not a multi-map.
+// It is safe to modify the contents of the arguments after Put returns but not
+// before.
+func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) error {
+       ytfs.mutex.Lock()
+       defer ytfs.mutex.Unlock()
+
+       // NO get check, but retore all status if error
+       ytfs.saveCurrentYTFS();
+
+       batchIndexes := make([]ydcommon.IndexItem, len(batch))
+       batchBuffer := []byte{};
+       bufCnt := 0
+       for k, v := range batch {
+               batchBuffer = append(batchBuffer, v...)
+               batchIndexes[bufCnt] = ydcommon.IndexItem{k, ydcommon.IndexTableValue(0)}
+               bufCnt++
+       }
+
+       startPos, err := ytfs.context.BatchPut(bufCnt, batchBuffer);
+       if err != nil {
+               ytfs.restoreYTFS();
+               return err
+       }
+
+       for i:=uint32(0); i<uint32(bufCnt); i++ {
+               batchIndexes[i] = ydcommon.IndexItem{batchIndexes[i].Hash, ydcommon.IndexTableValue(startPos + i)}
+       }
+
+       err = ytfs.db.BatchPut(batchIndexes)
+       if err != nil {
+               ytfs.restoreYTFS();
+               return err
+       }
+       return nil
+}
+
 // Meta reports current meta information.
 func (ytfs *YTFS) Meta() *ydcommon.Header {
 	return ytfs.db.schema

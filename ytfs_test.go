@@ -157,6 +157,55 @@ func TestYTFSFullWriteRead(t *testing.T) {
 	}
 }
 
+func TestYTFSFullBatchWriteRead(t *testing.T) {
+	rootDir, err := ioutil.TempDir("/tmp", "ytfsTest")
+	config := opt.DefaultOptions()
+
+	ytfs, err := Open(rootDir, config)
+	if err != nil {
+			t.Fatal(err)
+	}
+	defer ytfs.Close()
+
+	dataCaps := ytfs.Cap()
+	fmt.Printf("Starting insert %d data blocks\n", dataCaps)
+	batch := map[types.IndexTableKey][]byte{}
+	for i := (uint64)(0); i < dataCaps; i++ {
+			testHash := (types.IndexTableKey)(common.HexToHash(fmt.Sprintf("%032X", i)))
+			buf := make([]byte, config.DataBlockSize)
+			copy(buf, testHash[:])
+			batch[testHash] = buf
+			if i > 0 && i % 7 == 0 {
+					err := ytfs.BatchPut(batch)
+					if err != nil {
+							panic(fmt.Sprintf("Error: %v in %d insert", err, i))
+					}
+					batch = map[types.IndexTableKey][]byte{}
+			}
+	}
+
+	if len(batch) > 0 {
+			err := ytfs.BatchPut(batch)
+			if err != nil {
+					panic(fmt.Sprintf("Error: %v in last insert", err))
+			}
+			batch = map[types.IndexTableKey][]byte{}
+	}
+
+	fmt.Printf("Starting validata %d data blocks\n", dataCaps)
+	for i := (uint64)(0); i < dataCaps; i++ {
+			testHash := (types.IndexTableKey)(common.HexToHash(fmt.Sprintf("%032X", i)))
+			buf, err := ytfs.Get(testHash)
+			if err != nil {
+					t.Fatal(fmt.Sprintf("Error: %v in %d check", err, i))
+			}
+
+			if bytes.Compare(buf[:len(testHash)], testHash[:]) != 0 {
+					t.Fatal(fmt.Sprintf("Fatal: %d test fail, want:\n%x\n, get:\n%x\n", i, testHash, buf[:len(testHash)]))
+			}
+	}
+}
+
 func TestYTFSConcurrentAccessWriteSameKey(t *testing.T) {
 	rootDir, err := ioutil.TempDir("/tmp", "ytfsTest")
 	config := opt.DefaultOptions()

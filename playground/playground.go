@@ -82,6 +82,8 @@ func main() {
 			err = simpleTest(ytfs)
 		case "stress":
 			err = stressTestReadAfterWrite(ytfs)
+		case "bstress":
+			err = stressTestReadAfterBatchWrite(ytfs)
 		case "hybrid":
 			err = hybridTestReadAfterWrite(ytfs)
 		case "read":
@@ -172,14 +174,54 @@ func stressWrite(ytfs *ytfs.YTFS) error {
 	for i := (uint64)(0); i < dataCaps; i++ {
 		printProgress(i, dataCaps-1)
 		testHash := common.HexToHash(fmt.Sprintf("%032X", i))
+		data := make([]byte, ytfs.Meta().DataBlockSize, ytfs.Meta().DataBlockSize)
+		copy(data, testHash[:])
 		dataPair := KeyValuePair{
 			hash: testHash,
-			buf:  testHash[:],
+			buf:  data,
 		}
 		err := ytfs.Put((ydcommon.IndexTableKey)(dataPair.hash), dataPair.buf[:])
 		if err != nil {
 			panic(err)
 		}
+	}
+
+	fmt.Println(ytfs)
+	return nil
+}
+
+func stressBatchWrite(ytfs *ytfs.YTFS) error {
+	type KeyValuePair struct {
+			hash common.Hash
+			buf  []byte
+	}
+
+	dataCaps := ytfs.Cap()
+	fmt.Printf("Starting insert %d data blocks\n", dataCaps)
+
+	batch := map[ydcommon.IndexTableKey][]byte{}
+	i := (uint64)(0)
+	for ; i < dataCaps; i++ {
+			printProgress(i, dataCaps-1)
+			testHash := common.HexToHash(fmt.Sprintf("%032X", i))
+			data := make([]byte, ytfs.Meta().DataBlockSize, ytfs.Meta().DataBlockSize)
+			copy(data, testHash[:])
+			batch[ydcommon.IndexTableKey(testHash)] = data
+
+			if (i + 1) % 17 == 0 {
+					err := ytfs.BatchPut(batch)
+					if err != nil {
+							panic(err)
+					}
+					batch = map[ydcommon.IndexTableKey][]byte{}
+			}
+	}
+
+	if len(batch) > 0 {
+			err := ytfs.BatchPut(batch)
+			if err != nil {
+					panic(fmt.Errorf("%v at last input", err))
+			}
 	}
 
 	fmt.Println(ytfs)
@@ -211,6 +253,27 @@ func stressRead(ytfs *ytfs.YTFS) error {
 	}
 
 	return nil
+}
+
+func stressTestReadAfterBatchWrite(ytfs *ytfs.YTFS) error {
+	err := stressBatchWrite(ytfs)
+	if err != nil {
+			panic(err)
+	}
+
+	wg := sync.WaitGroup{}
+	for i := 0; i < runtime.NumCPU(); i++ {
+			wg.Add(1)
+			go func(id int) {
+					err := stressRead(ytfs)
+					if err != nil {
+							panic(err)
+					}
+					wg.Done()
+			}(i)
+	}
+	wg.Wait()
+	return err
 }
 
 func stressTestReadAfterWrite(ytfs *ytfs.YTFS) error {
