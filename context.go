@@ -39,9 +39,6 @@ type Context struct {
 	storages []*storageContext
 	// cm     		*cache.Manager
 	lock sync.RWMutex
-
-	// saved SP status, use for revert.
-	savedSP	storagePointer
 }
 
 // NewContext creates a new YTFS context
@@ -60,7 +57,6 @@ func NewContext(dir string, config *opt.Options, dataCount uint64) (*Context, er
 		sp:       nil,
 		storages: storages,
 		lock:     sync.RWMutex{},
-		savedSP:  storagePointer{0, 0, 0},
 	}
 
 	context.SetStoragePointer(uint32(dataCount))
@@ -159,12 +155,13 @@ func (c *Context) fastforward(n int, commit bool) error {
 	return nil
 }
 
-func (c *Context) save() {
-	c.savedSP = *c.sp;
+func (c *Context) save() *storagePointer {
+	saveSP := *c.sp;
+	return &saveSP
 }
 
-func (c *Context) restore() {
-	*c.sp = c.savedSP
+func (c *Context) restore(sp *storagePointer) {
+	*c.sp = *sp
 }
 
 func (c *Context) eof() bool {

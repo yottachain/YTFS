@@ -11,6 +11,11 @@ import (
 	"github.com/yottachain/YTFS/opt"
 )
 
+type ytfsStatus struct {
+	ctxSP *storagePointer
+	//TODO: index status
+}
+
 // YTFS is a data block save/load lib based on key-value styled db APIs.
 type YTFS struct {
 	// config of this YTFS
@@ -21,6 +26,9 @@ type YTFS struct {
 	context *Context
 	// lock of YTFS
 	mutex *sync.Mutex
+
+	// saved status
+	savedStatus []ytfsStatus
 }
 
 // Open opens or creates a YTFS for the given storage.
@@ -186,13 +194,18 @@ func (ytfs *YTFS) Put(key ydcommon.IndexTableKey, buf []byte) error {
  * Batch mode func list
 */
 func (ytfs *YTFS) restoreYTFS() {
-       //TODO: save index
-       ytfs.context.restore();
+	//TODO: save index
+	id := len(ytfs.savedStatus)-1
+	ydcommon.YottaAssert(id >= 0)
+	ytfs.context.restore(ytfs.savedStatus[id].ctxSP);
+	ytfs.savedStatus = ytfs.savedStatus[:id]
 }
 
 func (ytfs *YTFS) saveCurrentYTFS() {
-       //TODO: restore index
-       ytfs.context.save();
+	//TODO: restore index
+	ytfs.savedStatus = append(ytfs.savedStatus, ytfsStatus{
+		ctxSP: ytfs.context.save(),
+	})
 }
 
 // BatchPut sets the value array for the given key array.
@@ -200,37 +213,44 @@ func (ytfs *YTFS) saveCurrentYTFS() {
 // It is safe to modify the contents of the arguments after Put returns but not
 // before.
 func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) error {
-       ytfs.mutex.Lock()
-       defer ytfs.mutex.Unlock()
+	ytfs.mutex.Lock()
+	defer ytfs.mutex.Unlock()
 
-       // NO get check, but retore all status if error
-       ytfs.saveCurrentYTFS();
+	if (len(batch) > 32) {
+		return fmt.Errorf("Batch Size is too big")
+	}
 
-       batchIndexes := make([]ydcommon.IndexItem, len(batch))
-       batchBuffer := []byte{};
-       bufCnt := 0
-       for k, v := range batch {
-               batchBuffer = append(batchBuffer, v...)
-               batchIndexes[bufCnt] = ydcommon.IndexItem{k, ydcommon.IndexTableValue(0)}
-               bufCnt++
-       }
+	// NO get check, but retore all status if error
+	ytfs.saveCurrentYTFS();
 
-       startPos, err := ytfs.context.BatchPut(bufCnt, batchBuffer);
-       if err != nil {
-               ytfs.restoreYTFS();
-               return err
-       }
+	batchIndexes := make([]ydcommon.IndexItem, len(batch))
+	batchBuffer := []byte{};
+	bufCnt := len(batch)
+	for k, v := range batch {
+			batchBuffer = append(batchBuffer, v...)
+			batchIndexes[bufCnt] = ydcommon.IndexItem{
+				Hash: k,
+				OffsetIdx: ydcommon.IndexTableValue(0)}
+	}
 
-       for i:=uint32(0); i<uint32(bufCnt); i++ {
-               batchIndexes[i] = ydcommon.IndexItem{batchIndexes[i].Hash, ydcommon.IndexTableValue(startPos + i)}
-       }
+	startPos, err := ytfs.context.BatchPut(bufCnt, batchBuffer);
+	if err != nil {
+			ytfs.restoreYTFS();
+			return err
+	}
 
-       err = ytfs.db.BatchPut(batchIndexes)
-       if err != nil {
-               ytfs.restoreYTFS();
-               return err
-       }
-       return nil
+	for i:=uint32(0); i<uint32(bufCnt); i++ {
+			batchIndexes[i] = ydcommon.IndexItem{
+				Hash: batchIndexes[i].Hash,
+				OffsetIdx: ydcommon.IndexTableValue(startPos + i)}
+	}
+
+	err = ytfs.db.BatchPut(batchIndexes)
+	if err != nil {
+			ytfs.restoreYTFS();
+			return err
+	}
+	return nil
 }
 
 // Meta reports current meta information.
