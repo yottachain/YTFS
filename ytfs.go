@@ -226,11 +226,13 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) error {
 	batchIndexes := make([]ydcommon.IndexItem, len(batch))
 	batchBuffer := []byte{};
 	bufCnt := len(batch)
+	i:=0
 	for k, v := range batch {
 			batchBuffer = append(batchBuffer, v...)
-			batchIndexes[bufCnt] = ydcommon.IndexItem{
+			batchIndexes[i] = ydcommon.IndexItem{
 				Hash: k,
 				OffsetIdx: ydcommon.IndexTableValue(0)}
+			i++
 	}
 
 	startPos, err := ytfs.context.BatchPut(bufCnt, batchBuffer);
