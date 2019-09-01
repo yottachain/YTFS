@@ -82,7 +82,7 @@ func (indexFile *YTFSIndexFile) Format() error {
 	return indexFile.clearTableFromStorage()
 }
 
-func (indexFile *YTFSIndexFile) getTableEntryIndex(key ydcommon.IndexTableKey) uint32 {
+func (indexFile *YTFSIndexFile) GetTableEntryIndex(key ydcommon.IndexTableKey) uint32 {
 	msb := (uint32)(big.NewInt(0).SetBytes(key[common.HashLength-4:]).Uint64())
 	return msb & (indexFile.meta.RangeCapacity - 1)
 }
@@ -91,7 +91,7 @@ func (indexFile *YTFSIndexFile) getTableEntryIndex(key ydcommon.IndexTableKey) u
 func (indexFile *YTFSIndexFile) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error) {
 	locker, _ := indexFile.store.Lock()
 	defer locker.Unlock()
-	idx := indexFile.getTableEntryIndex(key)
+	idx := indexFile.GetTableEntryIndex(key)
 	table, err := indexFile.loadTableFromStorage(idx)
 	if err != nil {
 		return 0, err
@@ -180,7 +180,7 @@ func (indexFile *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.I
 	locker, _ := indexFile.store.Lock()
 	defer locker.Unlock()
 
-	idx := indexFile.getTableEntryIndex(key)
+	idx := indexFile.GetTableEntryIndex(key)
 	table, err := indexFile.loadTableFromStorage(idx)
 	if err != nil {
 		return err
@@ -251,6 +251,102 @@ func (indexFile *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.I
 		writer.Sync()
 	}
 	return err
+}
+
+// BatchPut saves a key value pair.
+func (indexFile *YTFSIndexFile) BatchPut(kvPairs []ydcommon.IndexItem) error {
+	locker, _ := indexFile.store.Lock()
+	defer locker.Unlock()
+
+	dataWritten := uint64(0)
+	for _, kvPair := range kvPairs {
+		indexFile.updateTable(kvPair.Hash, kvPair.OffsetIdx);
+		dataWritten++;
+	}
+
+	return indexFile.updateMeta(dataWritten)
+}
+
+func (indexFile *YTFSIndexFile) updateMeta(dataWritten uint64) error {
+	indexFile.meta.DataEndPoint+=dataWritten
+	valueBuf := make([]byte, 4)
+	writer, _ := indexFile.store.Writer()
+	binary.LittleEndian.PutUint32(valueBuf, uint32(indexFile.meta.DataEndPoint))
+	header := indexFile.meta
+	writer.Seek(int64(unsafe.Offsetof(header.DataEndPoint)), io.SeekStart)
+	_, err := writer.Write(valueBuf)
+	if err != nil {
+		return err
+	}
+
+	if (indexFile.stat.putCount & (indexFile.config.SyncPeriod - 1)) == 0 {
+		err = writer.Sync()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (indexFile *YTFSIndexFile) updateTable(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) error {
+	idx := indexFile.GetTableEntryIndex(key)
+	table, err := indexFile.loadTableFromStorage(idx)
+	if err != nil {
+		return err
+	}
+
+	if _, ok := table[key]; ok {
+		return errors.ErrConflict
+	}
+
+	rowCount := uint32(len(table))
+	if rowCount >= indexFile.meta.RangeCoverage {
+		// move to overflow region
+		idx = indexFile.meta.RangeCapacity
+		table, err = indexFile.loadTableFromStorage(idx)
+		if err != nil {
+			return err
+		}
+		rowCount := uint32(len(table))
+		if rowCount >= indexFile.meta.RangeCoverage {
+			return errors.ErrRangeFull
+		}
+	}
+
+	// write cnt
+	writer, _ := indexFile.store.Writer()
+	itemSize := uint32(unsafe.Sizeof(ydcommon.IndexTableKey{}) + unsafe.Sizeof(ydcommon.IndexTableValue(0)))
+	tableAllocationSize := indexFile.meta.RangeCoverage*itemSize + 4
+	tableBeginPos := int64(indexFile.meta.HashOffset) + int64(idx)*int64(tableAllocationSize)
+
+	valueBuf := make([]byte, 4)
+	writer.Seek(tableBeginPos, io.SeekStart)
+	tableSize := uint32(len(table)) + 1
+	binary.LittleEndian.PutUint32(valueBuf, uint32(tableSize))
+	_, err = writer.Write(valueBuf)
+	if err != nil {
+		return err
+	}
+
+	// write new item
+	tableItemPos := tableBeginPos + 4 + int64(len(table))*int64(itemSize)
+	writer.Seek(tableItemPos, io.SeekStart)
+	_, err = writer.Write(key[:])
+	if err != nil {
+		return err
+	}
+
+	binary.LittleEndian.PutUint32(valueBuf, uint32(value))
+	_, err = writer.Write(valueBuf)
+	if err != nil {
+		return err
+	}
+
+	indexFile.index.sizes[idx] = tableSize
+	if debugPrint {
+		fmt.Printf("IndexDB put %x:%x\n", key, value)
+	}
+	return nil
 }
 
 // OpenYTFSIndexFile opens or creates a YTFSIndexFile for the given storage.
