@@ -212,12 +212,12 @@ func (ytfs *YTFS) saveCurrentYTFS() {
 // It panics if there exists any previous value for that key as YottaDisk is not a multi-map.
 // It is safe to modify the contents of the arguments after Put returns but not
 // before.
-func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) error {
+func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
 	ytfs.mutex.Lock()
 	defer ytfs.mutex.Unlock()
 
 	if (len(batch) > 32) {
-		return fmt.Errorf("Batch Size is too big")
+		return nil, fmt.Errorf("Batch Size is too big")
 	}
 
 	// NO get check, but retore all status if error
@@ -238,7 +238,7 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) error {
 	startPos, err := ytfs.context.BatchPut(bufCnt, batchBuffer);
 	if err != nil {
 			ytfs.restoreYTFS();
-			return err
+			return nil, err
 	}
 
 	for i:=uint32(0); i<uint32(bufCnt); i++ {
@@ -247,12 +247,12 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) error {
 				OffsetIdx: ydcommon.IndexTableValue(startPos + i)}
 	}
 
-	err = ytfs.db.BatchPut(batchIndexes)
+	conflicts, err := ytfs.db.BatchPut(batchIndexes)
 	if err != nil {
 			ytfs.restoreYTFS();
-			return err
+			return conflicts, err
 	}
-	return nil
+	return nil, nil
 }
 
 // Meta reports current meta information.

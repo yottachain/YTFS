@@ -225,29 +225,29 @@ func (c *Context) BatchPut(cnt int, valueArray []byte) (uint32, error) {
 
 	// TODO: Can we leave this check to disk??
 	if err := c.fastforward(cnt, false); err != nil {
-			return 0, err
+		return 0, err
 	}
 
 	var err error
 	var index uint32
 	if (c.sp.posIdx + uint32(cnt) <= c.storages[c.sp.dev].Cap) {
-			index, err = c.putAt(valueArray, c.sp)
+		index, err = c.putAt(valueArray, c.sp)
 	} else {
-			currentSP := *c.sp;
-			step1 := c.storages[currentSP.dev].Cap - currentSP.posIdx
-			index, err = c.putAt(valueArray[:step1*c.config.DataBlockSize], &currentSP)
-			step2 := uint32(cnt) - step1
-			currentSP.dev++
-			currentSP.posIdx = 0
-			currentSP.index += step1
-			if (currentSP.posIdx + uint32(step2) > c.storages[currentSP.dev].Cap) {
-					return 0, errors.New("Batch across 3 storage devices, not supported")
-			}
-			_, err = c.putAt(valueArray[step1*c.config.DataBlockSize:], &currentSP)
+		currentSP := *c.sp;
+		step1 := c.storages[currentSP.dev].Cap - currentSP.posIdx
+		index, err = c.putAt(valueArray[:step1*c.config.DataBlockSize], &currentSP)
+		step2 := uint32(cnt) - step1
+		currentSP.dev++
+		currentSP.posIdx = 0
+		currentSP.index += step1
+		if (currentSP.posIdx + uint32(step2) > c.storages[currentSP.dev].Cap) {
+				return 0, errors.New("Batch across 3 storage devices, not supported")
+		}
+		_, err = c.putAt(valueArray[step1*c.config.DataBlockSize:], &currentSP)
 	}
 
 	if err != nil {
-			return 0, err
+		return 0, err
 	}
 	c.fastforward(cnt, true)
 	return index, nil

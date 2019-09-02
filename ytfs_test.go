@@ -176,7 +176,7 @@ func TestYTFSFullBatchWriteRead(t *testing.T) {
 			copy(buf, testHash[:])
 			batch[testHash] = buf
 			if i > 0 && i % 7 == 0 {
-					err := ytfs.BatchPut(batch)
+					_, err := ytfs.BatchPut(batch)
 					if err != nil {
 							panic(fmt.Sprintf("Error: %v in %d insert", err, i))
 					}
@@ -185,7 +185,7 @@ func TestYTFSFullBatchWriteRead(t *testing.T) {
 	}
 
 	if len(batch) > 0 {
-			err := ytfs.BatchPut(batch)
+			_, err := ytfs.BatchPut(batch)
 			if err != nil {
 					panic(fmt.Sprintf("Error: %v in last insert", err))
 			}
@@ -203,6 +203,58 @@ func TestYTFSFullBatchWriteRead(t *testing.T) {
 			if bytes.Compare(buf[:len(testHash)], testHash[:]) != 0 {
 					t.Fatal(fmt.Sprintf("Fatal: %d test fail, want:\n%x\n, get:\n%x\n", i, testHash, buf[:len(testHash)]))
 			}
+	}
+}
+
+func TestYTFSBatchConflictReport(t *testing.T) {
+	rootDir, err := ioutil.TempDir("/tmp", "ytfsTest")
+	config := opt.DefaultOptions()
+
+	ytfs, err := Open(rootDir, config)
+	if err != nil {
+			t.Fatal(err)
+	}
+	defer ytfs.Close()
+
+	dataCaps := ytfs.Cap()
+	fmt.Printf("Starting insert %d data blocks\n", dataCaps)
+	batch := map[types.IndexTableKey][]byte{}
+	for i := (uint64)(0); i <= 7; i++ {
+		testHash := (types.IndexTableKey)(common.HexToHash(fmt.Sprintf("%032X", i)))
+		buf := make([]byte, config.DataBlockSize)
+		copy(buf, testHash[:])
+		batch[testHash] = buf
+		if i > 0 && i % 7 == 0 {
+			_, err := ytfs.BatchPut(batch)
+			if err != nil {
+				panic(fmt.Sprintf("Error: %v in %d insert", err, i))
+			}
+			// remove 1 item
+			testRemoveHash := (types.IndexTableKey)(common.HexToHash(fmt.Sprintf("%032X", 3)))
+			delete(batch, testRemoveHash)
+			// add 1 new
+			testNewHash := (types.IndexTableKey)(common.HexToHash(fmt.Sprintf("%032X", 8)))
+			buf := make([]byte, config.DataBlockSize)
+			copy(buf, testNewHash[:])
+			batch[testNewHash] = buf
+
+			conflicts, err := ytfs.BatchPut(batch)
+			if err != errors.ErrConflict {
+				panic(fmt.Sprintf("Error: Expected err errors.ErrConflict but get %v.", err))
+			} else {
+				if len(conflicts) != len(batch) - 1 {
+					panic(fmt.Sprintf("Error: conflicts has %d items but batch has %d.", len(conflicts), len(batch)))
+				}
+				for k := range conflicts {
+					if _, ok := batch[k]; !ok {
+						panic(fmt.Sprintf("Error: conflicts mismatch with batch on %v.", k))
+					}
+				}
+				if _, ok := conflicts[testNewHash]; ok {
+					panic(fmt.Sprintf("Error: conflicts should not have %v.", testNewHash))
+				}
+			}
+		}
 	}
 }
 

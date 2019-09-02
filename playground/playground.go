@@ -202,26 +202,26 @@ func stressBatchWrite(ytfs *ytfs.YTFS) error {
 	batch := map[ydcommon.IndexTableKey][]byte{}
 	i := (uint64)(0)
 	for ; i < dataCaps; i++ {
-			printProgress(i, dataCaps-1)
-			testHash := common.HexToHash(fmt.Sprintf("%032X", i))
-			data := make([]byte, ytfs.Meta().DataBlockSize, ytfs.Meta().DataBlockSize)
-			copy(data, testHash[:])
-			batch[ydcommon.IndexTableKey(testHash)] = data
+		printProgress(i, dataCaps-1)
+		testHash := common.HexToHash(fmt.Sprintf("%032X", i))
+		data := make([]byte, ytfs.Meta().DataBlockSize, ytfs.Meta().DataBlockSize)
+		copy(data, testHash[:])
+		batch[ydcommon.IndexTableKey(testHash)] = data
 
-			if (i + 1) % 17 == 0 {
-					err := ytfs.BatchPut(batch)
-					if err != nil {
-							panic(err)
-					}
-					batch = map[ydcommon.IndexTableKey][]byte{}
+		if (i + 1) % 17 == 0 {
+			_, err := ytfs.BatchPut(batch)
+			if err != nil {
+					panic(err)
 			}
+			batch = map[ydcommon.IndexTableKey][]byte{}
+		}
 	}
 
 	if len(batch) > 0 {
-			err := ytfs.BatchPut(batch)
-			if err != nil {
-					panic(fmt.Errorf("%v at last input", err))
-			}
+		_, err := ytfs.BatchPut(batch)
+		if err != nil {
+			panic(fmt.Errorf("%v at last input", err))
+		}
 	}
 
 	fmt.Println(ytfs)

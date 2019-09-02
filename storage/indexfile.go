@@ -254,17 +254,30 @@ func (indexFile *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.I
 }
 
 // BatchPut saves a key value pair.
-func (indexFile *YTFSIndexFile) BatchPut(kvPairs []ydcommon.IndexItem) error {
+func (indexFile *YTFSIndexFile) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableKey]byte, error) {
 	locker, _ := indexFile.store.Lock()
 	defer locker.Unlock()
 
 	dataWritten := uint64(0)
+	conflicts := map[ydcommon.IndexTableKey]byte{}
 	for _, kvPair := range kvPairs {
-		indexFile.updateTable(kvPair.Hash, kvPair.OffsetIdx);
+		err := indexFile.updateTable(kvPair.Hash, kvPair.OffsetIdx);
+		if err != nil {
+			if err == errors.ErrConflict {
+				conflicts[kvPair.Hash]=1
+			} else {
+				return nil, err
+			}
+		}
+
 		dataWritten++;
 	}
 
-	return indexFile.updateMeta(dataWritten)
+	if len(conflicts) != 0 {
+		return conflicts, errors.ErrConflict
+	}
+
+	return nil, indexFile.updateMeta(dataWritten)
 }
 
 func (indexFile *YTFSIndexFile) updateMeta(dataWritten uint64) error {
