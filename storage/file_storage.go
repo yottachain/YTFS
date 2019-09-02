@@ -6,8 +6,8 @@ import (
 
 	types "github.com/yottachain/YTFS/common"
 	// "github.com/yottachain/YTFS/errors"
+	//dio "github.com/ncw/directio"
 	"github.com/yottachain/YTFS/opt"
-	dio "github.com/yottachain/directio"
 )
 
 // FileStorage is a file-system backed storage.
@@ -123,7 +123,7 @@ func (file *FileStorage) Open(fd FileDesc) (Reader, error) {
 // exist and opens write-only.
 // Returns ErrClosed if the underlying storage is closed.
 func (file *FileStorage) Create(fd FileDesc) (Writer, error) {
-	fp, err := dio.OpenFile(fd.Path, os.O_CREATE|os.O_RDWR, 0644)
+	fp, err := os.OpenFile(fd.Path, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		return nil, err
 	}

@@ -14,7 +14,6 @@ import (
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/errors"
 	"github.com/yottachain/YTFS/opt"
-	dio "github.com/yottachain/directio"
 )
 
 // YottaDisk main entry of YTFS storage
@@ -94,18 +93,20 @@ func (disk *YottaDisk) WriteData(dataOffsetIndex ydcommon.IndexTableValue, data 
 	dataBlock := make([]byte, disk.meta.DataBlockSize, disk.meta.DataBlockSize)
 	copy(dataBlock, data)
 	writer.Seek(int64(disk.meta.DataOffset)+int64(disk.meta.DataBlockSize)*int64(dataOffsetIndex), io.SeekStart)
+	//
+	//block := dio.AlignedBlock(dio.BlockSize)
+	//_, err = io.ReadFull(bytes.NewReader(dataBlock), block)
+	//if err != nil {
+	//	return err
+	//}
+	_, err = writer.Write(dataBlock)
 
-	block := dio.AlignedBlock(dio.BlockSize)
-	_, err = io.ReadFull(bytes.NewReader(dataBlock), block)
-	if err != nil {
-		return err
-	}
-	_, err = writer.Write(block)
 	if err != nil {
 		return err
 	}
 
 	disk.stat.writeOps++
+
 	if disk.stat.writeOps&(disk.config.SyncPeriod-1) == 0 {
 		return writer.Sync()
 	}
