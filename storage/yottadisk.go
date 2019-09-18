@@ -89,8 +89,8 @@ func (disk *YottaDisk) WriteData(dataOffsetIndex ydcommon.IndexTableValue, data 
 	defer locker.Unlock()
 
 	writer, err := disk.store.Writer()
-	ydcommon.YottaAssert(len(data) <= (int)(disk.meta.DataBlockSize))
-	dataBlock := make([]byte, disk.meta.DataBlockSize, disk.meta.DataBlockSize)
+	ydcommon.YottaAssert(len(data) % (int)(disk.meta.DataBlockSize) == 0)
+	dataBlock := make([]byte, len(data), len(data))
 	copy(dataBlock, data)
 	writer.Seek(int64(disk.meta.DataOffset)+int64(disk.meta.DataBlockSize)*int64(dataOffsetIndex), io.SeekStart)
 	//

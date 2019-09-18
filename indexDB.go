@@ -2,6 +2,7 @@ package ytfs
 
 import (
 	"path"
+	"sort"
 
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
@@ -44,6 +45,24 @@ func (db *IndexDB) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, er
 // Put add new key value pair to db.
 func (db *IndexDB) Put(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) error {
 	return db.indexFile.Put(key, value)
+}
+
+// BatchPut add a set of new key value pairs to db.
+func (db *IndexDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableKey]byte, error) {
+	// sorr kvPair by hash entry to make sure write in sequence.
+	sort.Slice(kvPairs, func(i, j int) bool {
+		return db.indexFile.GetTableEntryIndex(kvPairs[i].Hash) < db.indexFile.GetTableEntryIndex(kvPairs[j].Hash)
+	})
+
+	// var err error
+	// for _, v := range kvPairs{
+	// 		err = db.indexFile.Put(v.Hash, v.OffsetIdx)
+	// 		if err != nil {
+	// 				return err
+	// 		}
+	// }
+	// return nil
+	return db.indexFile.BatchPut(kvPairs);
 }
 
 // Close finishes all actions and close db connection.
