@@ -12,7 +12,7 @@ import (
 	"unsafe"
 
 	// use eth hash related func.
-	"github.com/ethereum/go-ethereum/common"
+	//"github.com/ethereum/go-ethereum/common"
 
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/errors"
@@ -83,7 +83,7 @@ func (indexFile *YTFSIndexFile) Format() error {
 }
 
 func (indexFile *YTFSIndexFile) getTableEntryIndex(key ydcommon.IndexTableKey) uint32 {
-	msb := (uint32)(big.NewInt(0).SetBytes(key[common.HashLength-4:]).Uint64())
+	msb := (uint32)(big.NewInt(0).SetBytes(key[ydcommon.HashLength-4:]).Uint64())
 	return msb & (indexFile.meta.RangeCapacity - 1)
 }
 
@@ -149,8 +149,8 @@ func (indexFile *YTFSIndexFile) loadTableFromStorage(tbIndex uint32) (map[ydcomm
 
 	table := map[ydcommon.IndexTableKey]ydcommon.IndexTableValue{}
 	for i := uint32(0); i < tableSize; i++ {
-		key := common.BytesToHash(tableBuf[i*itemSize : i*itemSize+32])
-		value := binary.LittleEndian.Uint32(tableBuf[i*itemSize+32 : i*itemSize+36][:])
+		key := ydcommon.BytesToHash(tableBuf[i*itemSize : i*itemSize+16])
+		value := binary.LittleEndian.Uint32(tableBuf[i*itemSize+16 : i*itemSize+20][:])
 		table[ydcommon.IndexTableKey(key)] = ydcommon.IndexTableValue(value)
 	}
 
@@ -323,19 +323,19 @@ func initializeIndexStorage(store Storage, config *opt.Options) (*ydcommon.Heade
 	// +--------------+
 	// |    header    |
 	// +---+----------+
-	// | 4 |  m*36    |  1
+	// | 4 |  m*20    |  1
 	// +---+----------+
-	// | 4 |  m*36    |  2
+	// | 4 |  m*20    |  2
 	// +---+----------+
 	// | 4 |  ....    |  ...
 	// +---+----------+
-	// | 4 |  m*36    |  n
+	// | 4 |  m*20    |  n
 	// +---+----------+
-	// | 4 |  m*36    |  n+1 for conflict/overflow
+	// | 4 |  m*20    |  n+1 for conflict/overflow
 	// +---+----------+
 	// | TAG: eofPos  |
 	// +---+----------+
-	eofPos := int64(m*36+4)*int64(n+1) + int64(h)
+	eofPos := int64(m*20+4)*int64(n+1) + int64(h)
 	writer.Seek(eofPos, io.SeekStart)
 	err = binary.Write(writer, binary.LittleEndian, &eofPos)
 	if err != nil {

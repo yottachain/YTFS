@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
+	//"github.com/ethereum/go-ethereum/common"
 
 	ytfs "github.com/yottachain/YTFS"
 	ydcommon "github.com/yottachain/YTFS/common"
@@ -104,14 +104,14 @@ func main() {
 
 func simpleTest(ytfs *ytfs.YTFS) error {
 	type KeyValuePair struct {
-		hash common.Hash
+		hash ydcommon.Hash
 		buf  []byte
 	}
 
 	dataPair := []KeyValuePair{}
 	for i := 0; i < 10; i++ {
 		printProgress((uint64)(i), 9)
-		testHash := common.HexToHash(fmt.Sprintf("%032X", i))
+		testHash := ydcommon.HexToHash(fmt.Sprintf("%032X", i))
 		dataPair = append(dataPair, KeyValuePair{
 			hash: testHash,
 			buf:  testHash[:],
@@ -162,7 +162,7 @@ func printProgress(cursor, volume uint64) {
 
 func stressWrite(ytfs *ytfs.YTFS) error {
 	type KeyValuePair struct {
-		hash common.Hash
+		hash ydcommon.Hash
 		buf  []byte
 	}
 
@@ -171,7 +171,7 @@ func stressWrite(ytfs *ytfs.YTFS) error {
 
 	for i := (uint64)(0); i < dataCaps; i++ {
 		printProgress(i, dataCaps-1)
-		testHash := common.HexToHash(fmt.Sprintf("%032X", i))
+		testHash := ydcommon.HexToHash(fmt.Sprintf("%032X", i))
 		dataPair := KeyValuePair{
 			hash: testHash,
 			buf:  testHash[:],
@@ -188,7 +188,7 @@ func stressWrite(ytfs *ytfs.YTFS) error {
 
 func stressRead(ytfs *ytfs.YTFS) error {
 	type KeyValuePair struct {
-		hash common.Hash
+		hash ydcommon.Hash
 		buf  []byte
 	}
 
@@ -198,7 +198,7 @@ func stressRead(ytfs *ytfs.YTFS) error {
 	r := rand.New(rand.NewSource(time.Now().Unix()))
 	for seq, i := range r.Perm((int)(dataCaps)) {
 		printProgress((uint64)(seq), dataCaps-1)
-		testHash := common.HexToHash(fmt.Sprintf("%032X", i))
+		testHash := ydcommon.HexToHash(fmt.Sprintf("%032X", i))
 		buf, err := ytfs.Get((ydcommon.IndexTableKey)(testHash))
 		if err != nil {
 			fmt.Println(fmt.Sprintf("\nFatal: %d test fail, hash %v, err %v\n\n", seq, testHash, err))
@@ -236,7 +236,7 @@ func stressTestReadAfterWrite(ytfs *ytfs.YTFS) error {
 
 func hybridTestReadAfterWrite(ytfs *ytfs.YTFS) error {
 	type KeyValuePair struct {
-		hash common.Hash
+		hash ydcommon.Hash
 		buf  []byte
 	}
 
@@ -266,7 +266,7 @@ func hybridTestReadAfterWrite(ytfs *ytfs.YTFS) error {
 		wg.Add(1)
 		inqueue++
 		go func(id uint64) {
-			testHash := common.HexToHash(fmt.Sprintf("%032X", id))
+			testHash := ydcommon.HexToHash(fmt.Sprintf("%032X", id))
 			err := ytfs.Put((ydcommon.IndexTableKey)(testHash), testHash[:])
 			if err != nil {
 				panic(err)
