@@ -1,27 +1,27 @@
 {
 	"ytfs": "ytfs default setting",
 	"storages": [
-	{
-        "storage": "/tmp/yotta-test-A",
-        "type": 0,
-        "dataBlockSize": 32768,
-        "storageSize": 1048576,
-	"syncPeriod": 1,
-        "readonly": false
-	},
-	{
-        "storage": "/tmp/yotta-test-B",
-        "type": 0,
-        "storageSize": 1048576,
-        "dataBlockSize": 32768,
-	"syncPeriod": 1,
-        "readonly": false
-	}
-	],
-	"syncPeriod": 1,
-	"readonly": false,
-	"C": 2147483648,
-	"N": 16384,
-	"D": 32768,
-	"M": 0
-}
+   	{
+           "storage": "/tmp/yotta-test-A",
+           "type": 0,
+           "dataBlockSize": 32768,
+           "storageSize": 1048576,
+   	"syncPeriod": 1,
+           "readonly": false
+   	},
+   	{
+           "storage": "/tmp/yotta-test-B",
+           "type": 0,
+           "storageSize": 1048576,
+           "dataBlockSize": 32768,
+   	"syncPeriod": 1,
+           "readonly": false
+   	}
+   	],
+   	"syncPeriod": 1,
+   	"readonly": false,
+   	"C": 2147483648,
+   	"N": 16384,
+   	"D": 32768,
+   	"M": 0
+   }

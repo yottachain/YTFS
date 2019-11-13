@@ -9,6 +9,7 @@ import (
 
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
+	_ "net/http/pprof"
 )
 
 type ytfsStatus struct {
@@ -192,12 +193,12 @@ func (ytfs *YTFS) Put(key ydcommon.IndexTableKey, buf []byte) error {
 
 /*
  * Batch mode func list
-*/
+ */
 func (ytfs *YTFS) restoreYTFS() {
 	//TODO: save index
-	id := len(ytfs.savedStatus)-1
+	id := len(ytfs.savedStatus) - 1
 	ydcommon.YottaAssert(id >= 0)
-	ytfs.context.restore(ytfs.savedStatus[id].ctxSP);
+	ytfs.context.restore(ytfs.savedStatus[id].ctxSP)
 	ytfs.savedStatus = ytfs.savedStatus[:id]
 }
 
@@ -216,41 +217,41 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 	ytfs.mutex.Lock()
 	defer ytfs.mutex.Unlock()
 
-	if (len(batch) > 32) {
+	if len(batch) > 1000 {
 		return nil, fmt.Errorf("Batch Size is too big")
 	}
 
 	// NO get check, but retore all status if error
-	ytfs.saveCurrentYTFS();
+	ytfs.saveCurrentYTFS()
 
 	batchIndexes := make([]ydcommon.IndexItem, len(batch))
-	batchBuffer := []byte{};
+	batchBuffer := []byte{}
 	bufCnt := len(batch)
-	i:=0
+	i := 0
 	for k, v := range batch {
 		batchBuffer = append(batchBuffer, v...)
 		batchIndexes[i] = ydcommon.IndexItem{
-			Hash: k,
+			Hash:      k,
 			OffsetIdx: ydcommon.IndexTableValue(0)}
 		i++
 	}
 
-	startPos, err := ytfs.context.BatchPut(bufCnt, batchBuffer);
+	startPos, err := ytfs.context.BatchPut(bufCnt, batchBuffer)
 	if err != nil {
-			ytfs.restoreYTFS();
-			return nil, err
+		ytfs.restoreYTFS()
+		return nil, err
 	}
 
-	for i:=uint32(0); i<uint32(bufCnt); i++ {
-			batchIndexes[i] = ydcommon.IndexItem{
-				Hash: batchIndexes[i].Hash,
-				OffsetIdx: ydcommon.IndexTableValue(startPos + i)}
+	for i := uint32(0); i < uint32(bufCnt); i++ {
+		batchIndexes[i] = ydcommon.IndexItem{
+			Hash:      batchIndexes[i].Hash,
+			OffsetIdx: ydcommon.IndexTableValue(startPos + i)}
 	}
 
 	conflicts, err := ytfs.db.BatchPut(batchIndexes)
 	if err != nil {
-			ytfs.restoreYTFS();
-			return conflicts, err
+		ytfs.restoreYTFS()
+		return conflicts, err
 	}
 	return nil, nil
 }

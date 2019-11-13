@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -18,6 +19,8 @@ import (
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
 )
+
+var r0 = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 var (
 	configName string
@@ -163,6 +166,7 @@ func printProgress(cursor, volume uint64) {
 }
 
 func stressWrite(ytfs *ytfs.YTFS) error {
+	r := rand.New(rand.NewSource(r0.Int63()))
 	type KeyValuePair struct {
 		hash common.Hash
 		buf  []byte
@@ -173,9 +177,13 @@ func stressWrite(ytfs *ytfs.YTFS) error {
 
 	for i := (uint64)(0); i < dataCaps; i++ {
 		printProgress(i, dataCaps-1)
-		testHash := common.HexToHash(fmt.Sprintf("%032X", i))
 		data := make([]byte, ytfs.Meta().DataBlockSize, ytfs.Meta().DataBlockSize)
-		copy(data, testHash[:])
+		r.Read(data)
+		var sha256 = crypto.SHA3_256.New()
+		sha256.Write(data)
+		hs := sha256.Sum(nil)
+		var testHash [32]byte
+		copy(testHash[:], hs)
 		dataPair := KeyValuePair{
 			hash: testHash,
 			buf:  data,
@@ -192,8 +200,8 @@ func stressWrite(ytfs *ytfs.YTFS) error {
 
 func stressBatchWrite(ytfs *ytfs.YTFS) error {
 	type KeyValuePair struct {
-			hash common.Hash
-			buf  []byte
+		hash common.Hash
+		buf  []byte
 	}
 
 	dataCaps := ytfs.Cap()
@@ -208,10 +216,10 @@ func stressBatchWrite(ytfs *ytfs.YTFS) error {
 		copy(data, testHash[:])
 		batch[ydcommon.IndexTableKey(testHash)] = data
 
-		if (i + 1) % 17 == 0 {
+		if (i+1)%17 == 0 {
 			_, err := ytfs.BatchPut(batch)
 			if err != nil {
-					panic(err)
+				panic(err)
 			}
 			batch = map[ydcommon.IndexTableKey][]byte{}
 		}
@@ -258,27 +266,6 @@ func stressRead(ytfs *ytfs.YTFS) error {
 func stressTestReadAfterBatchWrite(ytfs *ytfs.YTFS) error {
 	err := stressBatchWrite(ytfs)
 	if err != nil {
-			panic(err)
-	}
-
-	wg := sync.WaitGroup{}
-	for i := 0; i < runtime.NumCPU(); i++ {
-			wg.Add(1)
-			go func(id int) {
-					err := stressRead(ytfs)
-					if err != nil {
-							panic(err)
-					}
-					wg.Done()
-			}(i)
-	}
-	wg.Wait()
-	return err
-}
-
-func stressTestReadAfterWrite(ytfs *ytfs.YTFS) error {
-	err := stressWrite(ytfs)
-	if err != nil {
 		panic(err)
 	}
 
@@ -294,6 +281,27 @@ func stressTestReadAfterWrite(ytfs *ytfs.YTFS) error {
 		}(i)
 	}
 	wg.Wait()
+	return err
+}
+
+func stressTestReadAfterWrite(ytfs *ytfs.YTFS) error {
+	err := stressWrite(ytfs)
+	if err != nil {
+		panic(err)
+	}
+
+	//wg := sync.WaitGroup{}
+	//for i := 0; i < runtime.NumCPU(); i++ {
+	//	wg.Add(1)
+	//	go func(id int) {
+	//		err := stressRead(ytfs)
+	//		if err != nil {
+	//			panic(err)
+	//		}
+	//		wg.Done()
+	//	}(i)
+	//}
+	//wg.Wait()
 	return err
 }
 
