@@ -4,7 +4,7 @@ package common
 import (
 	"errors"
 
-	"github.com/ethereum/go-ethereum/common"
+	//"github.com/ethereum/go-ethereum/common"
 )
 
 // StorageType represent a file type.
@@ -19,7 +19,29 @@ const (
 	DummyStorageType
 )
 
-type IndexTableKey common.Hash
+const (
+    HashLength = 16
+)
+
+type Hash [HashLength]byte
+
+func BytesToHash(b []byte) Hash {
+	var h Hash
+	h.SetBytes(b)
+	return h
+}
+
+func (h *Hash) SetBytes(b []byte) {
+	if len(b) > len(h) {
+		b = b[len(b)-HashLength:]
+	}
+
+	copy(h[HashLength-len(b):], b)
+}
+
+func HexToHash(s string) Hash { return BytesToHash(FromHex(s)) }
+
+type IndexTableKey Hash
 type IndexTableValue uint32
 type IndexTable map[IndexTableKey]IndexTableValue
 type IndexItem struct {
