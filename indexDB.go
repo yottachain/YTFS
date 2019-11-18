@@ -62,7 +62,7 @@ func (db *IndexDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTab
 	// 		}
 	// }
 	// return nil
-	return db.indexFile.BatchPut(kvPairs);
+	return db.indexFile.BatchPut(kvPairs)
 }
 
 // Close finishes all actions and close db connection.

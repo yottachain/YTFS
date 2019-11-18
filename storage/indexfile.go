@@ -86,12 +86,16 @@ func (indexFile *YTFSIndexFile) getTableEntryIndex(key ydcommon.IndexTableKey) u
 	msb := (uint32)(big.NewInt(0).SetBytes(key[ydcommon.HashLength-4:]).Uint64())
 	return msb & (indexFile.meta.RangeCapacity - 1)
 }
+func (indexFile *YTFSIndexFile) GetTableEntryIndex(key ydcommon.IndexTableKey) uint32 {
+	msb := (uint32)(big.NewInt(0).SetBytes(key[ydcommon.HashLength-4:]).Uint64())
+	return msb & (indexFile.meta.RangeCapacity - 1)
+}
 
 // Get gets IndexTableValue from index table file
 func (indexFile *YTFSIndexFile) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error) {
 	locker, _ := indexFile.store.Lock()
 	defer locker.Unlock()
-	idx := indexFile.GetTableEntryIndex(key)
+	idx := indexFile.getTableEntryIndex(key)
 	table, err := indexFile.loadTableFromStorage(idx)
 	if err != nil {
 		return 0, err
@@ -180,7 +184,7 @@ func (indexFile *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.I
 	locker, _ := indexFile.store.Lock()
 	defer locker.Unlock()
 
-	idx := indexFile.GetTableEntryIndex(key)
+	idx := indexFile.getTableEntryIndex(key)
 	table, err := indexFile.loadTableFromStorage(idx)
 	if err != nil {
 		return err
@@ -302,7 +306,7 @@ func (indexFile *YTFSIndexFile) updateMeta(dataWritten uint64) error {
 }
 
 func (indexFile *YTFSIndexFile) updateTable(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) error {
-	idx := indexFile.GetTableEntryIndex(key)
+	idx := indexFile.getTableEntryIndex(key)
 	table, err := indexFile.loadTableFromStorage(idx)
 	if err != nil {
 		return err
