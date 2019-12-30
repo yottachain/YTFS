@@ -27,7 +27,6 @@ type YTFS struct {
 	context *Context
 	// lock of YTFS
 	mutex *sync.Mutex
-
 	// saved status
 	savedStatus []ytfsStatus
 }

@@ -515,6 +515,5 @@ func readIndexHeader(store Storage) (*ydcommon.Header, error) {
 	if header.Tag[0] != 'Y' {
 		return nil, errors.ErrHeadNotFound
 	}
-
 	return &header, nil
 }
