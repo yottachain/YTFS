@@ -1,0 +1,50 @@
+YOTTACHAIN LIMITED PUBLIC LICENSE version 1.0
+
+This license governs use of the software with the license both in compiled package and source code form. If you use such packages or source code (the “Software”), you accept this license. If you do not accept the license, do not use the Software.
+
+
+1. Definitions
+
+A “Contribution” is the original Software, or any additions or changes to the Software.
+
+A “Contributor” is YottaChain Foundation, any entity, natural or legal person that distributes its Contribution under this license.
+
+"Derivative Works" shall mean any work, whether in source code or complied form, that is based on (or derived from) the Software and for which the editorial revisions, annotations, elaborations, or other modifications represent, as a whole, an original work of authorship. For the purposes of this License, Derivative Works shall not include works that remain separable from, or merely link (or bind by name) to the interfaces of, the Software and Derivative Works thereof.
+
+“Licensed patents” are a Contributor’s patent claims that read directly on its Contribution.
+
+“YottaChain Foundation” is Singapore YottaChain Foundation Ltd., a company located in Singapore and the original owner of the YottaChain trademark, Sofware and service.
+
+“YottaChain service” means the service of YottaChain Foundation, including but not limited to YottaChain public chain and YTFS decentralize storage service within YottaChain. 
+
+
+2. Grant of Rights
+
+(A) Copyright Grant - Subject to the terms of this license, including the license conditions and limitations in section 3, each Contributor grants you a non-exclusive, worldwide, royalty-free copyright license to reproduce its Contribution, prepare Derivative Works of its Contribution, and distribute its Contribution or any Derivative Works that you create.
+
+(B) Patent Grant - Subject to the terms of this license, including the license conditions and limitations in section 3, each Contributor grants you a non-exclusive, worldwide, royalty-free license under its licensed patents to make, have made, use, sell, offer for sale, import, and/or otherwise dispose of its Contribution in the Software or Derivative Works of the Contribution in the Software.
+
+
+3. Conditions and Limitations
+
+(A) No Trademark License- This license does not grant you rights to use any Contributors’ name, logo, or trademarks.
+
+(B) If you bring a patent claim against any Contributor over patents that you claim are infringed by the Software, your patent license from such Contributor to the Software ends automatically.
+
+(C) If you distribute any modified version of the Software, you must retain all copyright, patent, trademark, and attribution notices that are present in the Software.
+
+(D) If you distribute any modified version of the Software as source code, compiled or object code form, you may do so only under this license by including a complete copy of this license with your distribution.
+
+(E) Limitation of Use - The licenses granted in sections 2(A) and 2(B) extend only to the Software or Derivative Works for the sole purpose to use, combine, integrate or connect the YottaChain service, including but not limited to the storage user, data node, super node, metadata node, and DApp of YottaChain service. Any other use of the Software will need another permission by YottaChain Foundation.
+
+(F) The use of Derivative Works shall not break any rule made by YottaChain Foundation.
+
+
+4. Disclaimer of Warranty
+
+Software is provided under this License on an “as is” basis, without warranty of any kind, either expressed, implied, or statutory, including, without limitation, warranties that Software is free of defects, merchantable, fit for a particular purpose or non-infringing. The entire risk as to the quality and performance of the Software is with You. Should Software prove defective in any respect, you (not any Contributor) assume the cost of any necessary servicing, repair, or correction. This disclaimer of warranty constitutes an essential part of this License. No use of Software is authorized under this License except under this disclaimer.
+
+
+5. License Steward
+
+YottaChain Foundation is the license steward. No one other than the license steward has the right to modify or publish new versions of this license. Each version will be given a distinguishing version number. You may distribute the Software under the terms of the version of the license under which You originally received the Software, or under the terms of any subsequent version published by the license steward.
