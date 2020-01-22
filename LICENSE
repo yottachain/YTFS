@@ -1,13 +1,13 @@
 YOTTACHAIN LIMITED PUBLIC LICENSE version 1.0
 
-This license governs use of the software with the license both in compiled package and source code form. If you use such packages or source code (the “Software”), you accept this license. If you do not accept the license, do not use the Software.
+This License governs use of the software with the License both in compiled package and source code form. If you use such packages or source code (the “Software”), you accept this License. If you do not accept the License, do not use the Software.
 
 
 1. Definitions
 
 A “Contribution” is the original Software, or any additions or changes to the Software.
 
-A “Contributor” is YottaChain Foundation, any entity, natural or legal person that distributes its Contribution under this license.
+A “Contributor” is YottaChain Foundation, any entity, natural or legal person that distributes its Contribution under this License.
 
 "Derivative Works" shall mean any work, whether in source code or complied form, that is based on (or derived from) the Software and for which the editorial revisions, annotations, elaborations, or other modifications represent, as a whole, an original work of authorship. For the purposes of this License, Derivative Works shall not include works that remain separable from, or merely link (or bind by name) to the interfaces of, the Software and Derivative Works thereof.
 
@@ -20,20 +20,20 @@ A “Contributor” is YottaChain Foundation, any entity, natural or legal perso
 
 2. Grant of Rights
 
-(A) Copyright Grant - Subject to the terms of this license, including the license conditions and limitations in section 3, each Contributor grants you a non-exclusive, worldwide, royalty-free copyright license to reproduce its Contribution, prepare Derivative Works of its Contribution, and distribute its Contribution or any Derivative Works that you create.
+(A) Copyright Grant - Subject to the terms of this License, including the license conditions and limitations in section 3, each Contributor grants you a non-exclusive, worldwide, royalty-free copyright license to reproduce its Contribution, prepare Derivative Works of its Contribution, and distribute its Contribution or any Derivative Works that you create.
 
-(B) Patent Grant - Subject to the terms of this license, including the license conditions and limitations in section 3, each Contributor grants you a non-exclusive, worldwide, royalty-free license under its licensed patents to make, have made, use, sell, offer for sale, import, and/or otherwise dispose of its Contribution in the Software or Derivative Works of the Contribution in the Software.
+(B) Patent Grant - Subject to the terms of this License, including the license conditions and limitations in section 3, each Contributor grants you a non-exclusive, worldwide, royalty-free license under its Licensed patents to make, have made, use, sell, offer for sale, import, and/or otherwise dispose of its Contribution in the Software or Derivative Works of the Contribution in the Software.
 
 
 3. Conditions and Limitations
 
-(A) No Trademark License- This license does not grant you rights to use any Contributors’ name, logo, or trademarks.
+(A) No Trademark License- This License does not grant you rights to use any Contributors’ name, logo, or trademarks.
 
 (B) If you bring a patent claim against any Contributor over patents that you claim are infringed by the Software, your patent license from such Contributor to the Software ends automatically.
 
 (C) If you distribute any modified version of the Software, you must retain all copyright, patent, trademark, and attribution notices that are present in the Software.
 
-(D) If you distribute any modified version of the Software as source code, compiled or object code form, you may do so only under this license by including a complete copy of this license with your distribution.
+(D) If you distribute any modified version of the Software as source code, compiled or object code form, you may do so only under this License by including a complete copy of this License with your distribution.
 
 (E) Limitation of Use - The licenses granted in sections 2(A) and 2(B) extend only to the Software or Derivative Works for the sole purpose to use, combine, integrate or connect the YottaChain service, including but not limited to the storage user, data node, super node, metadata node, and DApp of YottaChain service. Any other use of the Software will need another permission by YottaChain Foundation.
 
@@ -47,4 +47,4 @@ Software is provided under this License on an “as is” basis, without warrant
 
 5. License Steward
 
-YottaChain Foundation is the license steward. No one other than the license steward has the right to modify or publish new versions of this license. Each version will be given a distinguishing version number. You may distribute the Software under the terms of the version of the license under which You originally received the Software, or under the terms of any subsequent version published by the license steward.
+YottaChain Foundation is the License steward. No one other than the License steward has the right to modify or publish new versions of this License. Each version will be given a distinguishing version number. You may distribute the Software under the terms of the version of the License under which You originally received the Software, or under the terms of any subsequent version published by the License steward.
