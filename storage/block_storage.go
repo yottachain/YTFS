@@ -6,8 +6,6 @@ import (
 	// "syscall"
 
 	types "github.com/yottachain/YTFS/common"
-	// "github.com/yottachain/YTFS/errors"
-	//dio "github.com/ncw/directio"
 	"github.com/yottachain/YTFS/opt"
 )
 
