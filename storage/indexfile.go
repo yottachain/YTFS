@@ -2,8 +2,10 @@ package storage
 
 import (
 	"bytes"
+	"crypto"
 	"encoding/binary"
 	"fmt"
+	"github.com/mr-tron/base58/base58"
 	"io"
 
 	// "math"
@@ -47,6 +49,12 @@ type YTFSIndexFile struct {
 // MetaData reports the YTFSIndexFile status.
 func (indexFile *YTFSIndexFile) MetaData() *ydcommon.Header {
 	return indexFile.meta
+}
+
+func (indexFile *YTFSIndexFile) VerifyVHF(data []byte, vhf []byte) bool {
+	sha := crypto.MD5.New()
+	sha.Write(data)
+	return bytes.Equal(sha.Sum(nil), vhf)
 }
 
 // Stat reports the YTFSIndexFile status.
@@ -130,6 +138,11 @@ func (indexFile *YTFSIndexFile) Get(key ydcommon.IndexTableKey) (ydcommon.IndexT
 	return 0, errors.ErrDataNotFound
 }
 
+func (indexFile *YTFSIndexFile) GetTableFromStorage(tbIndex uint32) (map[ydcommon.IndexTableKey]ydcommon.IndexTableValue, error) {
+	 table,err := indexFile.loadTableFromStorage(tbIndex)
+	 return table, err
+}
+
 func (indexFile *YTFSIndexFile) loadTableFromStorage(tbIndex uint32) (map[ydcommon.IndexTableKey]ydcommon.IndexTableValue, error) {
 	reader, _ := indexFile.store.Reader()
 	itemSize := uint32(unsafe.Sizeof(ydcommon.IndexTableKey{}) + unsafe.Sizeof(ydcommon.IndexTableValue(0)))
@@ -159,6 +172,82 @@ func (indexFile *YTFSIndexFile) loadTableFromStorage(tbIndex uint32) (map[ydcomm
 	}
 
 	return table, nil
+}
+
+func (indexFile *YTFSIndexFile) ClearItemFromTable( tbidx uint32, hashKey ydcommon.IndexTableKey, btCnt uint32, tbItemMap map[uint32]uint32) error {
+	var err error
+	fmt.Printf("[ClearItemFromTable] tableindex=%v, btCnt=%v, hash=%v \n",tbidx, btCnt, base58.Encode(hashKey[:]))
+	writer,err := indexFile.store.Writer()
+	if err != nil{
+		fmt.Println("[ClearItemFromTable] get writer error!")
+		return err
+	}
+	//Sync file to stable storage
+	writer.Sync()
+
+	reader, err := indexFile.store.Reader()
+	if err != nil{
+		fmt.Println("[ClearItemFromTable] get reader error!")
+		return err
+	}
+	itemSize := uint32(unsafe.Sizeof(ydcommon.IndexTableKey{}) + unsafe.Sizeof(ydcommon.IndexTableValue(0)))
+	tableAllocationSize := indexFile.meta.RangeCoverage*itemSize + 4
+	tableOffset := int64(indexFile.meta.HashOffset)+int64(tbidx)*int64(tableAllocationSize)
+	reader.Seek(tableOffset, io.SeekStart)
+
+	// read len of table
+	sizeBuf := make([]byte, 4)
+	reader.Read(sizeBuf)
+	tableSize := binary.LittleEndian.Uint32(sizeBuf)
+	itemBuf := make([]byte, itemSize)
+	zeroBuf := make([]byte,itemSize)
+	fmt.Printf("[ClearItemFromTable] tableindex=%v, tablesize=%v, btCnt=%v \n", tbidx, tableSize, btCnt)
+
+	for i := tableSize; 0 <= i; i-- {
+    	fmt.Printf("[ClearItemFromTable] tableindex=%v, tablesize=%v, btCnt=%v, i=%v\n", tbidx, tableSize, btCnt, i)
+		itemOffset := tableOffset+4+int64(i*itemSize)
+		reader.Seek(itemOffset, io.SeekStart)
+		reader.Read(itemBuf)
+		key := ydcommon.BytesToHash(itemBuf[0:16])
+		if ydcommon.IndexTableKey(key) == hashKey {
+			fmt.Printf("[restoreIndex] [ClearItemFromTable] tableindex:%v, reset key %v to zero \n",tbidx,base58.Encode(key[:]))
+            writer.Seek(itemOffset, io.SeekStart)
+            //clear the item in index.db
+            writer.Write(zeroBuf)
+            tbItemMap[tbidx] = tbItemMap[tbidx]+1
+            break
+		}
+	}
+	return nil
+}
+
+func (indexFile *YTFSIndexFile)ResetTableSize(tbItemMap map[uint32]uint32) error {
+	var err error
+	writer,_ := indexFile.store.Writer()
+	reader,_ := indexFile.store.Reader()
+	itemSize := uint32(unsafe.Sizeof(ydcommon.IndexTableKey{}) + unsafe.Sizeof(ydcommon.IndexTableValue(0)))
+	tableAllocationSize := indexFile.meta.RangeCoverage*itemSize + 4
+	sizeBuf := make([]byte, 4)
+	for tbidx,value := range tbItemMap{
+		fmt.Printf("[resettablesize]  tbidx=%v, value=%v \n",tbidx,value)
+		tableOffset := int64(indexFile.meta.HashOffset)+int64(tbidx)*int64(tableAllocationSize)
+		reader.Seek(tableOffset,io.SeekStart)
+		reader.Read(sizeBuf)
+		tableSize := binary.LittleEndian.Uint32(sizeBuf)
+		fmt.Printf("[resettablesize]  before reset, tbidx=%v, tablesize=%v \n",tbidx, tableSize)
+		tableSize = tableSize - value
+		writer.Seek(tableOffset,io.SeekStart)
+		binary.LittleEndian.PutUint32(sizeBuf, tableSize)
+		_, err = writer.Write(sizeBuf)
+		if err != nil {
+			return err
+		}
+		reader.Seek(tableOffset,io.SeekStart)
+		reader.Read(sizeBuf)
+		tableSize = binary.LittleEndian.Uint32(sizeBuf)
+		fmt.Printf("[resettablesize]  after reset, tbidx=%v, tablesize=%v \n",tbidx, tableSize)
+	}
+	return err
 }
 
 func (indexFile *YTFSIndexFile) clearTableFromStorage() error {
@@ -270,18 +359,18 @@ func (indexFile *YTFSIndexFile) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydco
 			if err == errors.ErrConflict {
 				conflicts[kvPair.Hash] = 1
 			} else {
-				return nil, err
+				return conflicts, err
 			}
 		}
 
 		dataWritten++
 	}
 
-	if len(conflicts) != 0 {
-		return conflicts, errors.ErrConflict
-	}
+	//if len(conflicts) != 0 {
+	//	return conflicts, errors.ErrConflict
+	//}
 
-	return nil, indexFile.updateMeta(dataWritten)
+	return conflicts, indexFile.updateMeta(dataWritten)
 }
 
 func (indexFile *YTFSIndexFile) updateMeta(dataWritten uint64) error {
