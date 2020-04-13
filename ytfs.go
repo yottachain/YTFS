@@ -3,12 +3,10 @@ package ytfs
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 	//	"github.com/linux-go/go1.13.5.linux-amd64/go/src/time"
 	"github.com/mr-tron/base58/base58"
 	"github.com/yottachain/YTDataNode/util"
 	ydcommon "github.com/yottachain/YTFS/common"
-	"github.com/yottachain/YTFS/errors"
 	"github.com/yottachain/YTFS/opt"
 	_ "net/http/pprof"
 	"os"
@@ -208,17 +206,14 @@ func (ytfs *YTFS) restoreYTFS() {
 
 func (ytfs *YTFS) restoreIndex(conflict map[ydcommon.IndexTableKey]byte, batchindex []ydcommon.IndexItem, btCnt uint32) error {
     var err error
-    fmt.Println("[restoreIndex] start")
     tbItemMap := make(map[uint32]uint32,btCnt)
 	for _, kvPairs := range batchindex {
     	hashkey := kvPairs.Hash
-		fmt.Println("[restoreIndex] restore hashkey:",base58.Encode(hashkey[:]))
     	if _, ok := conflict[hashkey]; ok{
     		fmt.Println("[restoreIndex] hashkey conflict:",base58.Encode(hashkey[:]))
     		continue
 		}
     	idx := ytfs.db.indexFile.GetTableEntryIndex(hashkey)
-    	fmt.Printf("[restoreIndex] tableindex=%v \n",idx)
 		err = ytfs.db.indexFile.ClearItemFromTable(idx, hashkey,btCnt,tbItemMap)
 		if err != nil {
 			fmt.Printf("[restoreIndex] reset tableidx %v hashkey %v \n",idx,hashkey)
@@ -229,7 +224,6 @@ func (ytfs *YTFS) restoreIndex(conflict map[ydcommon.IndexTableKey]byte, batchin
 	if err != nil {
 		fmt.Println("[restoreIndex] ResetTableSize error")
 	}
-	fmt.Println("[restoreIndex] end")
 	return err
 }
 
@@ -271,7 +265,7 @@ func (ytfs *YTFS)checkConflicts(conflicts map[ydcommon.IndexTableKey]byte, batch
 	}
 }
 
-var mutexindex uint64 = 0
+//var mutexindex uint64 = 0
 // BatchPut sets the value array for the given key array.
 // It panics if there exists any previous value for that key as YottaDisk is not a multi-map.
 // It is safe to modify the contents of the arguments after Put returns but not
@@ -280,7 +274,6 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 	ytfs.mutex.Lock()
 	defer ytfs.mutex.Unlock()
 
-	fmt.Printf("[mutexlocked] ytfs batchput lock %v \n",mutexindex)
 	if len(batch) > 1000 {
 		return nil, fmt.Errorf("Batch Size is too big")
 	}
@@ -314,30 +307,10 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 
 	conflicts, err := ytfs.db.BatchPut(batchIndexes)
 
-	defer ytfs.checkConflicts(conflicts, batch)     //todo xiaojm
-
 	if err != nil {
-		ytfs.restoreYTFS()
 		ytfs.restoreIndex(conflicts, batchIndexes, uint32(bufCnt))
-		fmt.Printf("[mutexunlocked] ytfs batchput unlock %v \n",mutexindex)
-		mutexindex++
-		if mutexindex % 1000 == 0 {
-			time.Sleep(time.Second * 15)
-		}
+		ytfs.restoreYTFS()
 		return conflicts, err
-	}
-
-	fmt.Printf("[mutexunlocked] ytfs batchput unlock %v \n",mutexindex)
-	mutexindex++
-	if mutexindex % 1000 == 0 {
-		time.Sleep(time.Second * 15)
-	}
-
-	if mutexindex % 2099 == 0 {
-		ytfs.restoreYTFS()
-		ytfs.restoreIndex(conflicts, batchIndexes, uint32(bufCnt))
-		fmt.Printf("[error_injection] %v \n",mutexindex)
-		return conflicts, errors.ErrRangeFull
 	}
 
 	return nil, nil

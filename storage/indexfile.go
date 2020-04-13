@@ -176,7 +176,6 @@ func (indexFile *YTFSIndexFile) loadTableFromStorage(tbIndex uint32) (map[ydcomm
 
 func (indexFile *YTFSIndexFile) ClearItemFromTable( tbidx uint32, hashKey ydcommon.IndexTableKey, btCnt uint32, tbItemMap map[uint32]uint32) error {
 	var err error
-	fmt.Printf("[ClearItemFromTable] tableindex=%v, btCnt=%v, hash=%v \n",tbidx, btCnt, base58.Encode(hashKey[:]))
 	writer,err := indexFile.store.Writer()
 	if err != nil{
 		fmt.Println("[ClearItemFromTable] get writer error!")
@@ -201,10 +200,8 @@ func (indexFile *YTFSIndexFile) ClearItemFromTable( tbidx uint32, hashKey ydcomm
 	tableSize := binary.LittleEndian.Uint32(sizeBuf)
 	itemBuf := make([]byte, itemSize)
 	zeroBuf := make([]byte,itemSize)
-	fmt.Printf("[ClearItemFromTable] tableindex=%v, tablesize=%v, btCnt=%v \n", tbidx, tableSize, btCnt)
 
 	for i := tableSize; 0 <= i; i-- {
-    	fmt.Printf("[ClearItemFromTable] tableindex=%v, tablesize=%v, btCnt=%v, i=%v\n", tbidx, tableSize, btCnt, i)
 		itemOffset := tableOffset+4+int64(i*itemSize)
 		reader.Seek(itemOffset, io.SeekStart)
 		reader.Read(itemBuf)
@@ -229,12 +226,10 @@ func (indexFile *YTFSIndexFile)ResetTableSize(tbItemMap map[uint32]uint32) error
 	tableAllocationSize := indexFile.meta.RangeCoverage*itemSize + 4
 	sizeBuf := make([]byte, 4)
 	for tbidx,value := range tbItemMap{
-		fmt.Printf("[resettablesize]  tbidx=%v, value=%v \n",tbidx,value)
 		tableOffset := int64(indexFile.meta.HashOffset)+int64(tbidx)*int64(tableAllocationSize)
 		reader.Seek(tableOffset,io.SeekStart)
 		reader.Read(sizeBuf)
 		tableSize := binary.LittleEndian.Uint32(sizeBuf)
-		fmt.Printf("[resettablesize]  before reset, tbidx=%v, tablesize=%v \n",tbidx, tableSize)
 		tableSize = tableSize - value
 		writer.Seek(tableOffset,io.SeekStart)
 		binary.LittleEndian.PutUint32(sizeBuf, tableSize)
