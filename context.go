@@ -59,9 +59,16 @@ func NewContext(dir string, config *opt.Options, dataCount uint64) (*Context, er
 		lock:     sync.RWMutex{},
 	}
 
-	context.SetStoragePointer(uint32(dataCount))
-	fmt.Println("Create YTFS content success, current sp = ", context.sp)
-	return context, nil
+	err = context.SetStoragePointer(uint32(dataCount))
+	if err == nil {
+		fmt.Println("Create YTFS content success, current sp = ", context.sp)
+		return context, nil
+	}
+
+	fmt.Println("[error]Create new YTFS content error:",err,"current sp = ", context.sp)
+	//maybe err happens, here we still need start storage for read
+	err = nil
+	return context, err
 }
 
 func initStorages(config *opt.Options) ([]*storageContext, error) {
@@ -121,10 +128,10 @@ func (c *Context) locate(idx uint32) (*storagePointer, error) {
 func (c *Context) forward() error {
 	sp := c.sp
 	sp.posIdx++
-	if sp.posIdx == c.storages[sp.dev].Cap {
-		if int(sp.dev+1) == len(c.storages) {
-			return errors.ErrDataOverflow
-		}
+	if int(sp.dev) >= len(c.storages) {
+		return errors.ErrDataOverflow
+	}
+	if sp.posIdx >= c.storages[sp.dev].Cap {
 		if debugPrint {
 			fmt.Println("Move to next dev", sp.dev+1)
 		}
@@ -136,7 +143,7 @@ func (c *Context) forward() error {
 	return nil
 }
 
-func (c *Context) fastforward(n int, commit bool) error {
+func (c *Context)  fastforward(n int, commit bool) error {
 	sp := *c.sp
 	var err error
 	i := 0
@@ -147,7 +154,7 @@ func (c *Context) fastforward(n int, commit bool) error {
 			*c.sp = sp
 	}
 
-	if i < n && err != nil {
+	if i <= n && err != nil {
 			// last i reach the eof is ok.
 			return err
 	}
