@@ -198,6 +198,7 @@ func (ytfs *YTFS) Put(key ydcommon.IndexTableKey, buf []byte) error {
  */
 func (ytfs *YTFS) restoreYTFS() {
 	//TODO: save index
+	fmt.Println("[memtrace] in restoreYTFS()")
 	id := len(ytfs.savedStatus) - 1
 	ydcommon.YottaAssert(id >= 0)
 	ytfs.context.restore(ytfs.savedStatus[id].ctxSP)
@@ -273,14 +274,15 @@ func (ytfs *YTFS)checkConflicts(conflicts map[ydcommon.IndexTableKey]byte, batch
 func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
 	ytfs.mutex.Lock()
 	defer ytfs.mutex.Unlock()
-
+    fmt.Println("[memtrace] BatchPut start")
 	if len(batch) > 1000 {
 		return nil, fmt.Errorf("Batch Size is too big")
 	}
 
+	fmt.Println("[memtrace] Batch < 1000")
 	// NO get check, but retore all status if error
 	ytfs.saveCurrentYTFS()
-
+	fmt.Println("[memtrace] after saveCurrentYTFS")
 	batchIndexes := make([]ydcommon.IndexItem, len(batch))
 	batchBuffer := []byte{}
 	bufCnt := len(batch)
@@ -292,9 +294,11 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 			OffsetIdx: ydcommon.IndexTableValue(0)}
 		i++
 	}
-
+	fmt.Println("[memtrace] after range batch")
 	startPos, err := ytfs.context.BatchPut(bufCnt, batchBuffer)
+	fmt.Println("[memtrace] after ytfs.context.BatchPut")
 	if err != nil {
+		fmt.Println("[memtrace] ytfs.context.BatchPut error")
 		ytfs.restoreYTFS()
 		return nil, err
 	}
@@ -304,9 +308,9 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 			Hash:      batchIndexes[i].Hash,
 			OffsetIdx: ydcommon.IndexTableValue(startPos + i)}
 	}
-
+	fmt.Println("[memtrace] ytfs.db.BatchPut ")
 	conflicts, err := ytfs.db.BatchPut(batchIndexes)
-
+	fmt.Println("[memtrace] after ytfs.db.BatchPut ")
 	if err != nil {
 		ytfs.restoreIndex(conflicts, batchIndexes, uint32(bufCnt))
 		ytfs.restoreYTFS()

@@ -81,7 +81,9 @@ func (disk *YottaDisk) ReadData(dataIndex ydcommon.IndexTableValue) ([]byte, err
 
 // WriteData writes data to low level storage
 func (disk *YottaDisk) WriteData(dataOffsetIndex ydcommon.IndexTableValue, data []byte) error {
+	fmt.Println("[memtrace] WriteData start ")
 	if uint32(dataOffsetIndex) >= disk.meta.DataCapacity {
+		fmt.Println("[memtrace] WriteData error dataOffsetIndex out datacapacity")
 		return errors.ErrDataOverflow
 	}
 
@@ -99,15 +101,18 @@ func (disk *YottaDisk) WriteData(dataOffsetIndex ydcommon.IndexTableValue, data 
 	//if err != nil {
 	//	return err
 	//}
+	fmt.Println("[memtrace] real write datablock")
 	_, err = writer.Write(dataBlock)
-
+	fmt.Println("[memtrace] real write end")
 	if err != nil {
+		fmt.Println("[memtrace] real write err:",err)
 		return err
 	}
 
 	disk.stat.writeOps++
 
 	if disk.stat.writeOps&(disk.config.SyncPeriod-1) == 0 {
+		fmt.Println("[memtrace] writer.Sync:")
 		return writer.Sync()
 	}
 

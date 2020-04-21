@@ -392,24 +392,30 @@ func (indexFile *YTFSIndexFile) updateMeta(dataWritten uint64) error {
 func (indexFile *YTFSIndexFile) updateTable(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) error {
 	idx := indexFile.getTableEntryIndex(key)
 	table, err := indexFile.loadTableFromStorage(idx)
+	fmt.Println("[memtrace] updateTable ")
 	if err != nil {
+		fmt.Println("[memtrace] loadTableFromStorage err:",err)
 		return err
 	}
 
 	if _, ok := table[key]; ok {
+		fmt.Println("[memtrace] updateTable conflict!!")
 		return errors.ErrConflict
 	}
 
 	rowCount := uint32(len(table))
 	if rowCount >= indexFile.meta.RangeCoverage {
+		fmt.Println("[memtrace] move to overflow region!!")
 		// move to overflow region
 		idx = indexFile.meta.RangeCapacity
 		table, err = indexFile.loadTableFromStorage(idx)
 		if err != nil {
+			fmt.Println("[memtrace] overflow region,loadTableFromStorage error:",err)
 			return err
 		}
 		rowCount := uint32(len(table))
 		if rowCount >= indexFile.meta.RangeCoverage {
+			fmt.Println("[memtrace] indexFile.meta.RangeCoverage error:",errors.ErrRangeFull)
 			return errors.ErrRangeFull
 		}
 	}
@@ -426,6 +432,7 @@ func (indexFile *YTFSIndexFile) updateTable(key ydcommon.IndexTableKey, value yd
 	binary.LittleEndian.PutUint32(valueBuf, uint32(tableSize))
 	_, err = writer.Write(valueBuf)
 	if err != nil {
+		fmt.Println("[memtrace] writer.Write(valueBuf) error:",err)
 		return err
 	}
 
@@ -434,12 +441,14 @@ func (indexFile *YTFSIndexFile) updateTable(key ydcommon.IndexTableKey, value yd
 	writer.Seek(tableItemPos, io.SeekStart)
 	_, err = writer.Write(key[:])
 	if err != nil {
+		fmt.Println("[memtrace] writer.Write tableItemPos error:",err)
 		return err
 	}
 
 	binary.LittleEndian.PutUint32(valueBuf, uint32(value))
 	_, err = writer.Write(valueBuf)
 	if err != nil {
+		fmt.Println("[memtrace] writer.Write valueBuf error:",err)
 		return err
 	}
 
@@ -447,6 +456,7 @@ func (indexFile *YTFSIndexFile) updateTable(key ydcommon.IndexTableKey, value yd
 	if debugPrint {
 		fmt.Printf("IndexDB put %x:%x\n", key, value)
 	}
+	fmt.Printf("[memtrace] IndexDB put %x:%x\n", key, value)
 	return nil
 }
 
