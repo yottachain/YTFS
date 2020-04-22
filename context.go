@@ -130,6 +130,7 @@ func (c *Context) forward() error {
 	sp := c.sp
 	sp.posIdx++
 	if int(sp.dev) >= len(c.storages) {
+		fmt.Println("[memtrace] err int(sp.dev) >= len(c.storages)")
 		return errors.ErrDataOverflow
 	}
 	if sp.posIdx >= c.storages[sp.dev].Cap {

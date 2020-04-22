@@ -312,7 +312,8 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 	conflicts, err := ytfs.db.BatchPut(batchIndexes)
 	fmt.Println("[memtrace] after ytfs.db.BatchPut ")
 	if err != nil {
-		ytfs.restoreIndex(conflicts, batchIndexes, uint32(bufCnt))
+		fmt.Println("[memtrace]  update indexdb error:",err)
+//		ytfs.restoreIndex(conflicts, batchIndexes, uint32(bufCnt))
 		ytfs.restoreYTFS()
 		return conflicts, err
 	}
