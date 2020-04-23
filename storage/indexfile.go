@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/mr-tron/base58/base58"
 	"io"
+	"time"
 
 	// "math"
 	"math/big"
@@ -165,12 +166,13 @@ func (indexFile *YTFSIndexFile) loadTableFromStorage(tbIndex uint32) (map[ydcomm
 	}
 
 	table := map[ydcommon.IndexTableKey]ydcommon.IndexTableValue{}
+	st:= time.Now()
 	for i := uint32(0); i < tableSize; i++ {
 		key := ydcommon.BytesToHash(tableBuf[i*itemSize : i*itemSize+16])
 		value := binary.LittleEndian.Uint32(tableBuf[i*itemSize+16 : i*itemSize+20][:])
 		table[ydcommon.IndexTableKey(key)] = ydcommon.IndexTableValue(value)
 	}
-
+	fmt.Printf("[loadTableFromStorage] time %d ms len %d", time.Now().Sub(st).Milliseconds(),tableSize)
 	return table, nil
 }
 
