@@ -3,6 +3,9 @@ package ytfs
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/syndtr/goleveldb/leveldb"
+	"strconv"
+
 	//	"github.com/linux-go/go1.13.5.linux-amd64/go/src/time"
 	"github.com/mr-tron/base58/base58"
 	"github.com/yottachain/YTDataNode/util"
@@ -15,6 +18,8 @@ import (
 	//	log "github.com/yottachain/YTDataNode/logger"
 )
 
+var  mdbFileName = "/maindb"
+
 type ytfsStatus struct {
 	ctxSP *storagePointer
 	//TODO: index status
@@ -26,6 +31,8 @@ type YTFS struct {
 	config *opt.Options
 	// key-value db which saves hash <-> position
 	db *IndexDB
+	// main leveldb
+	mdb *leveldb.DB                      //todo xiaojm
 	// running context
 	context *Context
 	// lock of YTFS
@@ -83,6 +90,15 @@ func NewYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	return ytfs, nil
 }
 
+func openKVDB(DBPath string) (db *leveldb.DB,err error){
+	db,err = leveldb.OpenFile(DBPath,nil)
+	if err != nil{
+		fmt.Printf("open DB:%s error",DBPath)
+		return nil,err
+	}
+	return db,err
+}
+
 func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	//TODO: file lock to avoid re-open.
 	//1. open system dir for YTFS
@@ -110,6 +126,14 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 		return nil, err
 	}
 
+	//open main kv-db
+	mainDBPath := path.Join(dir,mdbFileName)
+	mDB,err := openKVDB(mainDBPath)
+	if err != nil {
+		fmt.Println("[KVDB]open main kv-DB for save hash error:",err)
+		return nil,err
+	}
+
 	// open index db
 	indexDB, err := NewIndexDB(dir, config)
 	if err != nil {
@@ -123,6 +147,7 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	}
 
 	ytfs := &YTFS{
+		mdb:     mDB,
 		db:      indexDB,
 		context: context,
 		mutex:   new(sync.Mutex),
@@ -165,12 +190,33 @@ func validateYTFSSchema(meta *ydcommon.Header, opt *opt.Options) (*ydcommon.Head
 // of the returned slice.
 // It is safe to modify the contents of the argument after Get returns.
 func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
+	if ytfs.config.UseLvDb{
+		return ytfs.GetL(key)
+	}
+	return ytfs.GetI(key)
+//	return ytfs.context.Get(pos)
+}
+
+func (ytfs *YTFS) GetI(key ydcommon.IndexTableKey) ([]byte, error) {
 	pos, err := ytfs.db.Get(key)
 	if err != nil {
 		return nil, err
 	}
-
 	return ytfs.context.Get(pos)
+	//	return ytfs.context.Get(pos)
+}
+
+func (ytfs *YTFS) GetL(key ydcommon.IndexTableKey) ([]byte, error) {
+	var ldbval uint64
+	val, err := ytfs.mdb.Get(key[:],nil)
+	ldbval,_ = strconv.ParseUint(string(val),10,32)
+	fmt.Println("leveldbval=",val,"ldbval32=",ldbval)
+	if err != nil {
+		return nil, err
+	}
+
+	return ytfs.context.Get(ydcommon.IndexTableValue(ldbval))
+	//	return ytfs.context.Get(pos)
 }
 
 // Put sets the value for the given key. It panic if there exists any previous value
@@ -266,23 +312,95 @@ func (ytfs *YTFS)checkConflicts(conflicts map[ydcommon.IndexTableKey]byte, batch
 	}
 }
 
+func (ytfs *YTFS) BatchWriteKV(batch map[ydcommon.IndexTableKey][]byte) error {
+	var err error
+	lvbatch := new(leveldb.Batch)
+	for key,val := range batch {
+		lvbatch.Put(key[:],val)
+
+	}
+	err = ytfs.mdb.Write(lvbatch, nil)
+	return err
+}
+
+
+func (ytfs *YTFS)resetKV(batchIndexes []ydcommon.IndexItem,resetCnt uint32){
+	for j:= uint32(0); j < resetCnt; j++ {
+		hashKey := batchIndexes[j].Hash[:]
+		ytfs.mdb.Delete(hashKey[:],nil)
+	}
+}
+
 //var mutexindex uint64 = 0
 // BatchPut sets the value array for the given key array.
 // It panics if there exists any previous value for that key as YottaDisk is not a multi-map.
 // It is safe to modify the contents of the arguments after Put returns but not
 // before.
 func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
+	if ytfs.config.UseLvDb {
+		return ytfs.BatchPutL(batch)
+	}
+	return ytfs.BatchPutI(batch)
+}
+
+func (ytfs *YTFS) BatchPutI(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
+		ytfs.mutex.Lock()
+		defer ytfs.mutex.Unlock()
+
+		if len(batch) > 1000 {
+			return nil, fmt.Errorf("Batch Size is too big")
+		}
+
+		// NO get check, but retore all status if error
+		ytfs.saveCurrentYTFS()
+		batchIndexes := make([]ydcommon.IndexItem, len(batch))
+		batchBuffer := []byte{}
+		bufCnt := len(batch)
+		i := 0
+		for k, v := range batch {
+			batchBuffer = append(batchBuffer, v...)
+			batchIndexes[i] = ydcommon.IndexItem{
+				Hash:      k,
+				OffsetIdx: ydcommon.IndexTableValue(0)}
+			i++
+		}
+
+		startPos, err := ytfs.context.BatchPut(bufCnt, batchBuffer)
+
+		if err != nil {
+			fmt.Println("[memtrace] ytfs.context.BatchPut error")
+			ytfs.restoreYTFS()
+			return nil, err
+		}
+
+		for i := uint32(0); i < uint32(bufCnt); i++ {
+			batchIndexes[i] = ydcommon.IndexItem{
+				Hash:      batchIndexes[i].Hash,
+				OffsetIdx: ydcommon.IndexTableValue(startPos + i)}
+		}
+
+		conflicts, err := ytfs.db.BatchPut(batchIndexes)
+
+		if err != nil {
+			fmt.Println("[memtrace]  update indexdb error:",err)
+			ytfs.restoreIndex(conflicts, batchIndexes, uint32(bufCnt))
+			ytfs.restoreYTFS()
+			return conflicts, err
+		}
+
+		return nil, nil
+}
+
+func (ytfs *YTFS) BatchPutL(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
 	ytfs.mutex.Lock()
 	defer ytfs.mutex.Unlock()
-    fmt.Println("[memtrace] BatchPut start")
+
 	if len(batch) > 1000 {
 		return nil, fmt.Errorf("Batch Size is too big")
 	}
-
-	fmt.Println("[memtrace] Batch < 1000")
 	// NO get check, but retore all status if error
 	ytfs.saveCurrentYTFS()
-	fmt.Println("[memtrace] after saveCurrentYTFS")
+
 	batchIndexes := make([]ydcommon.IndexItem, len(batch))
 	batchBuffer := []byte{}
 	bufCnt := len(batch)
@@ -294,28 +412,26 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 			OffsetIdx: ydcommon.IndexTableValue(0)}
 		i++
 	}
-	fmt.Println("[memtrace] after range batch")
+
 	startPos, err := ytfs.context.BatchPut(bufCnt, batchBuffer)
-	fmt.Println("[memtrace] after ytfs.context.BatchPut")
+
 	if err != nil {
 		fmt.Println("[memtrace] ytfs.context.BatchPut error")
 		ytfs.restoreYTFS()
 		return nil, err
 	}
 
+//	keyValue:=make(map[ydcommon.IndexTableKey]ydcommon.IndexTableValue,len(batch))
 	for i := uint32(0); i < uint32(bufCnt); i++ {
-		batchIndexes[i] = ydcommon.IndexItem{
-			Hash:      batchIndexes[i].Hash,
-			OffsetIdx: ydcommon.IndexTableValue(startPos + i)}
-	}
-	fmt.Println("[memtrace] ytfs.db.BatchPut ")
-	conflicts, err := ytfs.db.BatchPut(batchIndexes)
-	fmt.Println("[memtrace] after ytfs.db.BatchPut ")
-	if err != nil {
-		fmt.Println("[memtrace]  update indexdb error:",err)
-//		ytfs.restoreIndex(conflicts, batchIndexes, uint32(bufCnt))
-		ytfs.restoreYTFS()
-		return conflicts, err
+		HKey := batchIndexes[i].Hash[:]
+		OValue := strconv.FormatUint(uint64(startPos+i),10)
+		err = ytfs.mdb.Put(HKey, []byte(OValue), nil)
+		if err !=nil {
+			fmt.Println("[slicecompare][error]put dnhash to temp_index_kvdb error",err)
+			ytfs.resetKV(batchIndexes,i)
+			ytfs.restoreYTFS()
+			return nil,err
+		}
 	}
 
 	return nil, nil
