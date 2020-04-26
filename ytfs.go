@@ -3,6 +3,9 @@ package ytfs
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"github.com/syndtr/goleveldb/leveldb"
+
 	//	"github.com/linux-go/go1.13.5.linux-amd64/go/src/time"
 	"github.com/mr-tron/base58/base58"
 	"github.com/yottachain/YTDataNode/util"
@@ -15,6 +18,8 @@ import (
 	//	log "github.com/yottachain/YTDataNode/logger"
 )
 
+var  mdbFileName = "/maindb"
+
 type ytfsStatus struct {
 	ctxSP *storagePointer
 	//TODO: index status
@@ -26,6 +31,8 @@ type YTFS struct {
 	config *opt.Options
 	// key-value db which saves hash <-> position
 	db *IndexDB
+	// main leveldb
+	mdb *leveldb.DB                      //todo xiaojm
 	// running context
 	context *Context
 	// lock of YTFS
@@ -83,6 +90,19 @@ func NewYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	return ytfs, nil
 }
 
+func openKVDB(DBPath string) (db *leveldb.DB,err error){
+	db,err = leveldb.OpenFile(DBPath,nil)
+	if err != nil{
+		fmt.Printf("open DB:%s error",DBPath)
+		return nil,err
+	}
+	return db,err
+}
+
+func (ytfs *YTFS)BatchPutKV(kvPairs []ydcommon.IndexItem) error {
+
+}
+
 func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	//TODO: file lock to avoid re-open.
 	//1. open system dir for YTFS
@@ -110,6 +130,14 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 		return nil, err
 	}
 
+	//open main kv-db
+	mainDBPath := path.Join(dir,mdbFileName)
+	mDB,err := openKVDB(mainDBPath)
+	if err != nil {
+		fmt.Println("[KVDB]open main kv-DB for save hash error:",err)
+		return nil,err
+	}
+
 	// open index db
 	indexDB, err := NewIndexDB(dir, config)
 	if err != nil {
@@ -123,6 +151,7 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	}
 
 	ytfs := &YTFS{
+		mdb:     mDB,
 		db:      indexDB,
 		context: context,
 		mutex:   new(sync.Mutex),
@@ -266,6 +295,13 @@ func (ytfs *YTFS)checkConflicts(conflicts map[ydcommon.IndexTableKey]byte, batch
 	}
 }
 
+func (ytfs *YTFS)resetKV(batchIndexes []ydcommon.IndexItem,resetCnt uint32){
+	for j:= uint32(0); j < resetCnt; j++ {
+		hashKey := batchIndexes[j].Hash[:]
+		ytfs.mdb.Delete(hashKey[:],nil)
+	}
+}
+
 //var mutexindex uint64 = 0
 // BatchPut sets the value array for the given key array.
 // It panics if there exists any previous value for that key as YottaDisk is not a multi-map.
@@ -303,11 +339,24 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 		return nil, err
 	}
 
+	return nil, nil
+
+//	keyValue:=make(map[ydcommon.IndexTableKey]ydcommon.IndexTableValue,len(batch))
 	for i := uint32(0); i < uint32(bufCnt); i++ {
 		batchIndexes[i] = ydcommon.IndexItem{
 			Hash:      batchIndexes[i].Hash,
 			OffsetIdx: ydcommon.IndexTableValue(startPos + i)}
+		HKey := batchIndexes[i].Hash[:]
+		OValue := strconv.FormatUint(uint64(startPos+i),10)
+		err = ytfs.mdb.Put(HKey, []byte(OValue), nil)
+		if err !=nil {
+			fmt.Println("[slicecompare][error]put dnhash to temp_index_kvdb error",err)
+			ytfs.resetKV(batchIndexes,i)
+			ytfs.restoreYTFS()
+			return nil,err
+		}
 	}
+
 	fmt.Println("[memtrace] ytfs.db.BatchPut ")
 	conflicts, err := ytfs.db.BatchPut(batchIndexes)
 	fmt.Println("[memtrace] after ytfs.db.BatchPut ")
