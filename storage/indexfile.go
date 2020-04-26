@@ -391,31 +391,71 @@ func (indexFile *YTFSIndexFile) updateMeta(dataWritten uint64) error {
 	return nil
 }
 
+func (indexFile *YTFSIndexFile) getTableSize(tbIndex uint32) (*uint32, error){
+	reader, err := indexFile.store.Reader()
+	if err != nil {
+		fmt.Println("get indexFile reader error:",err)
+		return nil,err
+	}
+	itemSize := uint32(unsafe.Sizeof(ydcommon.IndexTableKey{}) + unsafe.Sizeof(ydcommon.IndexTableValue(0)))
+	tableAllocationSize := indexFile.meta.RangeCoverage*itemSize + 4
+	_,err = reader.Seek(int64(indexFile.meta.HashOffset)+int64(tbIndex)*int64(tableAllocationSize), io.SeekStart)
+    if err != nil {
+		fmt.Println("seek new pos of indexFile for read error:",err)
+		return nil,err
+	}
+
+	// read len of table
+	sizeBuf := make([]byte, 4)
+	_,err = reader.Read(sizeBuf)
+	if err != nil {
+		fmt.Println("read tablesize from indexFile error:",err)
+		return nil,err
+	}
+	tableSize := binary.LittleEndian.Uint32(sizeBuf)
+	if debugPrint {
+		fmt.Println("read table size :=", tableSize, "from", int64(indexFile.meta.HashOffset)+int64(tbIndex)*int64(tableAllocationSize))
+	}
+	return &tableSize,nil
+}
+
 func (indexFile *YTFSIndexFile) updateTable(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) error {
 	idx := indexFile.getTableEntryIndex(key)
-	table, err := indexFile.loadTableFromStorage(idx)
-	fmt.Println("[memtrace] updateTable ")
+	//table, err := indexFile.loadTableFromStorage(idx)
+	//
+	//if err != nil {
+	//	fmt.Println("[memtrace] loadTableFromStorage err:",err)
+	//	return err
+	//}
+	//
+	//if _, ok := table[key]; ok {
+	//	fmt.Println("[memtrace] updateTable conflict!!")
+	//	return errors.ErrConflict
+	//}
+
+//	rowCount := uint32(len(table))
+
+    rowCountPtr,err := indexFile.getTableSize(idx)
 	if err != nil {
-		fmt.Println("[memtrace] loadTableFromStorage err:",err)
+		fmt.Printf("get tablesize of indextable=%v, error:%v \n",idx,err)
 		return err
 	}
-
-	if _, ok := table[key]; ok {
-		fmt.Println("[memtrace] updateTable conflict!!")
-		return errors.ErrConflict
-	}
-
-	rowCount := uint32(len(table))
+    rowCount := *rowCountPtr
 	if rowCount >= indexFile.meta.RangeCoverage {
-		fmt.Println("[memtrace] move to overflow region!!")
 		// move to overflow region
 		idx = indexFile.meta.RangeCapacity
-		table, err = indexFile.loadTableFromStorage(idx)
+		//table, err = indexFile.loadTableFromStorage(idx)
+		//if err != nil {
+		//	fmt.Println("[memtrace] loadTableFromStorage error:",err)
+		//	return err
+		//}
+		//rowCount := uint32(len(table))
+		rowCountPtr,err := indexFile.getTableSize(idx)
 		if err != nil {
-			fmt.Println("[memtrace] overflow region,loadTableFromStorage error:",err)
+			fmt.Printf("get tablesize of indextable=%v, error:%v \n",idx,err)
 			return err
 		}
-		rowCount := uint32(len(table))
+		rowCount := *rowCountPtr
 		if rowCount >= indexFile.meta.RangeCoverage {
 			fmt.Println("[memtrace] indexFile.meta.RangeCoverage error:",errors.ErrRangeFull)
 			return errors.ErrRangeFull
@@ -423,14 +463,22 @@ func (indexFile *YTFSIndexFile) updateTable(key ydcommon.IndexTableKey, value yd
 	}
 
 	// write cnt
-	writer, _ := indexFile.store.Writer()
+	writer, err := indexFile.store.Writer()
+	if err != nil {
+		fmt.Println("get indexFile writer error:",err)
+		return err
+	}
 	itemSize := uint32(unsafe.Sizeof(ydcommon.IndexTableKey{}) + unsafe.Sizeof(ydcommon.IndexTableValue(0)))
 	tableAllocationSize := indexFile.meta.RangeCoverage*itemSize + 4
 	tableBeginPos := int64(indexFile.meta.HashOffset) + int64(idx)*int64(tableAllocationSize)
 
 	valueBuf := make([]byte, 4)
-	writer.Seek(tableBeginPos, io.SeekStart)
-	tableSize := uint32(len(table)) + 1
+	_,err = writer.Seek(tableBeginPos, io.SeekStart)
+	if err != nil {
+		fmt.Println("seek new pos of indexFile for write error:",err)
+		return err
+	}
+	tableSize := rowCount + 1
 	binary.LittleEndian.PutUint32(valueBuf, uint32(tableSize))
 	_, err = writer.Write(valueBuf)
 	if err != nil {
@@ -439,7 +487,7 @@ func (indexFile *YTFSIndexFile) updateTable(key ydcommon.IndexTableKey, value yd
 	}
 
 	// write new item
-	tableItemPos := tableBeginPos + 4 + int64(len(table))*int64(itemSize)
+	tableItemPos := tableBeginPos + 4 + int64(rowCount)*int64(itemSize)
 	writer.Seek(tableItemPos, io.SeekStart)
 	_, err = writer.Write(key[:])
 	if err != nil {

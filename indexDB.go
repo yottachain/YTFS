@@ -1,12 +1,11 @@
 package ytfs
 
 import (
-	"path"
-	"sort"
-	"fmt"
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
 	"github.com/yottachain/YTFS/storage"
+	"path"
+	"sort"
 )
 
 // IndexDB key value db for hash <-> position.
@@ -51,7 +50,6 @@ func (db *IndexDB) Put(key ydcommon.IndexTableKey, value ydcommon.IndexTableValu
 func (db *IndexDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableKey]byte, error) {
 	// sorr kvPair by hash entry to make sure write in sequence.
 	sort.Slice(kvPairs, func(i, j int) bool {
-		fmt.Println("[memtrace] after sort.Slice ")
 		return db.indexFile.GetTableEntryIndex(kvPairs[i].Hash) < db.indexFile.GetTableEntryIndex(kvPairs[j].Hash)
 	})
 
