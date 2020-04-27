@@ -3,9 +3,7 @@ package ytfs
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/linux-go/go1.13.5.linux-amd64/go/src/time"
-
-	//	"github.com/linux-go/go1.13.5.linux-amd64/go/src/time"
+	"time"
 	"github.com/mr-tron/base58/base58"
 	"github.com/yottachain/YTDataNode/util"
 	ydcommon "github.com/yottachain/YTFS/common"
@@ -281,7 +279,6 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 	if len(batch) > 1000 {
 		return nil, fmt.Errorf("Batch Size is too big")
 	}
-
 
 	// NO get check, but retore all status if error
 	ytfs.saveCurrentYTFS()
