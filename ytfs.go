@@ -3,6 +3,8 @@ package ytfs
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/linux-go/go1.13.5.linux-amd64/go/src/time"
+
 	//	"github.com/linux-go/go1.13.5.linux-amd64/go/src/time"
 	"github.com/mr-tron/base58/base58"
 	"github.com/yottachain/YTDataNode/util"
@@ -272,6 +274,7 @@ func (ytfs *YTFS)checkConflicts(conflicts map[ydcommon.IndexTableKey]byte, batch
 // It is safe to modify the contents of the arguments after Put returns but not
 // before.
 func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
+	begin:=time.Now()
 	ytfs.mutex.Lock()
 	defer ytfs.mutex.Unlock()
 
@@ -282,7 +285,7 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 
 	// NO get check, but retore all status if error
 	ytfs.saveCurrentYTFS()
-	fmt.Println("[memtrace] after saveCurrentYTFS")
+
 	batchIndexes := make([]ydcommon.IndexItem, len(batch))
 	batchBuffer := []byte{}
 	bufCnt := len(batch)
@@ -300,6 +303,7 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 	if err != nil {
 		fmt.Println("[memtrace] ytfs.context.BatchPut error")
 		ytfs.restoreYTFS()
+		fmt.Printf("[noconflict] write error batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(),bufCnt)
 		return nil, err
 	}
 
@@ -315,9 +319,10 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 		fmt.Println("[memtrace]  update indexdb error:",err)
 		ytfs.restoreIndex(conflicts, batchIndexes, uint32(bufCnt))
 		ytfs.restoreYTFS()
+		fmt.Printf("[noconflict] write error batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(),bufCnt)
 		return conflicts, err
 	}
-
+	fmt.Printf("[noconflict] write success batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(),bufCnt)
 	return nil, nil
 }
 
