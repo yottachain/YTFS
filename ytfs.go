@@ -301,6 +301,20 @@ func (ytfs *YTFS)checkConflicts(conflicts map[ydcommon.IndexTableKey]byte, batch
 	}
 }
 
+func (ytfs *YTFS) RcdBatchWrite(batch map[ydcommon.IndexTableKey][]byte) error {
+	var err error
+	lvbatch := new(leveldb.Batch)
+	for key,val := range batch {
+		lvbatch.Put(key[:],val)
+
+	}
+
+	err = ytfs.mdb.Write(lvbatch, nil)
+
+	return err
+}
+
+
 func (ytfs *YTFS)resetKV(batchIndexes []ydcommon.IndexItem,resetCnt uint32){
 	for j:= uint32(0); j < resetCnt; j++ {
 		hashKey := batchIndexes[j].Hash[:]
