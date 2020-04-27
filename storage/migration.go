@@ -56,3 +56,7 @@ func (ti *TableIterator) GetNoNilTable() (common.IndexTable, error) {
 func (ti *TableIterator) Reset() {
 	ti.tableIndex = 0
 }
+
+func (ti *TableIterator) Len() uint64 {
+	return ti.ytfsIndexFile.meta.DataEndPoint
+}
