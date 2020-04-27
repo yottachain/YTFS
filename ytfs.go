@@ -321,64 +321,51 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 }
 
 func (ytfs *YTFS) BatchPutI(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
-	ytfs.mutex.Lock()
-	defer ytfs.mutex.Unlock()
+		ytfs.mutex.Lock()
+		defer ytfs.mutex.Unlock()
 
-	if len(batch) > 1000 {
-		return nil, fmt.Errorf("Batch Size is too big")
-	}
-
-
-	// NO get check, but retore all status if error
-	ytfs.saveCurrentYTFS()
-
-	batchIndexes := make([]ydcommon.IndexItem, len(batch))
-	batchBuffer := []byte{}
-	bufCnt := len(batch)
-	i := 0
-	for k, v := range batch {
-		batchBuffer = append(batchBuffer, v...)
-		batchIndexes[i] = ydcommon.IndexItem{
-			Hash:      k,
-			OffsetIdx: ydcommon.IndexTableValue(0)}
-		i++
-	}
-
-	startPos, err := ytfs.context.BatchPut(bufCnt, batchBuffer)
-
-	if err != nil {
-		fmt.Println("[memtrace] ytfs.context.BatchPut error")
-		ytfs.restoreYTFS()
-		return nil, err
-	}
-
-	//	keyValue:=make(map[ydcommon.IndexTableKey]ydcommon.IndexTableValue,len(batch))
-	for i := uint32(0); i < uint32(bufCnt); i++ {
-		batchIndexes[i] = ydcommon.IndexItem{
-			Hash:      batchIndexes[i].Hash,
-			OffsetIdx: ydcommon.IndexTableValue(startPos + i)}
-
-		if err !=nil {
-			fmt.Println("[slicecompare][error]put dnhash to temp_index_kvdb error",err)
-			ytfs.resetKV(batchIndexes,i)
-			ytfs.restoreYTFS()
-			return nil,err
+		if len(batch) > 1000 {
+			return nil, fmt.Errorf("Batch Size is too big")
 		}
-	}
 
-	//	return nil, nil
+		// NO get check, but retore all status if error
+		ytfs.saveCurrentYTFS()
+		batchIndexes := make([]ydcommon.IndexItem, len(batch))
+		batchBuffer := []byte{}
+		bufCnt := len(batch)
+		i := 0
+		for k, v := range batch {
+			batchBuffer = append(batchBuffer, v...)
+			batchIndexes[i] = ydcommon.IndexItem{
+				Hash:      k,
+				OffsetIdx: ydcommon.IndexTableValue(0)}
+			i++
+		}
 
+		startPos, err := ytfs.context.BatchPut(bufCnt, batchBuffer)
 
-	conflicts, err := ytfs.db.BatchPut(batchIndexes)
+		if err != nil {
+			fmt.Println("[memtrace] ytfs.context.BatchPut error")
+			ytfs.restoreYTFS()
+			return nil, err
+		}
 
-	if err != nil {
-		fmt.Println("[memtrace]  update indexdb error:",err)
-		//		ytfs.restoreIndex(conflicts, batchIndexes, uint32(bufCnt))
-		ytfs.restoreYTFS()
-		return conflicts, err
-	}
+		for i := uint32(0); i < uint32(bufCnt); i++ {
+			batchIndexes[i] = ydcommon.IndexItem{
+				Hash:      batchIndexes[i].Hash,
+				OffsetIdx: ydcommon.IndexTableValue(startPos + i)}
+		}
 
-	return nil, nil
+		conflicts, err := ytfs.db.BatchPut(batchIndexes)
+
+		if err != nil {
+			fmt.Println("[memtrace]  update indexdb error:",err)
+			ytfs.restoreIndex(conflicts, batchIndexes, uint32(bufCnt))
+			ytfs.restoreYTFS()
+			return conflicts, err
+		}
+
+		return nil, nil
 }
 
 func (ytfs *YTFS) BatchPutL(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
@@ -388,8 +375,6 @@ func (ytfs *YTFS) BatchPutL(batch map[ydcommon.IndexTableKey][]byte) (map[ydcomm
 	if len(batch) > 1000 {
 		return nil, fmt.Errorf("Batch Size is too big")
 	}
-
-
 	// NO get check, but retore all status if error
 	ytfs.saveCurrentYTFS()
 
@@ -415,9 +400,6 @@ func (ytfs *YTFS) BatchPutL(batch map[ydcommon.IndexTableKey][]byte) (map[ydcomm
 
 //	keyValue:=make(map[ydcommon.IndexTableKey]ydcommon.IndexTableValue,len(batch))
 	for i := uint32(0); i < uint32(bufCnt); i++ {
-		batchIndexes[i] = ydcommon.IndexItem{
-			Hash:      batchIndexes[i].Hash,
-			OffsetIdx: ydcommon.IndexTableValue(startPos + i)}
 		HKey := batchIndexes[i].Hash[:]
 		OValue := strconv.FormatUint(uint64(startPos+i),10)
 		err = ytfs.mdb.Put(HKey, []byte(OValue), nil)
@@ -427,18 +409,6 @@ func (ytfs *YTFS) BatchPutL(batch map[ydcommon.IndexTableKey][]byte) (map[ydcomm
 			ytfs.restoreYTFS()
 			return nil,err
 		}
-	}
-
-//	return nil, nil
-
-
-	conflicts, err := ytfs.db.BatchPut(batchIndexes)
-
-	if err != nil {
-		fmt.Println("[memtrace]  update indexdb error:",err)
-//		ytfs.restoreIndex(conflicts, batchIndexes, uint32(bufCnt))
-		ytfs.restoreYTFS()
-		return conflicts, err
 	}
 
 	return nil, nil
