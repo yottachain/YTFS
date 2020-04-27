@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/syndtr/goleveldb/leveldb"
 	"strconv"
+	"encoding/binary"
 
 	//	"github.com/linux-go/go1.13.5.linux-amd64/go/src/time"
 	"github.com/mr-tron/base58/base58"
@@ -152,7 +153,7 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 		context: context,
 		mutex:   new(sync.Mutex),
 	}
-
+    ytfs.config.UseLvDb = true                            //todo  xiaojm
 	fmt.Println("Open YTFS success @" + dir)
 	return ytfs, nil
 }
@@ -207,9 +208,10 @@ func (ytfs *YTFS) GetI(key ydcommon.IndexTableKey) ([]byte, error) {
 }
 
 func (ytfs *YTFS) GetL(key ydcommon.IndexTableKey) ([]byte, error) {
-	var ldbval uint64
+	var ldbval uint32
 	val, err := ytfs.mdb.Get(key[:],nil)
-	ldbval,_ = strconv.ParseUint(string(val),10,32)
+	//ldbval,_ = strconv.ParseUint(string(val),10,32)
+	ldbval = binary.LittleEndian.Uint32(val[0:4])    //leveldb use littleEndian
 	fmt.Println("leveldbval=",val,"ldbval32=",ldbval)
 	if err != nil {
 		return nil, err
