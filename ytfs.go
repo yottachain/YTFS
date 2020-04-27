@@ -300,7 +300,7 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 	if err != nil {
 		fmt.Println("[memtrace] ytfs.context.BatchPut error")
 		ytfs.restoreYTFS()
-		fmt.Printf("[noconflict] write error batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(),bufCnt)
+		fmt.Printf("[noconflict] write error batch_write_time: %d ms, batch_len %d \n", time.Now().Sub(begin).Milliseconds(),bufCnt)
 		return nil, err
 	}
 
@@ -316,10 +316,10 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 		fmt.Println("[memtrace]  update indexdb error:",err)
 		ytfs.restoreIndex(conflicts, batchIndexes, uint32(bufCnt))
 		ytfs.restoreYTFS()
-		fmt.Printf("[noconflict] write error batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(),bufCnt)
+		fmt.Printf("[noconflict] write error batch_write_time: %d ms, batch_len %d \n", time.Now().Sub(begin).Milliseconds(),bufCnt)
 		return conflicts, err
 	}
-	fmt.Printf("[noconflict] write success batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(),bufCnt)
+	fmt.Printf("[noconflict] write success batch_write_time: %d ms, batch_len %d \n", time.Now().Sub(begin).Milliseconds(),bufCnt)
 	return nil, nil
 }
 
