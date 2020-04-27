@@ -99,11 +99,6 @@ func openKVDB(DBPath string) (db *leveldb.DB,err error){
 	return db,err
 }
 
-func (ytfs *YTFS)BatchPutKV(kvPairs []ydcommon.IndexItem) error {
-   var err error
-   return err
-}
-
 func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	//TODO: file lock to avoid re-open.
 	//1. open system dir for YTFS
@@ -195,17 +190,33 @@ func validateYTFSSchema(meta *ydcommon.Header, opt *opt.Options) (*ydcommon.Head
 // of the returned slice.
 // It is safe to modify the contents of the argument after Get returns.
 func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
-	var ldbval uint64
+	if ytfs.config.UseLvDb{
+		return ytfs.GetL(key)
+	}
+	return ytfs.GetI(key)
+//	return ytfs.context.Get(pos)
+}
+
+func (ytfs *YTFS) GetI(key ydcommon.IndexTableKey) ([]byte, error) {
 	pos, err := ytfs.db.Get(key)
+	if err != nil {
+		return nil, err
+	}
+	return ytfs.context.Get(pos)
+	//	return ytfs.context.Get(pos)
+}
+
+func (ytfs *YTFS) GetL(key ydcommon.IndexTableKey) ([]byte, error) {
+	var ldbval uint64
 	val, err := ytfs.mdb.Get(key[:],nil)
-    ldbval,_ = strconv.ParseUint(string(val),10,32)
-	fmt.Println("[leveldbreplace] pos=",pos,"leveldbval=",val,"ldbval32=",ldbval)
+	ldbval,_ = strconv.ParseUint(string(val),10,32)
+	fmt.Println("leveldbval=",val,"ldbval32=",ldbval)
 	if err != nil {
 		return nil, err
 	}
 
 	return ytfs.context.Get(ydcommon.IndexTableValue(ldbval))
-//	return ytfs.context.Get(pos)
+	//	return ytfs.context.Get(pos)
 }
 
 // Put sets the value for the given key. It panic if there exists any previous value
@@ -301,16 +312,14 @@ func (ytfs *YTFS)checkConflicts(conflicts map[ydcommon.IndexTableKey]byte, batch
 	}
 }
 
-func (ytfs *YTFS) RcdBatchWrite(batch map[ydcommon.IndexTableKey][]byte) error {
+func (ytfs *YTFS) BatchWriteKV(batch map[ydcommon.IndexTableKey][]byte) error {
 	var err error
 	lvbatch := new(leveldb.Batch)
 	for key,val := range batch {
 		lvbatch.Put(key[:],val)
 
 	}
-
 	err = ytfs.mdb.Write(lvbatch, nil)
-
 	return err
 }
 
