@@ -212,6 +212,7 @@ func (ytfs *YTFS) GetL(key ydcommon.IndexTableKey) ([]byte, error) {
 	val, err := ytfs.mdb.Get(key[:],nil)
 	//ldbval,_ = strconv.ParseUint(string(val),10,32)
 	ldbval = binary.LittleEndian.Uint32(val[0:4])    //leveldb use littleEndian
+
 	fmt.Println("leveldbval=",val,"ldbval32=",ldbval)
 	if err != nil {
 		return nil, err
