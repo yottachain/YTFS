@@ -3,8 +3,8 @@ package ytfs
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"github.com/syndtr/goleveldb/leveldb"
+	"strconv"
 
 	//	"github.com/linux-go/go1.13.5.linux-amd64/go/src/time"
 	"github.com/mr-tron/base58/base58"
@@ -100,7 +100,8 @@ func openKVDB(DBPath string) (db *leveldb.DB,err error){
 }
 
 func (ytfs *YTFS)BatchPutKV(kvPairs []ydcommon.IndexItem) error {
-
+   var err error
+   return err
 }
 
 func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
@@ -194,12 +195,17 @@ func validateYTFSSchema(meta *ydcommon.Header, opt *opt.Options) (*ydcommon.Head
 // of the returned slice.
 // It is safe to modify the contents of the argument after Get returns.
 func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
+	var ldbval uint64
 	pos, err := ytfs.db.Get(key)
+	val, err := ytfs.mdb.Get(key[:],nil)
+    ldbval,_ = strconv.ParseUint(string(val),10,32)
+	fmt.Println("[leveldbreplace] pos=",pos,"leveldbval=",val,"ldbval32=",ldbval)
 	if err != nil {
 		return nil, err
 	}
 
-	return ytfs.context.Get(pos)
+	return ytfs.context.Get(ydcommon.IndexTableValue(ldbval))
+//	return ytfs.context.Get(pos)
 }
 
 // Put sets the value for the given key. It panic if there exists any previous value
@@ -310,15 +316,15 @@ func (ytfs *YTFS)resetKV(batchIndexes []ydcommon.IndexItem,resetCnt uint32){
 func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
 	ytfs.mutex.Lock()
 	defer ytfs.mutex.Unlock()
-    fmt.Println("[memtrace] BatchPut start")
+
 	if len(batch) > 1000 {
 		return nil, fmt.Errorf("Batch Size is too big")
 	}
 
-	fmt.Println("[memtrace] Batch < 1000")
+
 	// NO get check, but retore all status if error
 	ytfs.saveCurrentYTFS()
-	fmt.Println("[memtrace] after saveCurrentYTFS")
+
 	batchIndexes := make([]ydcommon.IndexItem, len(batch))
 	batchBuffer := []byte{}
 	bufCnt := len(batch)
@@ -330,16 +336,14 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 			OffsetIdx: ydcommon.IndexTableValue(0)}
 		i++
 	}
-	fmt.Println("[memtrace] after range batch")
+
 	startPos, err := ytfs.context.BatchPut(bufCnt, batchBuffer)
-	fmt.Println("[memtrace] after ytfs.context.BatchPut")
+
 	if err != nil {
 		fmt.Println("[memtrace] ytfs.context.BatchPut error")
 		ytfs.restoreYTFS()
 		return nil, err
 	}
-
-	return nil, nil
 
 //	keyValue:=make(map[ydcommon.IndexTableKey]ydcommon.IndexTableValue,len(batch))
 	for i := uint32(0); i < uint32(bufCnt); i++ {
@@ -357,9 +361,11 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 		}
 	}
 
-	fmt.Println("[memtrace] ytfs.db.BatchPut ")
+//	return nil, nil
+
+
 	conflicts, err := ytfs.db.BatchPut(batchIndexes)
-	fmt.Println("[memtrace] after ytfs.db.BatchPut ")
+
 	if err != nil {
 		fmt.Println("[memtrace]  update indexdb error:",err)
 //		ytfs.restoreIndex(conflicts, batchIndexes, uint32(bufCnt))
