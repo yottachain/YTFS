@@ -148,12 +148,13 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	}
 
 	ytfs := &YTFS{
+		config:  config,
 		mdb:     mDB,
 		db:      indexDB,
 		context: context,
 		mutex:   new(sync.Mutex),
 	}
-    ytfs.config.UseLvDb = true                            //todo  xiaojm
+    ytfs.config.UseKvDb = true
 	fmt.Println("Open YTFS success @" + dir)
 	return ytfs, nil
 }
@@ -191,7 +192,7 @@ func validateYTFSSchema(meta *ydcommon.Header, opt *opt.Options) (*ydcommon.Head
 // of the returned slice.
 // It is safe to modify the contents of the argument after Get returns.
 func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
-	if ytfs.config.UseLvDb{
+	if ytfs.config.UseKvDb{
 		return ytfs.GetL(key)
 	}
 	return ytfs.GetI(key)
@@ -340,7 +341,7 @@ func (ytfs *YTFS)resetKV(batchIndexes []ydcommon.IndexItem,resetCnt uint32){
 // It is safe to modify the contents of the arguments after Put returns but not
 // before.
 func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
-	if ytfs.config.UseLvDb {
+	if ytfs.config.UseKvDb {
 		return ytfs.BatchPutL(batch)
 	}
 	return ytfs.BatchPutI(batch)

@@ -42,7 +42,7 @@ type Options struct {
 	DataBlockSize  uint32           `json:"D"`
 	TotalVolumn    uint64           `json:"C"`
 	//updata to leveldb
-	UseLvDb  	   bool
+	UseKvDb  	   bool
 }
 
 // Equal compares 2 Options to tell if it is equal
