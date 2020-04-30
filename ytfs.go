@@ -197,6 +197,10 @@ func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
 	//	return ytfs.context.Get(pos)
 }
 
+func (yt *YTFS) DB() *IndexDB {
+	return yt.db
+}
+
 func (ytfs *YTFS) GetI(key ydcommon.IndexTableKey) ([]byte, error) {
 	pos, err := ytfs.db.Get(key)
 	if err != nil {
