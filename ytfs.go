@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/syndtr/goleveldb/leveldb"
+
+	//	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/tecbot/gorocksdb"
 	"strconv"
 	"encoding/binary"
 
@@ -26,14 +29,20 @@ type ytfsStatus struct {
 	//TODO: index status
 }
 
+type KvDB struct{
+	Rdb *gorocksdb.DB
+	ro  *gorocksdb.ReadOptions
+	wo  *gorocksdb.WriteOptions
+}
+
 // YTFS is a data block save/load lib based on key-value styled db APIs.
 type YTFS struct {
 	// config of this YTFS
 	config *opt.Options
 	// key-value db which saves hash <-> position
 	db *IndexDB
-	// main leveldb
-	mdb *leveldb.DB                      //todo xiaojm
+	// main rocksdb
+	mdb *KvDB                      //todo xiaojm
 	// running context
 	context *Context
 	// lock of YTFS
@@ -91,13 +100,37 @@ func NewYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	return ytfs, nil
 }
 
-func openKVDB(DBPath string) (db *leveldb.DB,err error){
-	db,err = leveldb.OpenFile(DBPath,nil)
-	if err != nil{
-		fmt.Printf("open DB:%s error",DBPath)
+//func openKVDB(DBPath string) (db *leveldb.DB,err error){
+//	db,err = leveldb.OpenFile(DBPath,nil)
+//	if err != nil{
+//		fmt.Printf("open DB:%s error",DBPath)
+//		return nil,err
+//	}
+//	return db,err
+//}
+
+func openKVDB(DBPath string) (kvdb *KvDB,err error){
+	// 使用 gorocksdb 连接 RocksDB
+	bbto := gorocksdb.NewDefaultBlockBasedTableOptions()
+	bbto.SetBlockCache(gorocksdb.NewLRUCache(3 << 30))
+	opts := gorocksdb.NewDefaultOptions()
+	opts.SetBlockBasedTableFactory(bbto)
+	opts.SetCreateIfMissing(true)
+	// 设置输入目标数据库文件（可自行配置，./db 为当前测试文件的目录下的 db 文件夹）
+	db, err := gorocksdb.OpenDb(opts, DBPath)
+	if err != nil {
+		fmt.Println("[kvdb] open rocksdb error")
 		return nil,err
 	}
-	return db,err
+
+	// 创建输入输出流
+	ro := gorocksdb.NewDefaultReadOptions()
+	wo := gorocksdb.NewDefaultWriteOptions()
+	return &KvDB {
+		Rdb: db,
+		ro:  ro,
+		wo:  wo,
+	},err
 }
 
 func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
@@ -193,7 +226,9 @@ func validateYTFSSchema(meta *ydcommon.Header, opt *opt.Options) (*ydcommon.Head
 // It is safe to modify the contents of the argument after Get returns.
 func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
 	if ytfs.config.UseKvDb{
-		return ytfs.GetL(key)
+		fmt.Println("[rocksdb] use rocksdb for matadata")
+	//	return ytfs.GetL(key)
+		ytfs.GetK(key)
 	}
 	return ytfs.GetI(key)
 //	return ytfs.context.Get(pos)
@@ -202,24 +237,27 @@ func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
 func (ytfs *YTFS) GetI(key ydcommon.IndexTableKey) ([]byte, error) {
 	pos, err := ytfs.db.Get(key)
 	if err != nil {
+		fmt.Println("indexdb get pos error:",err)
 		return nil, err
 	}
+	fmt.Println("[leveldb] indexdb pos=",pos)
 	return ytfs.context.Get(pos)
 	//	return ytfs.context.Get(pos)
 }
 
-func (ytfs *YTFS) GetL(key ydcommon.IndexTableKey) ([]byte, error) {
-	var ldbval uint32
-	val, err := ytfs.mdb.Get(key[:],nil)
+func (ytfs *YTFS) GetK(key ydcommon.IndexTableKey) ([]byte, error) {
+	var RdbVal uint32
+	val, err := ytfs.mdb.Rdb.Get(ytfs.mdb.ro,key[:])
 	//ldbval,_ = strconv.ParseUint(string(val),10,32)
-	ldbval = binary.LittleEndian.Uint32(val[0:4])    //leveldb use littleEndian
+	RdbVal = binary.LittleEndian.Uint32(val.Data())    //leveldb use littleEndian
 
-	fmt.Println("leveldbval=",val,"ldbval32=",ldbval)
+	fmt.Println("[leveldb] Rocksdbval=",val,"Rocksdbval32=",RdbVal)
 	if err != nil {
 		return nil, err
 	}
 
-	return ytfs.context.Get(ydcommon.IndexTableValue(ldbval))
+	return nil,nil
+//	return ytfs.context.Get(ydcommon.IndexTableValue(ldbval))
 	//	return ytfs.context.Get(pos)
 }
 
@@ -318,20 +356,19 @@ func (ytfs *YTFS)checkConflicts(conflicts map[ydcommon.IndexTableKey]byte, batch
 
 func (ytfs *YTFS) BatchWriteKV(batch map[ydcommon.IndexTableKey][]byte) error {
 	var err error
-	lvbatch := new(leveldb.Batch)
+	Wbatch := new(gorocksdb.WriteBatch)
 	for key,val := range batch {
-		lvbatch.Put(key[:],val)
+		Wbatch.Put(key[:],val)
 
 	}
-	err = ytfs.mdb.Write(lvbatch, nil)
+	err = ytfs.mdb.Rdb.Write(ytfs.mdb.wo, Wbatch)
 	return err
 }
-
 
 func (ytfs *YTFS)resetKV(batchIndexes []ydcommon.IndexItem,resetCnt uint32){
 	for j:= uint32(0); j < resetCnt; j++ {
 		hashKey := batchIndexes[j].Hash[:]
-		ytfs.mdb.Delete(hashKey[:],nil)
+		ytfs.mdb.Rdb.Delete(ytfs.mdb.wo,hashKey[:])
 	}
 }
 
@@ -342,8 +379,10 @@ func (ytfs *YTFS)resetKV(batchIndexes []ydcommon.IndexItem,resetCnt uint32){
 // before.
 func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
 	if ytfs.config.UseKvDb {
-		return ytfs.BatchPutL(batch)
+		fmt.Println("[leveldb] write use leveldb for matadata")
+	//	return ytfs.BatchPutL(batch)
 	}
+
 	return ytfs.BatchPutI(batch)
 }
 
@@ -354,8 +393,9 @@ func (ytfs *YTFS) BatchPutI(batch map[ydcommon.IndexTableKey][]byte) (map[ydcomm
 		if len(batch) > 1000 {
 			return nil, fmt.Errorf("Batch Size is too big")
 		}
+		fmt.Println("[replaceindexdb] BatchPutI len(batch)=",len(batch))
 
-		// NO get check, but retore all status if error
+	// NO get check, but retore all status if error
 		ytfs.saveCurrentYTFS()
 		batchIndexes := make([]ydcommon.IndexItem, len(batch))
 		batchBuffer := []byte{}
@@ -377,10 +417,22 @@ func (ytfs *YTFS) BatchPutI(batch map[ydcommon.IndexTableKey][]byte) (map[ydcomm
 			return nil, err
 		}
 
+		valbuf := make([]byte,4)
 		for i := uint32(0); i < uint32(bufCnt); i++ {
 			batchIndexes[i] = ydcommon.IndexItem{
 				Hash:      batchIndexes[i].Hash,
 				OffsetIdx: ydcommon.IndexTableValue(startPos + i)}
+			HKey := batchIndexes[i].Hash[:]
+			//OValue := strconv.FormatUint(uint64(startPos+i),10)
+			binary.LittleEndian.PutUint32(valbuf, uint32(startPos + i))
+			err = ytfs.mdb.Rdb.Put(ytfs.mdb.wo, HKey, valbuf)
+			fmt.Println("[replaceindexdb] hash=",batchIndexes[i].Hash," OffsetIdx=",startPos+i," HKey=",HKey," valbuf=",valbuf)
+			if err !=nil {
+				fmt.Println("[slicecompare][error]put dnhash to temp_rocksdb_kvdb error",err)
+				ytfs.resetKV(batchIndexes,i)
+		//		ytfs.restoreYTFS()
+		//		return nil,err
+			}
 		}
 
 		conflicts, err := ytfs.db.BatchPut(batchIndexes)
@@ -429,7 +481,7 @@ func (ytfs *YTFS) BatchPutL(batch map[ydcommon.IndexTableKey][]byte) (map[ydcomm
 	for i := uint32(0); i < uint32(bufCnt); i++ {
 		HKey := batchIndexes[i].Hash[:]
 		OValue := strconv.FormatUint(uint64(startPos+i),10)
-		err = ytfs.mdb.Put(HKey, []byte(OValue), nil)
+		err = ytfs.mdb.Rdb.Put(ytfs.mdb.wo, HKey, []byte(OValue))
 		if err !=nil {
 			fmt.Println("[slicecompare][error]put dnhash to temp_index_kvdb error",err)
 			ytfs.resetKV(batchIndexes,i)
