@@ -77,6 +77,15 @@ func (db *IndexDB) Reset() {
 }
 
 func validateDBSchema(meta *ydcommon.Header, opt *opt.Options) error {
+	if opt.UseKvDb {
+		fmt.Println("[rocksdb] using rocksdb")
+		if meta.DataBlockSize != opt.DataBlockSize {
+			fmt.Println("[rocksdb] config datablock size miss match")
+			return ErrConfigIndexMismatch
+		}
+		return nil
+	}
+
 	if meta.YtfsCapability != opt.TotalVolumn || meta.DataBlockSize != opt.DataBlockSize {
 		return ErrConfigIndexMismatch
 	}
