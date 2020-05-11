@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-
+	"time"
 	//	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/tecbot/gorocksdb"
 	//	"github.com/linux-go/go1.13.5.linux-amd64/go/src/time"
@@ -184,7 +184,7 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 		context: context,
 		mutex:   new(sync.Mutex),
 	}
-    ytfs.config.UseKvDb = true
+//    ytfs.config.UseKvDb = true
 	fmt.Println("Open YTFS success @" + dir)
 	return ytfs, nil
 }
@@ -428,6 +428,7 @@ func (ytfs *YTFS) BatchPutI(batch map[ydcommon.IndexTableKey][]byte) (map[ydcomm
 }
 
 func (ytfs *YTFS) BatchPutK(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
+	begin:=time.Now()
 	ytfs.mutex.Lock()
 	defer ytfs.mutex.Unlock()
 
@@ -455,10 +456,10 @@ func (ytfs *YTFS) BatchPutK(batch map[ydcommon.IndexTableKey][]byte) (map[ydcomm
 	if err != nil {
 		fmt.Println("[rocksdb] ytfs.context.BatchPut error")
 		ytfs.restoreYTFS()
-		fmt.Printf("[noconflict] write error batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(),bufCnt)
+		fmt.Printf("[rocksdb] write error batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(),bufCnt)
 		return nil, err
 	}
-	
+
 	for i := uint32(0); i < uint32(bufCnt); i++ {
 		batchIndexes[i] = ydcommon.IndexItem{
 			Hash:      batchIndexes[i].Hash,
@@ -468,14 +469,14 @@ func (ytfs *YTFS) BatchPutK(batch map[ydcommon.IndexTableKey][]byte) (map[ydcomm
 	conflicts, err := ytfs.db.BatchPut(batchIndexes)
 
 	if err != nil {
-		fmt.Println("[memtrace]  update indexdb error:",err)
+//		fmt.Println("[memtrace]  update indexdb error:",err)
 		ytfs.restoreIndex(conflicts, batchIndexes, uint32(bufCnt))
 		ytfs.restoreYTFS()
 		fmt.Printf("[noconflict] write error batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(),bufCnt)
 		return conflicts, err
 
 	}
-	fmt.Printf("[noconflict] write success batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(),bufCnt)
+	fmt.Printf("[rocksdb] write success batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(),bufCnt)
 	return nil, nil
 }
 
