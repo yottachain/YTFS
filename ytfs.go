@@ -146,10 +146,12 @@ func (ytfs *YTFS)DiskAndUseCap() (uint32, uint32) {
 		totalRealCap += stordev.RealDiskCap
 		totalConfCap += stordev.Cap
 	}
-
+    fmt.Println("[diskcap] totalRealCap=",totalRealCap,"totalConfCap=",totalConfCap)
 	if totalRealCap > totalConfCap{
+		fmt.Println("[diskcap] totalConfCap=",totalConfCap,"NowPos=",NowPos)
 		return totalConfCap, NowPos
 	}
+	fmt.Println("[diskcap] totalRealCap=",totalRealCap,"NowPos=",NowPos)
 	return totalRealCap, NowPos
 }
 
