@@ -132,6 +132,25 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	return ytfs, nil
 }
 
+
+
+func (ytfs *YTFS)DiskAndUseCap() (uint32, uint32) {
+	var totalRealCap uint32
+	var totalConfCap uint32
+	NowPos := ytfs.context.sp.index
+	storArray := ytfs.context.storages
+
+	for _, stordev := range storArray {
+		totalRealCap += stordev.RealDiskCap
+		totalConfCap += stordev.Cap
+	}
+
+	if totalRealCap > totalConfCap{
+		return totalConfCap, NowPos
+	}
+	return totalRealCap, NowPos
+}
+
 func openYTFSDir(dir string, config *opt.Options) error {
 	configPath := path.Join(dir, "config.json")
 	if _, err := os.Stat(configPath); err == nil {
