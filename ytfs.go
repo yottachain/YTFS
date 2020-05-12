@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	//	"github.com/linux-go/go1.13.5.linux-amd64/go/src/time"
 	"github.com/mr-tron/base58/base58"
 	"github.com/yottachain/YTDataNode/util"
 	ydcommon "github.com/yottachain/YTFS/common"
@@ -144,10 +146,12 @@ func (ytfs *YTFS)DiskAndUseCap() (uint32, uint32) {
 		totalRealCap += stordev.RealDiskCap
 		totalConfCap += stordev.Cap
 	}
-
+    fmt.Println("[diskcap] totalRealCap=",totalRealCap,"totalConfCap=",totalConfCap)
 	if totalRealCap > totalConfCap{
+		fmt.Println("[diskcap] totalConfCap=",totalConfCap,"NowPos=",NowPos)
 		return totalConfCap, NowPos
 	}
+	fmt.Println("[diskcap] totalRealCap=",totalRealCap,"NowPos=",NowPos)
 	return totalRealCap, NowPos
 }
 
@@ -298,6 +302,7 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 	if len(batch) > 1000 {
 		return nil, fmt.Errorf("Batch Size is too big")
 	}
+
 
 	// NO get check, but retore all status if error
 	ytfs.saveCurrentYTFS()
