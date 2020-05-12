@@ -3,7 +3,7 @@ package ytfs
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/linux-go/go1.13.5.linux-amd64/go/src/time"
+	"time"
 
 	//	"github.com/linux-go/go1.13.5.linux-amd64/go/src/time"
 	"github.com/mr-tron/base58/base58"
