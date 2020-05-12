@@ -2,6 +2,7 @@ package ytfs
 
 import (
 	"fmt"
+	"github.com/linux-go/go1.13.5.linux-amd64/go/src/runtime"
 	"math"
 	"sync"
 
@@ -9,6 +10,8 @@ import (
 	"github.com/yottachain/YTFS/errors"
 	"github.com/yottachain/YTFS/opt"
 	"github.com/yottachain/YTFS/storage"
+    "unsafe"
+	"github.com/yottachain/YTFS/getresource"
 )
 
 var (
@@ -24,6 +27,8 @@ type storageContext struct {
 	Len uint32
 	// Storage
 	Disk *storage.YottaDisk
+
+	RealDiskCap  uint64
 }
 
 type storagePointer struct {
@@ -71,6 +76,11 @@ func NewContext(dir string, config *opt.Options, dataCount uint64) (*Context, er
 	return context, err
 }
 
+
+func GetRealDiskCap(path string)uint64{
+   return getresource.GetDiskCap(path)
+}
+
 func initStorages(config *opt.Options) ([]*storageContext, error) {
 	contexts := []*storageContext{}
 	for _, storageOpt := range config.Storages {
@@ -79,11 +89,19 @@ func initStorages(config *opt.Options) ([]*storageContext, error) {
 			// TODO: handle error if necessary, like keep using successed storages.
 			return nil, err
 		}
+
+		RealCap :=uint64(0)
+		if runtime.GOOS == "linux"{
+			header := ydcommon.StorageHeader{}
+			RealCap = GetRealDiskCap(storageOpt.StorageName)-(uint64)(unsafe.Sizeof(header))
+		}
+
 		contexts = append(contexts, &storageContext{
 			Name: storageOpt.StorageName,
 			Cap:  disk.Capability(),
 			Len:  0,
 			Disk: disk,
+			RealDiskCap: RealCap,
 		})
 	}
 

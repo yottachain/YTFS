@@ -189,6 +189,17 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	return ytfs, nil
 }
 
+func (ytfs *YTFS)FreeCapToStor(){
+	storArray := ytfs.context.storages
+	var totalRealCap uint64
+	var totalConfCap uint32
+	for _, stordev := range storArray{
+		totalRealCap += stordev.RealDiskCap
+		totalConfCap += stordev.Cap
+	}
+
+}
+
 func openYTFSDir(dir string, config *opt.Options) error {
 	configPath := path.Join(dir, "config.json")
 	if _, err := os.Stat(configPath); err == nil {
