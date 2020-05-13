@@ -1,25 +1,37 @@
 package getresource
 
-import (
-	"fmt"
-	"syscall"
-)
+/*
+#include <stdio.h>
+#include <fcntl.h>
+#include <linux/fs.h>
 
-type DiskStatus struct {
-	All  uint64 `json:"all"`
-	Used uint64 `json:"used"`
-	Free uint64 `json:"free"`
+int getdiskcap(void)
+{
+    int fd;
+    //off_t size
+    unsigned long long size;
+    int len;
+    int r;
+
+    if ((fd = open("/dev/vdb", O_RDONLY)) < 0)
+    {
+        printf("open error %d\n");
+        return -1;
+    }
+
+    if ((r = ioctl(fd, BLKGETSIZE64, &size)) < 0)
+    {
+        printf("ioctl error \n");
+        return -1;
+    }
+
+    len = (size>>30);
+    printf("size of sda = %d G, size=%ld\n", len, size);
+    return size;
 }
+*/
+import "C"
 
-func GetDiskCap(path string) uint64 {
-	fs := syscall.Statfs_t{}
-	err := syscall.Statfs(path, &fs)
-	if err != nil {
-		return uint64(0)
-	}
-	diskAllCap := fs.Blocks * uint64(fs.Bsize)
-	fmt.Println("[diskcapacity]diskAllCap=",diskAllCap,"fs.Blocks=",fs.Blocks,"fs.Bsize=",fs.Bsize)
-//	disk.Free = fs.Bfree * uint64(fs.Bsize)
-//	disk.Used = disk.All - disk.Free
-    return diskAllCap
+func GetDiskCap(path string) {
+	C.getdiskcap(C.string(path))
 }
