@@ -43,7 +43,13 @@ func (db *IndexDB) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, er
 
 // Put add new key value pair to db.
 func (db *IndexDB) Put(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) error {
-	return db.indexFile.Put(key, value)
+	kvPairs := make([]ydcommon.IndexItem, 1)
+	kvPairs[0] = ydcommon.IndexItem{
+		Hash:      key,
+		OffsetIdx: value}
+	//return db.indexFile.Put(key, value)
+	_,err:=db.indexFile.BatchPut(kvPairs)
+	return err
 }
 
 // BatchPut add a set of new key value pairs to db.
