@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
 	//	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/tecbot/gorocksdb"
+
 	//	"github.com/linux-go/go1.13.5.linux-amd64/go/src/time"
 	"github.com/mr-tron/base58/base58"
 	"github.com/yottachain/YTDataNode/util"
@@ -187,6 +189,27 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 //    ytfs.config.UseKvDb = true
 	fmt.Println("Open YTFS success @" + dir)
 	return ytfs, nil
+}
+
+
+
+func (ytfs *YTFS)DiskAndUseCap() (uint32, uint32) {
+	var totalRealCap uint32
+	var totalConfCap uint32
+	NowPos := ytfs.context.sp.index
+	storArray := ytfs.context.storages
+
+	for _, stordev := range storArray {
+		totalRealCap += stordev.RealDiskCap
+		totalConfCap += stordev.Cap
+	}
+    fmt.Println("[diskcap] totalRealCap=",totalRealCap,"totalConfCap=",totalConfCap)
+	if totalRealCap > totalConfCap{
+		fmt.Println("[diskcap] totalConfCap=",totalConfCap,"NowPos=",NowPos)
+		return totalConfCap, NowPos
+	}
+	fmt.Println("[diskcap] totalRealCap=",totalRealCap,"NowPos=",NowPos)
+	return totalRealCap, NowPos
 }
 
 func openYTFSDir(dir string, config *opt.Options) error {
