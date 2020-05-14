@@ -5,7 +5,7 @@ package getresource
 #include <fcntl.h>
 #include <linux/fs.h>
 
-int getdiskcap(void)
+long long getdiskcap(char *path)
 {
     int fd;
     //off_t size
@@ -13,7 +13,7 @@ int getdiskcap(void)
     int len;
     int r;
 
-    if ((fd = open("/dev/vdb", O_RDONLY)) < 0)
+    if ((fd = open(path, O_RDONLY)) < 0)
     {
         printf("open error %d\n");
         return -1;
@@ -32,6 +32,7 @@ int getdiskcap(void)
 */
 import "C"
 
-func GetDiskCap(path string) {
-	C.getdiskcap(C.string(path))
+func GetDiskCap(path string) int64 {
+	diskSize_byte := C.getdiskcap(C.string(path))
+	return diskSize_byte
 }
