@@ -6,6 +6,7 @@ import (
 	"github.com/yottachain/YTFS/storage"
 	"path"
 	"sort"
+	"fmt"
 )
 
 // IndexDB key value db for hash <-> position.
