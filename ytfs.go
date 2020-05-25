@@ -164,6 +164,14 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 		return nil,err
 	}
 
+	ytfs := &YTFS{
+		config:  config,
+		mdb:     mDB,
+//		db:      indexDB,
+//		context: context,
+		mutex:   new(sync.Mutex),
+	}
+	ytfs.config.UseKvDb = true
 	// open index db
 	indexDB, err := NewIndexDB(dir, config)
 	if err != nil {
@@ -176,14 +184,9 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 		return nil, err
 	}
 
-	ytfs := &YTFS{
-		config:  config,
-		mdb:     mDB,
-		db:      indexDB,
-		context: context,
-		mutex:   new(sync.Mutex),
-	}
-    ytfs.config.UseKvDb = true
+	ytfs.db=indexDB
+	ytfs.context=context
+
 	fmt.Println("Open YTFS success @" + dir)
 	return ytfs, nil
 }

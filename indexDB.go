@@ -7,6 +7,7 @@ import (
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
 	"github.com/yottachain/YTFS/storage"
+	"os"
 )
 
 // IndexDB key value db for hash <-> position.
@@ -18,9 +19,40 @@ type IndexDB struct {
 	indexFile *storage.YTFSIndexFile
 }
 
+func PathExists(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return false
+	}
+	return false
+}
+
+func CheckDbStatus(dir,file1,file2 string) bool {
+	fileName1 := path.Join(dir, "index.db")
+	fileName2 := path.Join(dir, "metadata.db")
+	var bl = false
+	if PathExists(fileName1) && PathExists(fileName2){
+		bl = true
+	}
+    return bl
+}
+
 // NewIndexDB creates a new index db based on input file if it's exist.
 func NewIndexDB(dir string, config *opt.Options) (*IndexDB, error) {
 	fileName := path.Join(dir, "index.db")
+	if config.UseKvDb {
+		fileName = path.Join(dir, "metadata.db")
+	}
+
+	bl := CheckDbStatus(dir,"index.db","metadata.db")
+    if bl {
+		fmt.Println("[rocksdb][error]there two metadata file")
+		return nil, ErrTwoMetaFile
+	}
+
 	indexFile, err := storage.OpenYTFSIndexFile(fileName, config)
 	if err != nil {
 		return nil, err
