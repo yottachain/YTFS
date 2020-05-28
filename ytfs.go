@@ -458,18 +458,17 @@ func (ytfs *YTFS) BatchPutK(batch map[ydcommon.IndexTableKey][]byte) (map[ydcomm
 
 //	keyValue:=make(map[ydcommon.IndexTableKey]ydcommon.IndexTableValue,len(batch))
 	valbuf := make([]byte,4)
-	Wbatch := new(gorocksdb.WriteBatch)
-
 	for i := uint32(0); i < uint32(bufCnt); i++ {
 		HKey := batchIndexes[i].Hash[:]
 		binary.LittleEndian.PutUint32(valbuf, uint32(startPos + i))
-		Wbatch.Put(HKey[:],valbuf)
-	}
+		err = ytfs.mdb.Rdb.Put(ytfs.mdb.wo, HKey, valbuf)
 
-	err = ytfs.mdb.Rdb.Write(ytfs.mdb.wo, Wbatch)
-	if err !=nil {
-		fmt.Println("[rocksdb]put dnhash to rocksdb error",err)
-		return nil,err
+		if err !=nil {
+			fmt.Println("[rocksdb]put dnhash to rocksdb error",err)
+//			ytfs.resetKV(batchIndexes,i)
+//			ytfs.restoreYTFS()
+			return nil,err
+		}
 	}
 
 	return nil, nil
