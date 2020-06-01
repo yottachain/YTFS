@@ -499,6 +499,11 @@ func (ytfs *YTFS) BatchPutK(batch map[ydcommon.IndexTableKey][]byte) (map[ydcomm
 		}
 
 	}
+	err = ytfs.db.indexFile.UpdateMeta(uint64(bufCnt))
+	if err != nil {
+		fmt.Println("update write pos to metadatafile err:",err)
+		return nil,err
+	}
 	fmt.Printf("[noconflict] write success batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(),bufCnt)
 	return nil, nil
 }

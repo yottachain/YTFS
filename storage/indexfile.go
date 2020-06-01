@@ -370,6 +370,10 @@ func (indexFile *YTFSIndexFile) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydco
 	return conflicts, indexFile.updateMeta(dataWritten)
 }
 
+func (indexFile *YTFSIndexFile) UpdateMeta(dataWritten uint64) error {
+	return indexFile.updateMeta(dataWritten)
+}
+
 func (indexFile *YTFSIndexFile) updateMeta(dataWritten uint64) error {
 	indexFile.meta.DataEndPoint += dataWritten
 	valueBuf := make([]byte, 4)
