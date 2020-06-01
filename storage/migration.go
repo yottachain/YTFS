@@ -49,19 +49,21 @@ func GetTableIterator(indexpath string, opts *opt.Options) (*TableIterator, erro
 }
 
 // GetTableIterator 返回Table遍历器
-func GetTableIterator2(indexpath, metadatapath string, opts *opt.Options) (*TableIterator, error) {
-	var ti TableIterator
+func GetTableIterator2(indexpath, metadatapath string, opts *opt.Options,glbti TableIterator) (*TableIterator, error) {
+//	var ti TableIterator
 	ytfsIndexFile, err := OpenYTFSIndexFile(indexpath, opts)
 	if err != nil {
+		fmt.Println("ytfsIndexFile open err")
 		return nil, err
 	}
 	err = RebuildIdxHeader(ytfsIndexFile,metadatapath)
 	if err != nil {
+		fmt.Println("metadatapath rebuild err")
 		return nil, err
 	}
-	ti.ytfsIndexFile = ytfsIndexFile
-	ti.options = opts
-	return &ti, nil
+	glbti.ytfsIndexFile = ytfsIndexFile
+	glbti.options = opts
+	return &glbti, nil
 }
 
 // GetTable 获取一个Table，指针后移一位
@@ -131,6 +133,10 @@ func (ti *TableIterator) LoadTable(tbindex uint32) (bytesTable, error) {
 }
 
 func (ti *TableIterator) GetTableBytes() (bytesTable, error) {
+	if ti == nil {
+		fmt.Println("ti is nil!!")
+		return nil, nil
+	}
 	if ti.tableIndex > ti.options.IndexTableRows {
 		return nil, fmt.Errorf("table_end")
 	}
@@ -146,6 +152,7 @@ func (ti *TableIterator) GetNoNilTableBytes() (bytesTable, error) {
 	for {
 		table, err := ti.GetTableBytes()
 		if err != nil {
+			fmt.Println("GetTableBytes error,",err)
 			return nil, err
 		}
 		if table == nil {

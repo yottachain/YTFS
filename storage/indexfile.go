@@ -473,13 +473,16 @@ func (indexFile *YTFSIndexFile) updateTable(key ydcommon.IndexTableKey, value yd
 func OpenYTFSIndexFile(path string, ytfsConfig *opt.Options) (*YTFSIndexFile, error) {
 	storage, err := openIndexStorage(path, ytfsConfig)
 	if err != nil {
+		fmt.Println("storage open err")
 		return nil, err
 	}
 
 	header, err := readIndexHeader(storage)
 	if err != nil {
+		fmt.Println("read storage index header err")
 		header, err = initializeIndexStorage(storage, ytfsConfig)
 		if err != nil {
+			fmt.Println("initialize index header err")
 			return nil, err
 		}
 	}
@@ -573,6 +576,7 @@ func openIndexStorage(path string, opt *opt.Options) (Storage, error) {
 
 	writer, err := fileStorage.Create(*fileStorage.fd)
 	if err != nil {
+		fmt.Println("open file for writer err: ",err)
 		return nil, err
 	}
 	if !opt.ReadOnly {
@@ -583,6 +587,7 @@ func openIndexStorage(path string, opt *opt.Options) (Storage, error) {
 
 	reader, err := fileStorage.Open(*fileStorage.fd)
 	if err != nil {
+		fmt.Println("open file for reader err: ",err)
 		return nil, err
 	}
 	fileStorage.reader = reader
