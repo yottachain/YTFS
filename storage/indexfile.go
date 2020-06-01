@@ -521,13 +521,16 @@ func (indexFile *YTFSIndexFile) updateTable(key ydcommon.IndexTableKey, value yd
 func OpenYTFSIndexFile(path string, ytfsConfig *opt.Options) (*YTFSIndexFile, error) {
 	storage, err := openIndexStorage(path, ytfsConfig)
 	if err != nil {
+		fmt.Println("storage open err")
 		return nil, err
 	}
 
 	header, err := readIndexHeader(storage)
 	if err != nil {
+		fmt.Println("read storage index header err")
 		header, err = initializeIndexStorage(storage, ytfsConfig)
 		if err != nil {
+			fmt.Println("initialize index header err")
 			return nil, err
 		}
 	}
@@ -596,11 +599,13 @@ func initializeIndexStorage(store Storage, config *opt.Options) (*ydcommon.Heade
 	// +---+----------+
 	// | TAG: eofPos  |
 	// +---+----------+
-	eofPos := int64(m*20+4)*int64(n+1) + int64(h)
-	writer.Seek(eofPos, io.SeekStart)
-	err = binary.Write(writer, binary.LittleEndian, &eofPos)
-	if err != nil {
-		return nil, err
+	if !config.UseKvDb {
+		eofPos := int64(m*20+4)*int64(n+1) + int64(h)
+		writer.Seek(eofPos, io.SeekStart)
+		err = binary.Write(writer, binary.LittleEndian, &eofPos)
+		if err != nil {
+			return nil, err
+		}
 	}
 	writer.Sync()
 	return &header, nil
@@ -619,6 +624,7 @@ func openIndexStorage(path string, opt *opt.Options) (Storage, error) {
 
 	writer, err := fileStorage.Create(*fileStorage.fd)
 	if err != nil {
+		fmt.Println("open file for writer err: ",err)
 		return nil, err
 	}
 	if !opt.ReadOnly {
@@ -629,6 +635,7 @@ func openIndexStorage(path string, opt *opt.Options) (Storage, error) {
 
 	reader, err := fileStorage.Open(*fileStorage.fd)
 	if err != nil {
+		fmt.Println("open file for reader err: ",err)
 		return nil, err
 	}
 	fileStorage.reader = reader
