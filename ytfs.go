@@ -451,7 +451,7 @@ func (ytfs *YTFS) BatchPutI(batch map[ydcommon.IndexTableKey][]byte) (map[ydcomm
 }
 
 func (ytfs *YTFS) BatchPutK(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
-
+	begin:=time.Now()
 	ytfs.mutex.Lock()
 	defer ytfs.mutex.Unlock()
 
