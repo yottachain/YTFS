@@ -41,7 +41,6 @@ type Options struct {
 	IndexTableRows uint32           `json:"N"`
 	DataBlockSize  uint32           `json:"D"`
 	TotalVolumn    uint64           `json:"C"`
-	//updata to leveldb
 	UseKvDb  	   bool             `json:"UseKvDb"`
 }
 
