@@ -20,11 +20,11 @@ type TableIterator struct {
 	options       *opt.Options
 }
 
-func RebuildIdxHeader( ytfsIndexFile *YTFSIndexFile,mpath string) error {
-    writer,err := os.OpenFile(mpath, os.O_CREATE|os.O_RDWR, 0644)
+func RebuildIdxHeader(ytfsIndexFile *YTFSIndexFile, mpath string) error {
+	writer, err := os.OpenFile(mpath, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		fmt.Println("Open metadata file err")
-		return  err
+		return err
 	}
 	writer.Seek(0, io.SeekStart)
 	err = binary.Write(writer, binary.LittleEndian, ytfsIndexFile.meta)
@@ -32,7 +32,7 @@ func RebuildIdxHeader( ytfsIndexFile *YTFSIndexFile,mpath string) error {
 		fmt.Println("write header to file err")
 	}
 	writer.Sync()
-	return  err
+	return err
 }
 
 // GetTableIterator 返回Table遍历器
@@ -49,14 +49,14 @@ func GetTableIterator(indexpath string, opts *opt.Options) (*TableIterator, erro
 }
 
 // GetTableIterator 返回Table遍历器
-func GetTableIterator2(indexpath, metadatapath string, opts *opt.Options,glbti TableIterator) (*TableIterator, error) {
-//	var ti TableIterator
+func GetTableIterator2(indexpath, metadatapath string, opts *opt.Options, glbti TableIterator) (*TableIterator, error) {
+	//	var ti TableIterator
 	ytfsIndexFile, err := OpenYTFSIndexFile(indexpath, opts)
 	if err != nil {
 		fmt.Println("ytfsIndexFile open err")
 		return nil, err
 	}
-	err = RebuildIdxHeader(ytfsIndexFile,metadatapath)
+	err = RebuildIdxHeader(ytfsIndexFile, metadatapath)
 	if err != nil {
 		fmt.Println("metadatapath rebuild err")
 		return nil, err
@@ -152,7 +152,7 @@ func (ti *TableIterator) GetNoNilTableBytes() (bytesTable, error) {
 	for {
 		table, err := ti.GetTableBytes()
 		if err != nil {
-			fmt.Println("GetTableBytes error,",err)
+			fmt.Println("GetTableBytes error,", err)
 			return nil, err
 		}
 		if table == nil {

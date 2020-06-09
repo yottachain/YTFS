@@ -21,14 +21,14 @@ import (
 	//	log "github.com/yottachain/YTDataNode/logger"
 )
 
-var  mdbFileName = "/maindb"
+var mdbFileName = "/maindb"
 
 type ytfsStatus struct {
 	ctxSP *storagePointer
 	//TODO: index status
 }
 
-type KvDB struct{
+type KvDB struct {
 	Rdb *gorocksdb.DB
 	ro  *gorocksdb.ReadOptions
 	wo  *gorocksdb.WriteOptions
@@ -41,7 +41,7 @@ type YTFS struct {
 	// key-value db which saves hash <-> position
 	db *IndexDB
 	// main rocksdb
-	mdb *KvDB                      //todo xiaojm
+	mdb *KvDB //todo xiaojm
 	// running context
 	context *Context
 	// lock of YTFS
@@ -108,7 +108,7 @@ func NewYTFS(dir string, config *opt.Options) (*YTFS, error) {
 //	return db,err
 //}
 
-func openKVDB(DBPath string) (kvdb *KvDB,err error){
+func openKVDB(DBPath string) (kvdb *KvDB, err error) {
 	// 使用 gorocksdb 连接 RocksDB
 	bbto := gorocksdb.NewDefaultBlockBasedTableOptions()
 	bbto.SetBlockCache(gorocksdb.NewLRUCache(3 << 30))
@@ -119,17 +119,17 @@ func openKVDB(DBPath string) (kvdb *KvDB,err error){
 	db, err := gorocksdb.OpenDb(opts, DBPath)
 	if err != nil {
 		fmt.Println("[kvdb] open rocksdb error")
-		return nil,err
+		return nil, err
 	}
 
 	// 创建输入输出流
 	ro := gorocksdb.NewDefaultReadOptions()
 	wo := gorocksdb.NewDefaultWriteOptions()
-	return &KvDB {
+	return &KvDB{
 		Rdb: db,
 		ro:  ro,
 		wo:  wo,
-	},err
+	}, err
 }
 
 func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
@@ -160,21 +160,23 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	}
 
 	//open main kv-db
-	mainDBPath := path.Join(dir,mdbFileName)
-	mDB,err := openKVDB(mainDBPath)
+	mainDBPath := path.Join(dir, mdbFileName)
+	mDB, err := openKVDB(mainDBPath)
 	if err != nil {
-		fmt.Println("[KVDB]open main kv-DB for save hash error:",err)
-		return nil,err
+		fmt.Println("[KVDB]open main kv-DB for save hash error:", err)
+		return nil, err
 	}
 
 	ytfs := &YTFS{
-		config:  config,
-		mdb:     mDB,
-//		db:      indexDB,
-//		context: context,
-		mutex:   new(sync.Mutex),
+		config: config,
+		mdb:    mDB,
+		//		db:      indexDB,
+		//		context: context,
+		mutex: new(sync.Mutex),
 	}
-	ytfs.config.UseKvDb = true
+
+	// 这里正式环境不能直接赋值
+	//ytfs.config.UseKvDb = true
 	// open index db
 	indexDB, err := NewIndexDB(dir, config)
 	if err != nil {
@@ -187,16 +189,14 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 		return nil, err
 	}
 
-	ytfs.db=indexDB
-	ytfs.context=context
+	ytfs.db = indexDB
+	ytfs.context = context
 
 	fmt.Println("Open YTFS success @" + dir)
 	return ytfs, nil
 }
 
-
-
-func (ytfs *YTFS)DiskAndUseCap() (uint32, uint32) {
+func (ytfs *YTFS) DiskAndUseCap() (uint32, uint32) {
 	var totalRealCap uint32
 	var totalConfCap uint32
 	NowPos := ytfs.context.sp.index
@@ -206,12 +206,12 @@ func (ytfs *YTFS)DiskAndUseCap() (uint32, uint32) {
 		totalRealCap += stordev.RealDiskCap
 		totalConfCap += stordev.Cap
 	}
-    fmt.Println("[diskcap] totalRealCap=",totalRealCap,"totalConfCap=",totalConfCap)
-	if totalRealCap > totalConfCap{
-		fmt.Println("[diskcap] totalConfCap=",totalConfCap,"NowPos=",NowPos)
+	fmt.Println("[diskcap] totalRealCap=", totalRealCap, "totalConfCap=", totalConfCap)
+	if totalRealCap > totalConfCap {
+		fmt.Println("[diskcap] totalConfCap=", totalConfCap, "NowPos=", NowPos)
 		return totalConfCap, NowPos
 	}
-	fmt.Println("[diskcap] totalRealCap=",totalRealCap,"NowPos=",NowPos)
+	fmt.Println("[diskcap] totalRealCap=", totalRealCap, "NowPos=", NowPos)
 	return totalRealCap, NowPos
 }
 
@@ -248,7 +248,7 @@ func validateYTFSSchema(meta *ydcommon.Header, opt *opt.Options) (*ydcommon.Head
 // of the returned slice.
 // It is safe to modify the contents of the argument after Get returns.
 func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
-	if ytfs.config.UseKvDb{
+	if ytfs.config.UseKvDb {
 		fmt.Println("[rocksdb] use rocksdb for matadata")
 		return ytfs.GetK(key)
 	}
@@ -258,18 +258,18 @@ func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
 func (ytfs *YTFS) GetI(key ydcommon.IndexTableKey) ([]byte, error) {
 	pos, err := ytfs.db.Get(key)
 	if err != nil {
-		fmt.Println("[indexdb] indexdb get pos error:",err)
+		fmt.Println("[indexdb] indexdb get pos error:", err)
 		return nil, err
 	}
 	return ytfs.context.Get(pos)
 }
 
 func (ytfs *YTFS) GetK(key ydcommon.IndexTableKey) ([]byte, error) {
-	val, err := ytfs.mdb.Rdb.Get(ytfs.mdb.ro,key[:])
+	val, err := ytfs.mdb.Rdb.Get(ytfs.mdb.ro, key[:])
 	pos := binary.LittleEndian.Uint32(val.Data())
-//	fmt.Println("[rocksdb] Rocksdbval=",val,"Rocksdbval32=",pos)
+	//	fmt.Println("[rocksdb] Rocksdbval=",val,"Rocksdbval32=",pos)
 	if err != nil {
-		fmt.Println("[rocksdb] rocksdb get pos error:",err)
+		fmt.Println("[rocksdb] rocksdb get pos error:", err)
 		return nil, err
 	}
 
@@ -309,18 +309,18 @@ func (ytfs *YTFS) restoreYTFS() {
 }
 
 func (ytfs *YTFS) restoreIndex(conflict map[ydcommon.IndexTableKey]byte, batchindex []ydcommon.IndexItem, btCnt uint32) error {
-    var err error
-    tbItemMap := make(map[uint32]uint32,btCnt)
+	var err error
+	tbItemMap := make(map[uint32]uint32, btCnt)
 	for _, kvPairs := range batchindex {
-    	hashkey := kvPairs.Hash
-    	if _, ok := conflict[hashkey]; ok{
-    		fmt.Println("[restoreIndex] hashkey conflict:",base58.Encode(hashkey[:]))
-    		continue
+		hashkey := kvPairs.Hash
+		if _, ok := conflict[hashkey]; ok {
+			fmt.Println("[restoreIndex] hashkey conflict:", base58.Encode(hashkey[:]))
+			continue
 		}
-    	idx := ytfs.db.indexFile.GetTableEntryIndex(hashkey)
-		err = ytfs.db.indexFile.ClearItemFromTable(idx, hashkey,btCnt,tbItemMap)
+		idx := ytfs.db.indexFile.GetTableEntryIndex(hashkey)
+		err = ytfs.db.indexFile.ClearItemFromTable(idx, hashkey, btCnt, tbItemMap)
 		if err != nil {
-			fmt.Printf("[restoreIndex] reset tableidx %v hashkey %v \n",idx,hashkey)
+			fmt.Printf("[restoreIndex] reset tableidx %v hashkey %v \n", idx, hashkey)
 			return err
 		}
 	}
@@ -338,33 +338,33 @@ func (ytfs *YTFS) saveCurrentYTFS() {
 	})
 }
 
-func (ytfs *YTFS)checkConflicts(conflicts map[ydcommon.IndexTableKey]byte, batch map[ydcommon.IndexTableKey][]byte){
+func (ytfs *YTFS) checkConflicts(conflicts map[ydcommon.IndexTableKey]byte, batch map[ydcommon.IndexTableKey][]byte) {
 	dir := util.GetYTFSPath()
-	fileName := path.Join( dir, "hashconflict.new")
-	hashConflict,_ := os.OpenFile(fileName, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
+	fileName := path.Join(dir, "hashconflict.new")
+	hashConflict, _ := os.OpenFile(fileName, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
 	defer hashConflict.Close()
 
-	fileName2 := path.Join( dir, "hashconflict.old")
-	hashConflict2,_ := os.OpenFile(fileName2, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
+	fileName2 := path.Join(dir, "hashconflict.old")
+	hashConflict2, _ := os.OpenFile(fileName2, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
 	defer hashConflict2.Close()
 
 	for ha, cflct := range conflicts {
-        if cflct == 1 {
-        	hashConflict.WriteString("hash:")
-        	hashConflict.WriteString(base58.Encode(ha[:]))
+		if cflct == 1 {
+			hashConflict.WriteString("hash:")
+			hashConflict.WriteString(base58.Encode(ha[:]))
 			hashConflict.WriteString("\n\r")
-        	hashConflict.Write(batch[ha])
+			hashConflict.Write(batch[ha])
 
 			hashConflict2.WriteString("hash:")
 			hashConflict2.WriteString(base58.Encode(ha[:]))
 			hashConflict2.WriteString("\n\r")
-        	oldData,err := ytfs.Get(ha)
-        	if err != nil {
-        		fmt.Printf("get hash conflict slice data err,hash:%v",base58.Encode(ha[:]))
+			oldData, err := ytfs.Get(ha)
+			if err != nil {
+				fmt.Printf("get hash conflict slice data err,hash:%v", base58.Encode(ha[:]))
 			}
 
 			hashConflict2.Write(oldData)
-			fmt.Printf("find hash conflict, hash:%v",base58.Encode(ha[:]))
+			fmt.Printf("find hash conflict, hash:%v", base58.Encode(ha[:]))
 		}
 	}
 }
@@ -372,18 +372,18 @@ func (ytfs *YTFS)checkConflicts(conflicts map[ydcommon.IndexTableKey]byte, batch
 func (ytfs *YTFS) BatchWriteKV(batch map[ydcommon.IndexTableKey][]byte) error {
 	var err error
 	Wbatch := new(gorocksdb.WriteBatch)
-	for key,val := range batch {
-		Wbatch.Put(key[:],val)
+	for key, val := range batch {
+		Wbatch.Put(key[:], val)
 
 	}
 	err = ytfs.mdb.Rdb.Write(ytfs.mdb.wo, Wbatch)
 	return err
 }
 
-func (ytfs *YTFS)resetKV(batchIndexes []ydcommon.IndexItem,resetCnt uint32){
-	for j:= uint32(0); j < resetCnt; j++ {
+func (ytfs *YTFS) resetKV(batchIndexes []ydcommon.IndexItem, resetCnt uint32) {
+	for j := uint32(0); j < resetCnt; j++ {
 		hashKey := batchIndexes[j].Hash[:]
-		ytfs.mdb.Rdb.Delete(ytfs.mdb.wo,hashKey[:])
+		ytfs.mdb.Rdb.Delete(ytfs.mdb.wo, hashKey[:])
 	}
 }
 
@@ -401,57 +401,57 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 }
 
 func (ytfs *YTFS) BatchPutI(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
-		ytfs.mutex.Lock()
-		defer ytfs.mutex.Unlock()
+	ytfs.mutex.Lock()
+	defer ytfs.mutex.Unlock()
 
-		if len(batch) > 1000 {
-			return nil, fmt.Errorf("Batch Size is too big")
-		}
-		fmt.Println("[indexdb] BatchPutI len(batch)=",len(batch))
+	if len(batch) > 1000 {
+		return nil, fmt.Errorf("Batch Size is too big")
+	}
+	fmt.Println("[indexdb] BatchPutI len(batch)=", len(batch))
 
-		// NO get check, but retore all status if error
-		ytfs.saveCurrentYTFS()
-		batchIndexes := make([]ydcommon.IndexItem, len(batch))
-		batchBuffer := []byte{}
-		bufCnt := len(batch)
-		i := 0
-		for k, v := range batch {
-			batchBuffer = append(batchBuffer, v...)
-			batchIndexes[i] = ydcommon.IndexItem{
-				Hash:      k,
-				OffsetIdx: ydcommon.IndexTableValue(0)}
-			i++
-		}
+	// NO get check, but retore all status if error
+	ytfs.saveCurrentYTFS()
+	batchIndexes := make([]ydcommon.IndexItem, len(batch))
+	batchBuffer := []byte{}
+	bufCnt := len(batch)
+	i := 0
+	for k, v := range batch {
+		batchBuffer = append(batchBuffer, v...)
+		batchIndexes[i] = ydcommon.IndexItem{
+			Hash:      k,
+			OffsetIdx: ydcommon.IndexTableValue(0)}
+		i++
+	}
 
-		startPos, err := ytfs.context.BatchPut(bufCnt, batchBuffer)
+	startPos, err := ytfs.context.BatchPut(bufCnt, batchBuffer)
 
-		if err != nil {
-			fmt.Println("[indexdb] ytfs.context.BatchPut error")
-			ytfs.restoreYTFS()
-			return nil, err
-		}
+	if err != nil {
+		fmt.Println("[indexdb] ytfs.context.BatchPut error")
+		ytfs.restoreYTFS()
+		return nil, err
+	}
 
-		for i := uint32(0); i < uint32(bufCnt); i++ {
-			batchIndexes[i] = ydcommon.IndexItem{
-				Hash:      batchIndexes[i].Hash,
-				OffsetIdx: ydcommon.IndexTableValue(startPos + i)}
+	for i := uint32(0); i < uint32(bufCnt); i++ {
+		batchIndexes[i] = ydcommon.IndexItem{
+			Hash:      batchIndexes[i].Hash,
+			OffsetIdx: ydcommon.IndexTableValue(startPos + i)}
 
-		}
+	}
 
-		conflicts, err := ytfs.db.BatchPut(batchIndexes)
+	conflicts, err := ytfs.db.BatchPut(batchIndexes)
 
-		if err != nil {
-			fmt.Println("[indexdb]  update indexdb error:",err)
-			ytfs.restoreIndex(conflicts, batchIndexes, uint32(bufCnt))
-			ytfs.restoreYTFS()
-			return conflicts, err
-		}
+	if err != nil {
+		fmt.Println("[indexdb]  update indexdb error:", err)
+		ytfs.restoreIndex(conflicts, batchIndexes, uint32(bufCnt))
+		ytfs.restoreYTFS()
+		return conflicts, err
+	}
 
-		return nil, nil
+	return nil, nil
 }
 
 func (ytfs *YTFS) BatchPutK(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
-	begin:=time.Now()
+	begin := time.Now()
 	ytfs.mutex.Lock()
 	defer ytfs.mutex.Unlock()
 
@@ -479,32 +479,32 @@ func (ytfs *YTFS) BatchPutK(batch map[ydcommon.IndexTableKey][]byte) (map[ydcomm
 	if err != nil {
 		fmt.Println("[rocksdb] ytfs.context.BatchPut error")
 		ytfs.restoreYTFS()
-		fmt.Printf("[noconflict] write error batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(),bufCnt)
+		fmt.Printf("[noconflict] write error batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(), bufCnt)
 		return nil, err
 	}
 
-//	keyValue:=make(map[ydcommon.IndexTableKey]ydcommon.IndexTableValue,len(batch))
-	valbuf := make([]byte,4)
+	//	keyValue:=make(map[ydcommon.IndexTableKey]ydcommon.IndexTableValue,len(batch))
+	valbuf := make([]byte, 4)
 	for i := uint32(0); i < uint32(bufCnt); i++ {
 
 		HKey := batchIndexes[i].Hash[:]
-		binary.LittleEndian.PutUint32(valbuf, uint32(startPos + i))
+		binary.LittleEndian.PutUint32(valbuf, uint32(startPos+i))
 		err = ytfs.mdb.Rdb.Put(ytfs.mdb.wo, HKey, valbuf)
 
-		if err !=nil {
-			fmt.Println("[rocksdb]put dnhash to rocksdb error",err)
-//			ytfs.resetKV(batchIndexes,i)
-//			ytfs.restoreYTFS()
-			return nil,err
+		if err != nil {
+			fmt.Println("[rocksdb]put dnhash to rocksdb error", err)
+			//			ytfs.resetKV(batchIndexes,i)
+			//			ytfs.restoreYTFS()
+			return nil, err
 		}
 
 	}
 	err = ytfs.db.indexFile.UpdateMeta(uint64(bufCnt))
 	if err != nil {
-		fmt.Println("update write pos to metadatafile err:",err)
-		return nil,err
+		fmt.Println("update write pos to metadatafile err:", err)
+		return nil, err
 	}
-	fmt.Printf("[noconflict] write success batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(),bufCnt)
+	fmt.Printf("[noconflict] write success batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(), bufCnt)
 	return nil, nil
 }
 
