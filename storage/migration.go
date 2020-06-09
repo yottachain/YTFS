@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+
+	"os"
 	"unsafe"
 
 	"github.com/yottachain/YTFS/common"
@@ -18,16 +20,50 @@ type TableIterator struct {
 	options       *opt.Options
 }
 
+func RebuildIdxHeader(ytfsIndexFile *YTFSIndexFile, mpath string) error {
+	writer, err := os.OpenFile(mpath, os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		fmt.Println("Open metadata file err")
+		return err
+	}
+	writer.Seek(0, io.SeekStart)
+	err = binary.Write(writer, binary.LittleEndian, ytfsIndexFile.meta)
+	if err != nil {
+		fmt.Println("write header to file err")
+	}
+	writer.Sync()
+	return err
+}
+
 // GetTableIterator 返回Table遍历器
-func GetTableIterator(path string, opts *opt.Options) (*TableIterator, error) {
+func GetTableIterator(indexpath string, opts *opt.Options) (*TableIterator, error) {
 	var ti TableIterator
-	ytfsIndexFile, err := OpenYTFSIndexFile(path, opts)
+	ytfsIndexFile, err := OpenYTFSIndexFile(indexpath, opts)
 	if err != nil {
 		return nil, err
 	}
+
 	ti.ytfsIndexFile = ytfsIndexFile
 	ti.options = opts
 	return &ti, nil
+}
+
+// GetTableIterator 返回Table遍历器
+func GetTableIterator2(indexpath, metadatapath string, opts *opt.Options, glbti TableIterator) (*TableIterator, error) {
+	//	var ti TableIterator
+	ytfsIndexFile, err := OpenYTFSIndexFile(indexpath, opts)
+	if err != nil {
+		fmt.Println("ytfsIndexFile open err")
+		return nil, err
+	}
+	err = RebuildIdxHeader(ytfsIndexFile, metadatapath)
+	if err != nil {
+		fmt.Println("metadatapath rebuild err")
+		return nil, err
+	}
+	glbti.ytfsIndexFile = ytfsIndexFile
+	glbti.options = opts
+	return &glbti, nil
 }
 
 // GetTable 获取一个Table，指针后移一位
@@ -97,8 +133,12 @@ func (ti *TableIterator) LoadTable(tbindex uint32) (bytesTable, error) {
 }
 
 func (ti *TableIterator) GetTableBytes() (bytesTable, error) {
+	if ti == nil {
+		fmt.Println("ti is nil!!")
+		return nil, nil
+	}
 	if ti.tableIndex > ti.options.IndexTableRows {
-		return nil, fmt.Errorf("table end")
+		return nil, fmt.Errorf("table_end")
 	}
 	table, err := ti.LoadTable(ti.tableIndex)
 	if err != nil {
@@ -112,6 +152,7 @@ func (ti *TableIterator) GetNoNilTableBytes() (bytesTable, error) {
 	for {
 		table, err := ti.GetTableBytes()
 		if err != nil {
+			fmt.Println("GetTableBytes error,", err)
 			return nil, err
 		}
 		if table == nil {
