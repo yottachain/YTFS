@@ -174,7 +174,9 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 		//		context: context,
 		mutex: new(sync.Mutex),
 	}
-	ytfs.config.UseKvDb = true
+
+	// 这里正式环境不能直接赋值
+	//ytfs.config.UseKvDb = true
 	// open index db
 	indexDB, err := NewIndexDB(dir, config)
 	if err != nil {
