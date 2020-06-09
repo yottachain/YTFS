@@ -45,18 +45,18 @@ func CheckDbStatus(dir,file1,file2 string) bool {
 // NewIndexDB creates a new index db based on input file if it's exist.
 func NewIndexDB(dir string, config *opt.Options) (*IndexDB, error) {
 	fileName := path.Join(dir, "index.db")
-	fileName2 := path.Join(dir, "metadata.db")
-	if config.UseKvDb {
-		fmt.Println("[rocksdb] use rocksdb was configured,use rocksdb!")
-		fileName = fileName2
-	}
-
-	if PathExists(fileName2){
-		fmt.Println("[rocksdb] metadata.db exist,use rocksdb!")
-		fileName = fileName2
-		config.UseKvDb = true
-	}
-
+	//fileName2 := path.Join(dir, "metadata.db")
+	//if config.UseKvDb {
+	//	fmt.Println("[rocksdb] use rocksdb was configured,use rocksdb!")
+	//	fileName = fileName2
+	//}
+	//
+	//if PathExists(fileName2){
+	//	fmt.Println("[rocksdb] metadata.db exist,use rocksdb!")
+	//	fileName = fileName2
+	//	config.UseKvDb = true
+	//}
+	//
 	//bl := CheckDbStatus(dir,"index.db","metadata.db")
     //if bl {
 	//	fmt.Println("[rocksdb][error]there two metadata file")
