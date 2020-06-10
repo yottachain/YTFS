@@ -103,8 +103,10 @@ func NewYTFS(dir string, config *opt.Options) (*YTFS, error) {
 func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	fileName := path.Join(dir, "maindb")
 	if config.UseKvDb || PathExists(fileName){
+		fmt.Println("use rocksdb")
 		return openYTFSK(dir,config)
 	}
+	fmt.Println("use indexdb")
 	return openYTFSI(dir,config)
 }
 
@@ -430,7 +432,8 @@ func (ytfs *YTFS) Cap() uint64 {
 
 // Len report len of YTFS, just like len() of a slice
 func (ytfs *YTFS) Len() uint64 {
-	return ytfs.db.(*IndexDB).schema.DataEndPoint
+	//return ytfs.db.(*IndexDB).schema.DataEndPoint
+	return ytfs.db.Len()
 }
 
 // String reports current YTFS status.

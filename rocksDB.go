@@ -23,6 +23,7 @@ type KvDB struct {
 }
 
 func openKVDB(DBPath string) (kvdb *KvDB, err error) {
+	var posIdx uint32
 	// 使用 gorocksdb 连接 RocksDB
 	bbto := gorocksdb.NewDefaultBlockBasedTableOptions()
 	bbto.SetBlockCache(gorocksdb.NewLRUCache(3 << 30))
@@ -40,8 +41,15 @@ func openKVDB(DBPath string) (kvdb *KvDB, err error) {
 	ro := gorocksdb.NewDefaultReadOptions()
 	wo := gorocksdb.NewDefaultWriteOptions()
 	diskPoskey := ydcommon.BytesToHash([]byte(ytPosKey))
+	fmt.Println("diskposkey=",string(diskPoskey[:]))
     val,err := db.Get(ro,diskPoskey[:])
-	posIdx := binary.LittleEndian.Uint32(val.Data())
+	fmt.Println("get diskIdx val=",val.Exists())
+	fmt.Println("get diskIdx err in openKVDB,err=",err)
+    if val.Exists() {
+		fmt.Println("get diskIdx in openKVDB,var=",val)
+		posIdx = binary.LittleEndian.Uint32(val.Data())
+	}
+	fmt.Println("get diskPos posidx=",posIdx)
 	return &KvDB{
 		Rdb   :  db,
 		ro    :  ro,
@@ -176,4 +184,8 @@ func (rd *KvDB) resetKV(batchIndexes []ydcommon.IndexItem, resetCnt uint32) {
 		hashKey := batchIndexes[j].Hash[:]
 		rd.Rdb.Delete(rd.wo, hashKey[:])
 	}
+}
+
+func (rd *KvDB) Len() uint64 {
+	return uint64(rd.PosIdx)
 }

@@ -21,6 +21,10 @@ type IndexDB struct {
 	indexFile *storage.YTFSIndexFile
 }
 
+func (db *IndexDB) Len() uint64 {
+	return db.schema.DataEndPoint
+}
+
 func PathExists(path string) bool {
 	_, err := os.Stat(path)
 	if err == nil {

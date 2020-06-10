@@ -7,6 +7,7 @@ type DB interface {
 	Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error)
 	Put(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) error
 	BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableKey]byte, error)
+	Len() uint64
 	Close()
 	Reset()
 }
