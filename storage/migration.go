@@ -17,6 +17,7 @@ type bytesTable map[common.IndexTableKey][]byte
 type TableIterator struct {
 	ytfsIndexFile *YTFSIndexFile
 	tableIndex    uint32
+	writePos      uint32
 	options       *opt.Options
 }
 
@@ -100,6 +101,10 @@ func (ti *TableIterator) Reset() {
 
 func (ti *TableIterator) Len() uint64 {
 	return ti.ytfsIndexFile.meta.DataEndPoint
+}
+
+func (ti *TableIterator) BlockSize() uint32 {
+	return ti.ytfsIndexFile.meta.DataBlockSize
 }
 
 func (ti *TableIterator) LoadTable(tbindex uint32) (bytesTable, error) {

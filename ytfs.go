@@ -400,7 +400,16 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 
 // Meta reports current meta information.
 func (ytfs *YTFS) Meta() *ydcommon.Header {
-	return ytfs.db.(*IndexDB).schema
+//	return ytfs.db.(*IndexDB).schema
+    return ytfs.db.Meta()
+}
+
+func (ytfs *YTFS) Totalsize() uint64{
+	return ytfs.db.TotalSize()
+}
+
+func (ytfs *YTFS) BlkSize() uint32{
+	return ytfs.db.BlockSize()
 }
 
 // Close closes the YTFS.

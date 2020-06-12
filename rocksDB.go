@@ -9,10 +9,12 @@ import (
 	"os"
 	"path"
 	"sync"
+	"unsafe"
 )
 
 var mdbFileName = "/maindb"
-var ytPosKey = "ytfs_rocks_pos_key"
+var ytPosKey    = "yt_rocks_pos_key"
+var ytBlkSzKey  = "yt_blk_size_key"
 
 type KvDB struct {
 	Rdb *gorocksdb.DB
@@ -20,42 +22,34 @@ type KvDB struct {
 	wo  *gorocksdb.WriteOptions
 	PosKey ydcommon.IndexTableKey
 	PosIdx ydcommon.IndexTableValue
+	BlkKey ydcommon.IndexTableKey
+	BlkVal uint32
+	Header *ydcommon.Header
 }
 
 func openKVDB(DBPath string) (kvdb *KvDB, err error) {
-	var posIdx uint32
-	// 使用 gorocksdb 连接 RocksDB
+//	var posIdx uint32
 	bbto := gorocksdb.NewDefaultBlockBasedTableOptions()
 	bbto.SetBlockCache(gorocksdb.NewLRUCache(3 << 30))
 	opts := gorocksdb.NewDefaultOptions()
 	opts.SetBlockBasedTableFactory(bbto)
 	opts.SetCreateIfMissing(true)
-	// 设置输入目标数据库文件（可自行配置，./db 为当前测试文件的目录下的 db 文件夹）
+
 	db, err := gorocksdb.OpenDb(opts, DBPath)
 	if err != nil {
 		fmt.Println("[kvdb] open rocksdb error")
 		return nil, err
 	}
 
-	// 创建输入输出流
 	ro := gorocksdb.NewDefaultReadOptions()
 	wo := gorocksdb.NewDefaultWriteOptions()
-	diskPoskey := ydcommon.BytesToHash([]byte(ytPosKey))
-	fmt.Println("diskposkey=",string(diskPoskey[:]))
-    val,err := db.Get(ro,diskPoskey[:])
-	fmt.Println("get diskIdx val=",val.Exists())
-	fmt.Println("get diskIdx err in openKVDB,err=",err)
-    if val.Exists() {
-		fmt.Println("get diskIdx in openKVDB,var=",val)
-		posIdx = binary.LittleEndian.Uint32(val.Data())
-	}
-	fmt.Println("get diskPos posidx=",posIdx)
+
 	return &KvDB{
 		Rdb   :  db,
 		ro    :  ro,
 		wo    :  wo,
-		PosKey:  ydcommon.IndexTableKey(diskPoskey),
-		PosIdx:  ydcommon.IndexTableValue(posIdx),
+		//PosKey:  ydcommon.IndexTableKey(diskPoskey),
+		//PosIdx:  ydcommon.IndexTableValue(posIdx),
 	}, err
 }
 
@@ -93,6 +87,49 @@ func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
 		fmt.Println("[KVDB]open main kv-DB for save hash error:", err)
 		return nil, err
 	}
+
+	Header,err := initializeHeader(config)
+	if err != nil {
+		fmt.Println("[rocksdb]initialize Header error")
+		return nil,err
+	}
+    mDB.Header = Header
+
+	//get start Pos from rocksdb
+	HKey := ydcommon.BytesToHash([]byte(ytPosKey))
+	mDB.PosKey = ydcommon.IndexTableKey(HKey)
+	PosIdx, err := mDB.Get(mDB.PosKey)
+	if err != nil {
+		fmt.Println("[rocksdb] get start write pos err=",err)
+		return nil, err
+	}
+	mDB.PosIdx = PosIdx
+	fmt.Println("[rocksdb] OpenYTFSK Current start posidx=",mDB.PosIdx)
+
+	//check blksize to rocksdb
+	HKey = ydcommon.BytesToHash([]byte(ytBlkSzKey))
+	mDB.BlkKey = ydcommon.IndexTableKey(HKey)
+	Blksize,err := mDB.Get(mDB.BlkKey)
+	if  err != nil  {
+		fmt.Println("[rocksdb] get BlkSize error")
+		return nil,err
+	}
+
+	valbuf := make([]byte,4)
+	if uint32(Blksize) != Header.DataBlockSize {
+		if uint32(Blksize) != 0{
+			fmt.Println("[rocksdb] error, BlkSize mismatch")
+			return nil,err
+		}
+
+		binary.LittleEndian.PutUint32(valbuf, uint32(Header.DataBlockSize))
+		err := mDB.Rdb.Put(mDB.wo, mDB.BlkKey[:], valbuf)
+		if err != nil {
+			fmt.Println("[rocksdb]set blksize to rocksdb err:", err)
+			return nil, err
+		}
+	}
+
 	//3. open storages
 	context, err := NewContext(dir, config, uint64(mDB.PosIdx))
 	if err != nil {
@@ -112,28 +149,56 @@ func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
 
 
 func (rd *KvDB) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error) {
+	var retval uint32
 	val, err := rd.Rdb.Get(rd.ro, key[:])
-	pos := binary.LittleEndian.Uint32(val.Data())
-	//	fmt.Println("[rocksdb] Rocksdbval=",val,"Rocksdbval32=",pos)
 	if err != nil {
 		fmt.Println("[rocksdb] rocksdb get pos error:", err)
 		return 0, err
 	}
-	return ydcommon.IndexTableValue(pos), nil
+
+	if val.Exists(){
+		retval = binary.LittleEndian.Uint32(val.Data())
+	}
+	return ydcommon.IndexTableValue(retval), nil
 }
 
-func (rd *KvDB) Put(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) error {
-	return nil
+func (rd *KvDB)GetKeyVal(Key string) []byte{
+	HKey := ydcommon.BytesToHash([]byte(Key))
+	fmt.Println("diskposkey=",string(HKey[:]))
+	val,err := rd.Rdb.Get(rd.ro,HKey[:])
+	fmt.Println("get diskIdx val.exist=",val.Exists())
+	fmt.Println("get diskIdx err in openKVDB,err=",err)
+	if err != nil || !val.Exists(){
+		fmt.Println("get value error, key=",Key)
+		return nil
+	}
+	return val.Data()
 }
 
-//func (rd *KvDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableKey]byte, error) {
-//	return nil, nil
-//}
+func initializeHeader( config *opt.Options) (*ydcommon.Header, error) {
+	m, n := config.IndexTableCols, config.IndexTableRows
+	t, d, h := config.TotalVolumn, config.DataBlockSize, uint32(unsafe.Sizeof(ydcommon.Header{}))
 
-func (rd *KvDB) Close() {
-}
+	ytfsSize := uint64(0)
+	for _, storageOption := range config.Storages {
+		ytfsSize += storageOption.StorageVolume
+	}
 
-func (rd *KvDB) Reset() {
+	// write header.
+	header := ydcommon.Header{
+		Tag:            [4]byte{'Y', 'T', 'F', 'S'},
+		Version:        [4]byte{'0', '.', '0', '3'},
+		YtfsCapability: t,
+		YtfsSize:       ytfsSize,
+		DataBlockSize:  d,
+		RangeCapacity:  n,
+		RangeCoverage:  m,
+		HashOffset:     h,
+		DataEndPoint:   0,
+		RecycleOffset:  uint64(h) + (uint64(n)+1)*(uint64(m)*36+4),
+		Reserved:       0xCDCDCDCDCDCDCDCD,
+	}
+	return &header, nil
 }
 
 func (rd *KvDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableKey]byte, error) {
@@ -152,11 +217,7 @@ func (rd *KvDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableK
 		}
         i++
 	}
-	//currentPos,err := rd.Get(rd.Poskey)
-	//if err != nil {
-	//	fmt.Println("get current write pos err:", err)
-	//	return nil, err
-	//}
+    fmt.Println("[rockspos] BatchPut PosIdx=",rd.PosIdx,"i=",i)
 	rd.PosIdx = ydcommon.IndexTableValue(uint32(rd.PosIdx) + uint32(i))
 	binary.LittleEndian.PutUint32(valbuf, uint32(rd.PosIdx))
     err := rd.Rdb.Put(rd.wo,rd.PosKey[:],valbuf)
@@ -188,4 +249,26 @@ func (rd *KvDB) resetKV(batchIndexes []ydcommon.IndexItem, resetCnt uint32) {
 
 func (rd *KvDB) Len() uint64 {
 	return uint64(rd.PosIdx)
+}
+
+func (rd *KvDB) TotalSize() uint64{
+	return rd.Header.YtfsSize
+}
+
+func (rd *KvDB) BlockSize() uint32{
+	return rd.BlkVal
+}
+
+func (rd *KvDB) Meta() *ydcommon.Header{
+	return rd.Header
+}
+
+func (rd *KvDB) Put(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) error {
+	return nil
+}
+
+func (rd *KvDB) Close() {
+}
+
+func (rd *KvDB) Reset() {
 }

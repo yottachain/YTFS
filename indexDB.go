@@ -25,6 +25,18 @@ func (db *IndexDB) Len() uint64 {
 	return db.schema.DataEndPoint
 }
 
+func (db *IndexDB) BlockSize() uint32{
+	return db.schema.DataBlockSize
+}
+
+func (db *IndexDB) TotalSize() uint64{
+	return db.schema.YtfsSize
+}
+
+func (db *IndexDB) Meta() *ydcommon.Header{
+	return db.schema
+}
+
 func PathExists(path string) bool {
 	_, err := os.Stat(path)
 	if err == nil {
