@@ -88,11 +88,11 @@ func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
 		return nil, err
 	}
 
-	IndexDBPath := path.Join(dir,"index.db")
-	if PathExists(mainDBPath) && PathExists(IndexDBPath){
-		fmt.Println("[KVDB][error] there are two metadate DB found!!")
-		return nil,ErrTwoMetaFile
-	}
+	//IndexDBPath := path.Join(dir,"index.db")
+	//if PathExists(mainDBPath) && PathExists(IndexDBPath){
+	//	fmt.Println("[KVDB][error] there are two metadata DB found!!")
+	//	return nil,ErrTwoMetaFile
+	//}
 
 	Header,err := initializeHeader(config)
 	if err != nil {
