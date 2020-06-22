@@ -101,8 +101,8 @@ func NewYTFS(dir string, config *opt.Options) (*YTFS, error) {
 //}
 
 func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
-	fileName := path.Join(dir, "maindb")
-	if config.UseKvDb || PathExists(fileName){
+//	fileName := path.Join(dir, "maindb")
+	if config.UseKvDb {
 		fmt.Println("use rocksdb")
 		return openYTFSK(dir,config)
 	}
