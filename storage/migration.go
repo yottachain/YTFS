@@ -67,6 +67,14 @@ func GetTableIterator2(indexpath, metadatapath string, opts *opt.Options, glbti 
 	return &glbti, nil
 }
 
+func (ti *TableIterator)SetTableIdx(value uint32){
+	ti.tableIndex = value
+}
+
+func (ti *TableIterator)GetBeginTab() uint32{
+	return ti.tableIndex
+}
+
 // GetTable 获取一个Table，指针后移一位
 func (ti *TableIterator) GetTable() (common.IndexTable, error) {
 	if ti.tableIndex > ti.options.IndexTableRows {
