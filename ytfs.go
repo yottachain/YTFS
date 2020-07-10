@@ -7,6 +7,7 @@ import (
 
 	//"time"
 	//"github.com/tecbot/gorocksdb"
+	"github.com/yottachain/YTDataNode/logger"
 	"github.com/mr-tron/base58/base58"
 	"github.com/yottachain/YTDataNode/util"
 	ydcommon "github.com/yottachain/YTFS/common"
@@ -103,10 +104,10 @@ func NewYTFS(dir string, config *opt.Options) (*YTFS, error) {
 func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	fileName := path.Join(dir, "maindb")
 	if config.UseKvDb || PathExists(fileName){
-		fmt.Println("use rocksdb")
+		log.Println("use rocksdb")
 		return openYTFSK(dir,config)
 	}
-	fmt.Println("use indexdb")
+	log.Println("use indexdb")
 	return openYTFSI(dir,config)
 }
 
