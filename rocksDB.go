@@ -6,6 +6,7 @@ import (
 	"github.com/tecbot/gorocksdb"
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
+	"github.com/yottachain/YTDataNode/logger"
 	"os"
 	"path"
 	"sync"
@@ -56,6 +57,14 @@ func openKVDB(DBPath string) (kvdb *KvDB, err error) {
 func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
 	//TODO: file lock to avoid re-open.
 	//1. open system dir for YTFS
+	fileName := path.Join(dir, "dbsafe")
+	if ! PathExists(fileName) {
+		if _, err := os.Create(fileName);err != nil {
+			log.Println("db arbiration error!")
+			return nil,err
+		}
+	}
+
 	if fi, err := os.Stat(dir); err == nil {
 		// dir/file exists, check if it can be reloaded.
 		if !fi.IsDir() {

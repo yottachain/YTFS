@@ -4,6 +4,7 @@ import (
 //	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	log "github.com/yottachain/YTAschedule/logger"
 
 	//"time"
 	//"github.com/tecbot/gorocksdb"
@@ -101,8 +102,8 @@ func NewYTFS(dir string, config *opt.Options) (*YTFS, error) {
 //}
 
 func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
-	fileName := path.Join(dir, "maindb")
-	if config.UseKvDb || PathExists(fileName){
+
+	if config.UseKvDb {
 		fmt.Println("use rocksdb")
 		return openYTFSK(dir,config)
 	}
@@ -113,6 +114,12 @@ func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 func openYTFSI(dir string, config *opt.Options) (*YTFS, error) {
 	//TODO: file lock to avoid re-open.
 	//1. open system dir for YTFS
+	fileName := path.Join(dir, "dbsafe")
+	if PathExists(fileName) {
+		log.Printf("db config error!")
+		return nil,ErrDBConfig
+	}
+
 	if fi, err := os.Stat(dir); err == nil {
 		// dir/file exists, check if it can be reloaded.
 		if !fi.IsDir() {
