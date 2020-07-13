@@ -57,13 +57,6 @@ func openKVDB(DBPath string) (kvdb *KvDB, err error) {
 func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
 	//TODO: file lock to avoid re-open.
 	//1. open system dir for YTFS
-	fileName := path.Join(dir, "dbsafe")
-	if ! PathExists(fileName) {
-		if _, err := os.Create(fileName);err != nil {
-			log.Println("db arbiration error!")
-			return nil,err
-		}
-	}
 
 	if fi, err := os.Stat(dir); err == nil {
 		// dir/file exists, check if it can be reloaded.
@@ -107,12 +100,28 @@ func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
 	//get start Pos from rocksdb
 	HKey := ydcommon.BytesToHash([]byte(ytPosKey))
 	mDB.PosKey = ydcommon.IndexTableKey(HKey)
-	PosIdx, err := mDB.Get(mDB.PosKey)
+	PosRocksdb, err := mDB.Get(mDB.PosKey)
 	if err != nil {
 		fmt.Println("[rocksdb] get start write pos err=",err)
 		return nil, err
 	}
-	mDB.PosIdx = PosIdx
+
+	//if indexdb exist, get write start pos from index.db
+	fileIdxdb := path.Join(dir,"index.db")
+	if PathExists(fileIdxdb){
+		indexDB, err := NewIndexDB(dir, config)
+		if err != nil {
+			return nil,err
+		}
+
+		//if rocksdb start pos < index.db start pos, there must be some error
+		posIdxdb := indexDB.schema.DataEndPoint
+		if uint64(PosRocksdb) < posIdxdb{
+			return nil,ErrDBConfig
+		}
+	}
+
+	mDB.PosIdx = PosRocksdb
 	fmt.Println("[rocksdb] OpenYTFSK Current start posidx=",mDB.PosIdx)
 
 	//check blksize to rocksdb
@@ -152,6 +161,14 @@ func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
 		mutex  : new(sync.Mutex),
 	}
 
+	fileName := path.Join(dir, "dbsafe")
+	if ! PathExists(fileName) {
+		if _, err := os.Create(fileName);err != nil {
+			log.Println("create arbiration file error!")
+			return nil,err
+		}
+	}
+
 	fmt.Println("Open YTFS success @" + dir)
 	return ytfs, nil
 }
@@ -161,7 +178,7 @@ func (rd *KvDB) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error
 	var retval uint32
 	val, err := rd.Rdb.Get(rd.ro, key[:])
 	if err != nil {
-		fmt.Println("[rocksdb] rocksdb get pos error:", err)
+		fmt.Println("[rocksdb] get pos error:", err)
 		return 0, err
 	}
 
@@ -171,18 +188,18 @@ func (rd *KvDB) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error
 	return ydcommon.IndexTableValue(retval), nil
 }
 
-func (rd *KvDB)GetKeyVal(Key string) []byte{
-	HKey := ydcommon.BytesToHash([]byte(Key))
-	fmt.Println("diskposkey=",string(HKey[:]))
-	val,err := rd.Rdb.Get(rd.ro,HKey[:])
-	fmt.Println("get diskIdx val.exist=",val.Exists())
-	fmt.Println("get diskIdx err in openKVDB,err=",err)
-	if err != nil || !val.Exists(){
-		fmt.Println("get value error, key=",Key)
-		return nil
-	}
-	return val.Data()
-}
+//func (rd *KvDB)GetKeyVal(Key string) []byte{
+//	HKey := ydcommon.BytesToHash([]byte(Key))
+//	fmt.Println("diskposkey=",string(HKey[:]))
+//	val,err := rd.Rdb.Get(rd.ro,HKey[:])
+//	fmt.Println("get diskIdx val.exist=",val.Exists())
+//	fmt.Println("get diskIdx err in openKVDB,err=",err)
+//	if err != nil || !val.Exists(){
+//		fmt.Println("get value error, key=",Key)
+//		return nil
+//	}
+//	return val.Data()
+//}
 
 func initializeHeader( config *opt.Options) (*ydcommon.Header, error) {
 	m, n := config.IndexTableCols, config.IndexTableRows
