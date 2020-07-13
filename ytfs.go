@@ -102,7 +102,6 @@ func NewYTFS(dir string, config *opt.Options) (*YTFS, error) {
 //}
 
 func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
-
 	if config.UseKvDb {
 		fmt.Println("use rocksdb")
 		return openYTFSK(dir,config)

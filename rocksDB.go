@@ -117,6 +117,7 @@ func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
 		//if rocksdb start pos < index.db start pos, there must be some error
 		posIdxdb := indexDB.schema.DataEndPoint
 		if uint64(PosRocksdb) < posIdxdb{
+			log.Println("pos error:",ErrDBConfig)
 			return nil,ErrDBConfig
 		}
 	}
