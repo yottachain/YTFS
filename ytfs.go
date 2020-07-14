@@ -92,15 +92,6 @@ func NewYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	return ytfs, nil
 }
 
-//func openKVDB(DBPath string) (db *leveldb.DB,err error){
-//	db,err = leveldb.OpenFile(DBPath,nil)
-//	if err != nil{
-//		fmt.Printf("open DB:%s error",DBPath)
-//		return nil,err
-//	}
-//	return db,err
-//}
-
 func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	if config.UseKvDb {
 		fmt.Println("use rocksdb")
@@ -217,13 +208,6 @@ func validateYTFSSchema(meta *ydcommon.Header, opt *opt.Options) (*ydcommon.Head
 // The returned slice is its own copy, it is safe to modify the contents
 // of the returned slice.
 // It is safe to modify the contents of the argument after Get returns.
-//func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
-//	if ytfs.config.UseKvDb {
-//		fmt.Println("[rocksdb] use rocksdb for matadata")
-//		return ytfs.GetK(key)
-//	}
-//	return ytfs.GetI(key)
-//}
 
 func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
 	pos, err := ytfs.db.Get(key)
@@ -233,18 +217,6 @@ func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
 	}
 	return ytfs.context.Get(pos)
 }
-
-//func (ytfs *YTFS) GetK(key ydcommon.IndexTableKey) ([]byte, error) {
-//	val, err := ytfs.mdb.Rdb.Get(ytfs.mdb.ro, key[:])
-//	pos := binary.LittleEndian.Uint32(val.Data())
-//	//	fmt.Println("[rocksdb] Rocksdbval=",val,"Rocksdbval32=",pos)
-//	if err != nil {
-//		fmt.Println("[rocksdb] rocksdb get pos error:", err)
-//		return nil, err
-//	}
-//
-//	return ytfs.context.Get(ydcommon.IndexTableValue(pos))
-//}
 
 // Put sets the value for the given key. It panic if there exists any previous value
 // for that key; YottaDisk is not a multi-map.
@@ -346,13 +318,6 @@ func (ytfs *YTFS) checkConflicts(conflicts map[ydcommon.IndexTableKey]byte, batc
 // It is safe to modify the contents of the arguments after Put returns but not
 // before.
 
-//func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
-//	if ytfs.config.UseKvDb {
-//		fmt.Println("[rocksdb] write use rocksdb for matadata")
-//		return ytfs.BatchPutK(batch)
-//	}
-//	return ytfs.BatchPutI(batch)
-//}
 
 func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
 	ytfs.mutex.Lock()

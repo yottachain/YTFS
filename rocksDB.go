@@ -189,19 +189,6 @@ func (rd *KvDB) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error
 	return ydcommon.IndexTableValue(retval), nil
 }
 
-//func (rd *KvDB)GetKeyVal(Key string) []byte{
-//	HKey := ydcommon.BytesToHash([]byte(Key))
-//	fmt.Println("diskposkey=",string(HKey[:]))
-//	val,err := rd.Rdb.Get(rd.ro,HKey[:])
-//	fmt.Println("get diskIdx val.exist=",val.Exists())
-//	fmt.Println("get diskIdx err in openKVDB,err=",err)
-//	if err != nil || !val.Exists(){
-//		fmt.Println("get value error, key=",Key)
-//		return nil
-//	}
-//	return val.Data()
-//}
-
 func initializeHeader( config *opt.Options) (*ydcommon.Header, error) {
 	m, n := config.IndexTableCols, config.IndexTableRows
 	t, d, h := config.TotalVolumn, config.DataBlockSize, uint32(unsafe.Sizeof(ydcommon.Header{}))
@@ -239,17 +226,18 @@ func (rd *KvDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableK
 		err := rd.Rdb.Put(rd.wo, HKey, valbuf)
 
 		if err != nil {
-			fmt.Println("[rocksdb]put dnhash to rocksdb error", err)
+			fmt.Println("[rocksdb]put dnhash to rocksdb error:", err)
 			return nil, err
 		}
         i++
 	}
+
     fmt.Println("[rockspos] BatchPut PosIdx=",rd.PosIdx,"i=",i)
 	rd.PosIdx = ydcommon.IndexTableValue(uint32(rd.PosIdx) + uint32(i))
 	binary.LittleEndian.PutUint32(valbuf, uint32(rd.PosIdx))
     err := rd.Rdb.Put(rd.wo,rd.PosKey[:],valbuf)
 	if err != nil {
-		fmt.Println("update write pos to metadatafile err:", err)
+		fmt.Println("update write pos to db error:", err)
 		return nil, err
 	}
 	//fmt.Printf("[noconflict] write success batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(), bufCnt)

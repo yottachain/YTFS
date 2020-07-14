@@ -507,7 +507,7 @@ func (indexFile *YTFSIndexFile) updateTable(key ydcommon.IndexTableKey, value yd
 	if debugPrint {
 		fmt.Printf("IndexDB put %x:%x\n", key, value)
 	}
-	fmt.Printf("[memtrace] IndexDB put %x:%x\n", key, value)
+
 	return nil
 }
 
