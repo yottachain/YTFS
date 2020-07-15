@@ -92,14 +92,7 @@ func NewYTFS(dir string, config *opt.Options) (*YTFS, error) {
 	return ytfs, nil
 }
 
-func openYTFS(dir string, config *opt.Options) (*YTFS, error) {
-	if config.UseKvDb {
-		fmt.Println("use rocksdb")
-		return openYTFSK(dir,config)
-	}
-	fmt.Println("use indexdb")
-	return openYTFSI(dir,config)
-}
+
 
 func openYTFSI(dir string, config *opt.Options) (*YTFS, error) {
 	//TODO: file lock to avoid re-open.
