@@ -157,7 +157,6 @@ func (ti *TableIterator) GetNoNilTableBytes() (bytesTable, error) {
 	for {
 		table, err := ti.GetTableBytes()
 		if err != nil {
-			fmt.Println("GetTableBytes error,", err)
 			return nil, err
 		}
 		if table == nil {
