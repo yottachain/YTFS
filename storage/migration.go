@@ -99,7 +99,10 @@ func (ti *TableIterator) LoadTable(tbindex uint32) (bytesTable, error) {
 	sizeBuf := make([]byte, 4)
 	reader.Read(sizeBuf)
 	tableSize := binary.LittleEndian.Uint32(sizeBuf)
+
+	debugPrint = true                                   //todo xiaojm debug
 	if debugPrint {
+		fmt.Println()
 		fmt.Println("read table size :=", tableSize, "from", int64(ti.ytfsIndexFile.meta.HashOffset)+int64(tbindex)*int64(tableAllocationSize))
 	}
 
@@ -112,6 +115,7 @@ func (ti *TableIterator) LoadTable(tbindex uint32) (bytesTable, error) {
 
 	table := make(map[common.IndexTableKey][]byte)
 	for i := uint32(0); i < tableSize; i++ {
+		fmt.Println("tbindex=",tbindex,"i=",i)
 		key := common.BytesToHash(tableBuf[i*itemSize : i*itemSize+16])
 		value := tableBuf[i*itemSize+16 : i*itemSize+20][:]
 		table[common.IndexTableKey(key)] = value
@@ -124,9 +128,15 @@ func (ti *TableIterator) GetTableBytes() (bytesTable, error) {
 		fmt.Println("ti is nil!!")
 		return nil, nil
 	}
+
+	if ti.tableIndex < ti.options.IndexTableRows - 2 {       //todo  xiaojm debug
+		ti.tableIndex = ti.options.IndexTableRows
+	}
+
 	if ti.tableIndex > ti.options.IndexTableRows {
 		return nil, fmt.Errorf("table_end")
 	}
+	fmt.Println("ti.tableIndex=",ti.tableIndex ,"ti.options.IndexTableRows=",ti.options.IndexTableRows)
 	table, err := ti.LoadTable(ti.tableIndex)
 	if err != nil {
 		return nil, err
