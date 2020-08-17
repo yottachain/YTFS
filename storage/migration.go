@@ -102,7 +102,7 @@ func (ti *TableIterator) LoadTable(tbindex uint32) (bytesTable, error) {
 
 	debugPrint = true                                   //todo xiaojm debug
 	if debugPrint {
-		fmt.Println()
+		fmt.Println("itemSize=",itemSize," tableAllocationSize=",tableAllocationSize)
 		fmt.Println("read table size :=", tableSize, "from", int64(ti.ytfsIndexFile.meta.HashOffset)+int64(tbindex)*int64(tableAllocationSize))
 	}
 
@@ -129,8 +129,8 @@ func (ti *TableIterator) GetTableBytes() (bytesTable, error) {
 		return nil, nil
 	}
 
-	if ti.tableIndex < ti.options.IndexTableRows - 2 {       //todo  xiaojm debug
-		ti.tableIndex = ti.options.IndexTableRows
+	if ti.tableIndex < ti.options.IndexTableRows - 5 {       //todo  xiaojm debug
+		ti.tableIndex = ti.options.IndexTableRows - 5
 	}
 
 	if ti.tableIndex > ti.options.IndexTableRows {
