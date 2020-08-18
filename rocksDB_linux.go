@@ -221,9 +221,20 @@ func initializeHeader( config *opt.Options) (*ydcommon.Header, error) {
 	return &header, nil
 }
 
+func (rd *KvDB) UpdateMeta(account uint64) error {
+	buf := make([]byte, 4)
+	fmt.Println("[rockspos] BatchPut PosIdx=",rd.PosIdx,"account=",account)
+	rd.PosIdx = ydcommon.IndexTableValue(uint32(rd.PosIdx) + uint32(account))
+	binary.LittleEndian.PutUint32(buf, uint32(rd.PosIdx))
+	err := rd.Rdb.Put(rd.wo,rd.PosKey[:],buf)
+	if err != nil {
+		fmt.Println("update write pos to db error:", err)
+	}
+	return  err
+}
+
 func (rd *KvDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableKey]byte, error) {
 	//	keyValue:=make(map[ydcommon.IndexTableKey]ydcommon.IndexTableValue,len(batch))
-	i := 0
 	valbuf := make([]byte, 4)
 	for _,value := range kvPairs{
 		HKey := value.Hash[:]
@@ -235,17 +246,8 @@ func (rd *KvDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableK
 			fmt.Println("[rocksdb]put dnhash to rocksdb error:", err)
 			return nil, err
 		}
-        i++
 	}
 
-    fmt.Println("[rockspos] BatchPut PosIdx=",rd.PosIdx,"i=",i)
-	rd.PosIdx = ydcommon.IndexTableValue(uint32(rd.PosIdx) + uint32(i))
-	binary.LittleEndian.PutUint32(valbuf, uint32(rd.PosIdx))
-    err := rd.Rdb.Put(rd.wo,rd.PosKey[:],valbuf)
-	if err != nil {
-		fmt.Println("update write pos to db error:", err)
-		return nil, err
-	}
 	//fmt.Printf("[noconflict] write success batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(), bufCnt)
 	return nil, nil
 }

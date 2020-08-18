@@ -215,13 +215,14 @@ func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
 // for that key; YottaDisk is not a multi-map.
 // It is safe to modify the contents of the arguments after Put returns but not
 // before.
+
 func (ytfs *YTFS) Put(key ydcommon.IndexTableKey, buf []byte) error {
 	ytfs.mutex.Lock()
 	defer ytfs.mutex.Unlock()
-	_, err := ytfs.db.Get(key)
-	if err == nil {
-		return ErrDataConflict
-	}
+	//_, err := ytfs.db.Get(key)
+	//if err == nil {
+	//	return ErrDataConflict
+	//}
 
 	pos, err := ytfs.context.Put(buf)
 	if err != nil {
@@ -341,6 +342,13 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 		fmt.Println("[indexdb] ytfs.context.BatchPut error")
 		ytfs.restoreYTFS()
 		return nil, err
+	}
+
+	//update the write position to db
+	err = ytfs.db.UpdateMeta(uint64(bufCnt))
+	if err != nil {
+		fmt.Println("update position error:",err)
+		return nil,err
 	}
 
 	for i := uint32(0); i < uint32(bufCnt); i++ {
