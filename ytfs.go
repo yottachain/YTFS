@@ -343,6 +343,13 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 		return nil, err
 	}
 
+	//update the write position to db
+	err = ytfs.db.UpdateMeta(uint64(bufCnt))
+	if err != nil {
+		fmt.Println("update position error:",err)
+		return nil,err
+	}
+
 	for i := uint32(0); i < uint32(bufCnt); i++ {
 		batchIndexes[i] = ydcommon.IndexItem{
 			Hash:      batchIndexes[i].Hash,
