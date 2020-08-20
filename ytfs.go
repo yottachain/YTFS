@@ -68,6 +68,11 @@ type YTFS struct {
 //		}
 //		...
 func Open(dir string, config *opt.Options) (ytfs *YTFS, err error) {
+	if PathExists("/var/flock.ytfs") {
+		log.Printf("error,rebuild K-V running or failed!")
+		return nil,ErrDBRuildKV
+	}
+
 	settings, err := opt.FinalizeConfig(config)
 	if err != nil {
 		return nil, err

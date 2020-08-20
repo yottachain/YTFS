@@ -6,6 +6,7 @@ import (
 
 // Common errors.
 var (
+	ErrDBRuildKV           = errors.New("YTFS: error rebuild KV")
 	ErrDBConfig            = errors.New("YTFS: error DB config")
 	ErrTwoMetaFile         = errors.New("YTFS: two metafile exist")
 	ErrDataConflict        = errors.New("YTFS: hash key conflict happens")
