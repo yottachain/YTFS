@@ -41,6 +41,7 @@ type Options struct {
 	IndexTableRows uint32           `json:"N"`
 	DataBlockSize  uint32           `json:"D"`
 	TotalVolumn    uint64           `json:"C"`
+	UseKvDb  	   bool             `json:"UseKvDb"`
 }
 
 // Equal compares 2 Options to tell if it is equal

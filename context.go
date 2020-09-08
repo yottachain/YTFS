@@ -2,6 +2,7 @@ package ytfs
 
 import (
 	"fmt"
+	"runtime"
 	"math"
 	"sync"
 
@@ -9,6 +10,8 @@ import (
 	"github.com/yottachain/YTFS/errors"
 	"github.com/yottachain/YTFS/opt"
 	"github.com/yottachain/YTFS/storage"
+	"unsafe"
+	"github.com/yottachain/YTFS/getresource"
 )
 
 var (
@@ -24,6 +27,8 @@ type storageContext struct {
 	Len uint32
 	// Storage
 	Disk *storage.YottaDisk
+	// Storage real Capacity
+	RealDiskCap  uint32
 }
 
 type storagePointer struct {
@@ -71,6 +76,10 @@ func NewContext(dir string, config *opt.Options, dataCount uint64) (*Context, er
 	return context, err
 }
 
+func GetRealDiskCap(path string)uint64{
+	  return getresource.GetDiskCap(path)
+}
+
 func initStorages(config *opt.Options) ([]*storageContext, error) {
 	contexts := []*storageContext{}
 	for _, storageOpt := range config.Storages {
@@ -79,11 +88,20 @@ func initStorages(config *opt.Options) ([]*storageContext, error) {
 			// TODO: handle error if necessary, like keep using successed storages.
 			return nil, err
 		}
+
+		RealCap :=uint64(0)
+		if runtime.GOOS == "linux"{
+			header := ydcommon.StorageHeader{}
+			RealCap = GetRealDiskCap(storageOpt.StorageName)-(uint64)(unsafe.Sizeof(header))
+			RealCap = (RealCap/16384)
+		}
+
 		contexts = append(contexts, &storageContext{
 			Name: storageOpt.StorageName,
 			Cap:  disk.Capability(),
 			Len:  0,
 			Disk: disk,
+			RealDiskCap: uint32(RealCap),
 		})
 	}
 
@@ -126,11 +144,10 @@ func (c *Context) locate(idx uint32) (*storagePointer, error) {
 }
 
 func (c *Context) forward() error {
-	fmt.Println("[memtrace] in forward()")
 	sp := c.sp
 	sp.posIdx++
 	if int(sp.dev) >= len(c.storages) {
-		fmt.Println("[memtrace] err int(sp.dev) >= len(c.storages)")
+		fmt.Println("[memtrace] error int(sp.dev) >= len(c.storages)")
 		return errors.ErrDataOverflow
 	}
 	if sp.posIdx >= c.storages[sp.dev].Cap {
@@ -162,7 +179,6 @@ func (c *Context)  fastforward(n int, commit bool) error {
 		fmt.Println("[memtrace] in fastforward error:",err)
 		return err
 	}
-	fmt.Println("[memtrace] fastforward end")
 	return nil
 }
 
@@ -242,10 +258,8 @@ func (c *Context) BatchPut(cnt int, valueArray []byte) (uint32, error) {
 	var err error
 	var index uint32
 	if (c.sp.posIdx + uint32(cnt) <= c.storages[c.sp.dev].Cap) {
-		fmt.Println("[memtrace] putAt in one dev")
 		index, err = c.putAt(valueArray, c.sp)
 	} else {
-		fmt.Println("[memtrace] putAt in two dev")
 		currentSP := *c.sp;
 		step1 := c.storages[currentSP.dev].Cap - currentSP.posIdx
 		index, err = c.putAt(valueArray[:step1*c.config.DataBlockSize], &currentSP)
@@ -267,11 +281,9 @@ func (c *Context) BatchPut(cnt int, valueArray []byte) (uint32, error) {
 }
 
 func (c *Context) putAt(value []byte, sp *storagePointer) (uint32, error) {
-	fmt.Println("[memtrace] putAt start")
 	if c.eof() {
 		return 0, errors.ErrDataOverflow
 	}
-	fmt.Println("[memtrace] putAt no eof,continue ")
 	if debugPrint {
 		fmt.Printf("put data %x @ %v\n", value[:32], sp)
 	}
