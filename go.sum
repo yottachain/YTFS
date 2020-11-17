@@ -60,6 +60,7 @@ github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZm
 github.com/dgryski/go-sip13 v0.0.0-20181026042036-e10d5fee7954/go.mod h1:vAd38F8PWV+bWy6jNmig1y/TA+kYO4g3RSRF0IAv0no=
 github.com/docker/docker v1.4.2-0.20180625184442-8e610b2b55bf/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
 github.com/edsrzf/mmap-go v0.0.0-20160512033002-935e0e8a636c/go.mod h1:YO35OhQPt3KJa3ryjFM5Bs14WD66h8eGKpfaBNrHW5M=
+github.com/elastic/go-elasticsearch/v8 v8.0.0-20201104130540-2e1f801663c6/go.mod h1:xe9a/L2aeOgFKKgrO3ibQTnMdpAeL0GC+5/HpGScSa4=
 github.com/elastic/gosigar v0.8.1-0.20180330100440-37f05ff46ffa/go.mod h1:cdorVVzy1fhmEqmtgqkoE3bYtCfSCkVyjTyCIo22xvs=
 github.com/eoscanada/eos-go v0.9.0/go.mod h1:6RuJFiRU1figWZ39M33o2cERU2MdL6VllElYLHTZNeo=
 github.com/ethereum/go-ethereum v1.8.27 h1:d+gkiLaBDk5fn3Pe/xNVaMrB/ozI+AUB2IlVBp29IrY=
@@ -297,12 +298,13 @@ github.com/yottachain/YTCrypto v0.0.0-20200122165219-0ea35dc29812 h1:XG9TtLosanL
 github.com/yottachain/YTCrypto v0.0.0-20200122165219-0ea35dc29812/go.mod h1:jDJUVGeQ1clW7k9OTRBAFtCMwGs9B9fGQ9QY64SKqlk=
 github.com/yottachain/YTDataNode v0.0.0-20200312053251-fbc6b05cc208 h1:uhVWg9pEO4AKvugPeLSxBuSofdYMa8WiLSuQGOFJCPo=
 github.com/yottachain/YTDataNode v0.0.0-20200312053251-fbc6b05cc208/go.mod h1:zP8wnpTmZzphkQ7xvxM5SdXmKxyNKZv1Z8H5twbgKkk=
-github.com/yottachain/YTDataNode v0.0.0-20201021024407-7a69bbcb5869 h1:BhGhfmTqxO+ax/mXbHObk6YPvyy0bTuQW17VdpD6AW4=
-github.com/yottachain/YTDataNode v0.0.0-20201021024407-7a69bbcb5869/go.mod h1:EmxJHECpcCnPR45PLmB5MIBwvFmDC6GqX66IbwYyp8I=
+github.com/yottachain/YTDataNode v0.0.0-20201116041304-737224a8e02b h1:4TAquD6dlsPfkAH2YXxH93oci37aLflXgWq4nORcNoU=
+github.com/yottachain/YTDataNode v0.0.0-20201116041304-737224a8e02b/go.mod h1:PFUZ8fZPo5nrSLVW7yQp6EjccqMcNUcs9fQBdswH0k4=
+github.com/yottachain/YTElkProducer v0.0.5/go.mod h1:iVHdNfhwkGzmfPnImbJ9v+UDGCxEipDUKKWGoKkY4wY=
 github.com/yottachain/YTFS v0.0.0-20200224071646-5cd33ea89338/go.mod h1:32wd9SCmUEwef/xotMNOy3DgpVfekMcrVIQN23JueNM=
 github.com/yottachain/YTFS v0.0.0-20200818071920-d97d5a1e23d3/go.mod h1:xdL2L3mGEo5QiXou06T8HrCIKVnGOwPXwl+vKkY/Oos=
 github.com/yottachain/YTHost v1.0.1/go.mod h1:PMIX6FcFzZ5xaexcI1ivumzoo9nblL2wZc5it/R3SeU=
-github.com/yottachain/YTHost v1.0.2-0.20200918110720-68f155ccc541/go.mod h1:PMIX6FcFzZ5xaexcI1ivumzoo9nblL2wZc5it/R3SeU=
+github.com/yottachain/YTHost v1.0.2-0.20201113085139-df598f679820/go.mod h1:PMIX6FcFzZ5xaexcI1ivumzoo9nblL2wZc5it/R3SeU=
 github.com/yottachain/YTLRC v0.0.0-20200224075657-42eeb6c231cc/go.mod h1:ZeQbupNqcSqZmN7Jk3a05+Da8ycSkAMC8g+m9AHrNGs=
 github.com/yottachain/YTLRC v0.0.0-20201015031040-8d147ff0316c/go.mod h1:ZeQbupNqcSqZmN7Jk3a05+Da8ycSkAMC8g+m9AHrNGs=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
