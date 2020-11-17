@@ -6,7 +6,6 @@ import (
 	"github.com/tecbot/gorocksdb"
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
-	"github.com/yottachain/YTDataNode/logger"
 	"os"
 	"path"
 	"sync"
@@ -123,7 +122,7 @@ func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
 		//if rocksdb start pos < index.db start pos, there must be some error
 		posIdxdb := indexDB.schema.DataEndPoint
 		if uint64(PosRocksdb) < posIdxdb{
-			log.Println("pos error:",ErrDBConfig)
+			fmt.Println("pos error:",ErrDBConfig)
 			return nil,ErrDBConfig
 		}
 	}
@@ -171,7 +170,7 @@ func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
 	fileName := path.Join(dir, "dbsafe")
 	if ! PathExists(fileName) {
 		if _, err := os.Create(fileName);err != nil {
-			log.Println("create arbiration file error!")
+			fmt.Println("create arbiration file error!")
 			return nil,err
 		}
 	}
@@ -221,9 +220,20 @@ func initializeHeader( config *opt.Options) (*ydcommon.Header, error) {
 	return &header, nil
 }
 
+func (rd *KvDB) UpdateMeta(account uint64) error {
+	buf := make([]byte, 4)
+	fmt.Println("[rockspos] BatchPut PosIdx=",rd.PosIdx,"account=",account)
+	rd.PosIdx = ydcommon.IndexTableValue(uint32(rd.PosIdx) + uint32(account))
+	binary.LittleEndian.PutUint32(buf, uint32(rd.PosIdx))
+	err := rd.Rdb.Put(rd.wo,rd.PosKey[:],buf)
+	if err != nil {
+		fmt.Println("update write pos to db error:", err)
+	}
+	return  err
+}
+
 func (rd *KvDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableKey]byte, error) {
 	//	keyValue:=make(map[ydcommon.IndexTableKey]ydcommon.IndexTableValue,len(batch))
-	i := 0
 	valbuf := make([]byte, 4)
 	for _,value := range kvPairs{
 		HKey := value.Hash[:]
@@ -235,17 +245,8 @@ func (rd *KvDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableK
 			fmt.Println("[rocksdb]put dnhash to rocksdb error:", err)
 			return nil, err
 		}
-        i++
 	}
 
-    fmt.Println("[rockspos] BatchPut PosIdx=",rd.PosIdx,"i=",i)
-	rd.PosIdx = ydcommon.IndexTableValue(uint32(rd.PosIdx) + uint32(i))
-	binary.LittleEndian.PutUint32(valbuf, uint32(rd.PosIdx))
-    err := rd.Rdb.Put(rd.wo,rd.PosKey[:],valbuf)
-	if err != nil {
-		fmt.Println("update write pos to db error:", err)
-		return nil, err
-	}
 	//fmt.Printf("[noconflict] write success batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(), bufCnt)
 	return nil, nil
 }

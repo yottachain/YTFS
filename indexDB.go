@@ -94,6 +94,10 @@ func (db *IndexDB) Put(key ydcommon.IndexTableKey, value ydcommon.IndexTableValu
 	return err
 }
 
+func (db *IndexDB)UpdateMeta(accout uint64) error{
+	return db.indexFile.UpdateMeta(accout)
+}
+
 // BatchPut add a set of new key value pairs to db.
 func (db *IndexDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableKey]byte, error) {
 	// sorr kvPair by hash entry to make sure write in sequence.

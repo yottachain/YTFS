@@ -345,7 +345,7 @@ func (indexFile *YTFSIndexFile) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydco
 	locker, _ := indexFile.store.Lock()
 	defer locker.Unlock()
 
-	dataWritten := uint64(0)
+	//dataWritten := uint64(0)
 	conflicts := map[ydcommon.IndexTableKey]byte{}
 	for _, kvPair := range kvPairs {
 		err := indexFile.updateTable(kvPair.Hash, kvPair.OffsetIdx)
@@ -356,15 +356,16 @@ func (indexFile *YTFSIndexFile) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydco
 				return conflicts, err
 			}
 		}
-
-		dataWritten++
+		//dataWritten++
 	}
 
 	//if len(conflicts) != 0 {
 	//	return conflicts, errors.ErrConflict
 	//}
 
-	return conflicts, indexFile.updateMeta(dataWritten)
+	//pos metadata has been updated before this func
+	return conflicts,nil
+	//return conflicts, indexFile.updateMeta(dataWritten)
 }
 
 func (indexFile *YTFSIndexFile) UpdateMeta(dataWritten uint64) error {

@@ -4,12 +4,12 @@ import (
 //	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	log "github.com/yottachain/YTDataNode/logger"
+	//log "github.com/yottachain/YTDataNode/logger"
 
 	//"time"
 	//"github.com/tecbot/gorocksdb"
 	"github.com/mr-tron/base58/base58"
-	"github.com/yottachain/YTDataNode/util"
+	//"github.com/yottachain/YTDataNode/util"
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
 	_ "net/http/pprof"
@@ -99,7 +99,7 @@ func openYTFSI(dir string, config *opt.Options) (*YTFS, error) {
 	//1. open system dir for YTFS
 	fileName := path.Join(dir, "dbsafe")
 	if PathExists(fileName) {
-		log.Printf("db config error!")
+		fmt.Printf("db config error!")
 		return nil,ErrDBConfig
 	}
 
@@ -215,13 +215,14 @@ func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
 // for that key; YottaDisk is not a multi-map.
 // It is safe to modify the contents of the arguments after Put returns but not
 // before.
+
 func (ytfs *YTFS) Put(key ydcommon.IndexTableKey, buf []byte) error {
 	ytfs.mutex.Lock()
 	defer ytfs.mutex.Unlock()
-	_, err := ytfs.db.Get(key)
-	if err == nil {
-		return ErrDataConflict
-	}
+	//_, err := ytfs.db.Get(key)
+	//if err == nil {
+	//	return ErrDataConflict
+	//}
 
 	pos, err := ytfs.context.Put(buf)
 	if err != nil {
@@ -273,36 +274,36 @@ func (ytfs *YTFS) saveCurrentYTFS() {
 	})
 }
 
-func (ytfs *YTFS) checkConflicts(conflicts map[ydcommon.IndexTableKey]byte, batch map[ydcommon.IndexTableKey][]byte) {
-	dir := util.GetYTFSPath()
-	fileName := path.Join(dir, "hashconflict.new")
-	hashConflict, _ := os.OpenFile(fileName, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
-	defer hashConflict.Close()
-
-	fileName2 := path.Join(dir, "hashconflict.old")
-	hashConflict2, _ := os.OpenFile(fileName2, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
-	defer hashConflict2.Close()
-
-	for ha, cflct := range conflicts {
-		if cflct == 1 {
-			hashConflict.WriteString("hash:")
-			hashConflict.WriteString(base58.Encode(ha[:]))
-			hashConflict.WriteString("\n\r")
-			hashConflict.Write(batch[ha])
-
-			hashConflict2.WriteString("hash:")
-			hashConflict2.WriteString(base58.Encode(ha[:]))
-			hashConflict2.WriteString("\n\r")
-			oldData, err := ytfs.Get(ha)
-			if err != nil {
-				fmt.Printf("get hash conflict slice data err,hash:%v", base58.Encode(ha[:]))
-			}
-
-			hashConflict2.Write(oldData)
-			fmt.Printf("find hash conflict, hash:%v", base58.Encode(ha[:]))
-		}
-	}
-}
+//func (ytfs *YTFS) checkConflicts(conflicts map[ydcommon.IndexTableKey]byte, batch map[ydcommon.IndexTableKey][]byte) {
+//	dir := util.GetYTFSPath()
+//	fileName := path.Join(dir, "hashconflict.new")
+//	hashConflict, _ := os.OpenFile(fileName, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
+//	defer hashConflict.Close()
+//
+//	fileName2 := path.Join(dir, "hashconflict.old")
+//	hashConflict2, _ := os.OpenFile(fileName2, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
+//	defer hashConflict2.Close()
+//
+//	for ha, cflct := range conflicts {
+//		if cflct == 1 {
+//			hashConflict.WriteString("hash:")
+//			hashConflict.WriteString(base58.Encode(ha[:]))
+//			hashConflict.WriteString("\n\r")
+//			hashConflict.Write(batch[ha])
+//
+//			hashConflict2.WriteString("hash:")
+//			hashConflict2.WriteString(base58.Encode(ha[:]))
+//			hashConflict2.WriteString("\n\r")
+//			oldData, err := ytfs.Get(ha)
+//			if err != nil {
+//				fmt.Printf("get hash conflict slice data err,hash:%v", base58.Encode(ha[:]))
+//			}
+//
+//			hashConflict2.Write(oldData)
+//			fmt.Printf("find hash conflict, hash:%v", base58.Encode(ha[:]))
+//		}
+//	}
+//}
 
 
 //var mutexindex uint64 = 0
@@ -341,6 +342,13 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 		fmt.Println("[indexdb] ytfs.context.BatchPut error")
 		ytfs.restoreYTFS()
 		return nil, err
+	}
+
+	//update the write position to db
+	err = ytfs.db.UpdateMeta(uint64(bufCnt))
+	if err != nil {
+		fmt.Println("update position error:",err)
+		return nil,err
 	}
 
 	for i := uint32(0); i < uint32(bufCnt); i++ {
