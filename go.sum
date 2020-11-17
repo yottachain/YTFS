@@ -300,9 +300,12 @@ github.com/yottachain/YTDataNode v0.0.0-20200312053251-fbc6b05cc208 h1:uhVWg9pEO
 github.com/yottachain/YTDataNode v0.0.0-20200312053251-fbc6b05cc208/go.mod h1:zP8wnpTmZzphkQ7xvxM5SdXmKxyNKZv1Z8H5twbgKkk=
 github.com/yottachain/YTDataNode v0.0.0-20201116041304-737224a8e02b h1:4TAquD6dlsPfkAH2YXxH93oci37aLflXgWq4nORcNoU=
 github.com/yottachain/YTDataNode v0.0.0-20201116041304-737224a8e02b/go.mod h1:PFUZ8fZPo5nrSLVW7yQp6EjccqMcNUcs9fQBdswH0k4=
+github.com/yottachain/YTDataNode v0.0.0-20201117103943-7f3f51129ed5 h1:RMiKYDoIvPUnuq21mKQkh+T4Z5yxsa8im5uNjnGT6BI=
+github.com/yottachain/YTDataNode v0.0.0-20201117103943-7f3f51129ed5/go.mod h1:1LQRfvGv+38Zbp+gCEkaDlczfuIBsF7xLSbm07dhj0A=
 github.com/yottachain/YTElkProducer v0.0.5/go.mod h1:iVHdNfhwkGzmfPnImbJ9v+UDGCxEipDUKKWGoKkY4wY=
 github.com/yottachain/YTFS v0.0.0-20200224071646-5cd33ea89338/go.mod h1:32wd9SCmUEwef/xotMNOy3DgpVfekMcrVIQN23JueNM=
 github.com/yottachain/YTFS v0.0.0-20200818071920-d97d5a1e23d3/go.mod h1:xdL2L3mGEo5QiXou06T8HrCIKVnGOwPXwl+vKkY/Oos=
+github.com/yottachain/YTFS v0.0.0-20201117103825-56ec453f63dd/go.mod h1:H9oSmY60NjcD7sb9cvxdyessEAZxu0eaCUzBNsDa/pg=
 github.com/yottachain/YTHost v1.0.1/go.mod h1:PMIX6FcFzZ5xaexcI1ivumzoo9nblL2wZc5it/R3SeU=
 github.com/yottachain/YTHost v1.0.2-0.20201113085139-df598f679820/go.mod h1:PMIX6FcFzZ5xaexcI1ivumzoo9nblL2wZc5it/R3SeU=
 github.com/yottachain/YTLRC v0.0.0-20200224075657-42eeb6c231cc/go.mod h1:ZeQbupNqcSqZmN7Jk3a05+Da8ycSkAMC8g+m9AHrNGs=
