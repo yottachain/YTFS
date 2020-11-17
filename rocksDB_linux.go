@@ -6,7 +6,6 @@ import (
 	"github.com/tecbot/gorocksdb"
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
-	"github.com/yottachain/YTDataNode/logger"
 	"os"
 	"path"
 	"sync"
@@ -123,7 +122,7 @@ func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
 		//if rocksdb start pos < index.db start pos, there must be some error
 		posIdxdb := indexDB.schema.DataEndPoint
 		if uint64(PosRocksdb) < posIdxdb{
-			log.Println("pos error:",ErrDBConfig)
+			fmt.Println("pos error:",ErrDBConfig)
 			return nil,ErrDBConfig
 		}
 	}
@@ -171,7 +170,7 @@ func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
 	fileName := path.Join(dir, "dbsafe")
 	if ! PathExists(fileName) {
 		if _, err := os.Create(fileName);err != nil {
-			log.Println("create arbiration file error!")
+			fmt.Println("create arbiration file error!")
 			return nil,err
 		}
 	}
