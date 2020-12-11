@@ -49,6 +49,15 @@ func GetTableIterator(indexpath string, opts *opt.Options) (*TableIterator, erro
 	return &ti, nil
 }
 
+func GetIdxDbIter(ytfsIndexFile *YTFSIndexFile, opts *opt.Options)(*TableIterator){
+	var ti TableIterator
+	//var err error
+	ti.ytfsIndexFile = ytfsIndexFile
+	ti.options = opts
+
+	return &ti
+}
+
 // GetTable 获取一个Table，指针后移一位
 func (ti *TableIterator) GetTable() (common.IndexTable, error) {
 	if ti.tableIndex > ti.options.IndexTableRows {

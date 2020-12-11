@@ -126,6 +126,29 @@ func (db *IndexDB) Reset() {
 	db.indexFile.Format()
 }
 
+func (db *IndexDB) TravelDB(fn func(key, val []byte) error){
+	//var DBIter storage.TableIterator
+	ytIndexFile := db.indexFile
+	options := db.indexFile.GetYTFSIndexFileOpts()
+	DBIter:= storage.GetIdxDbIter(ytIndexFile, options)
+
+	for {
+		tab,err:=DBIter.GetNoNilTableBytes()
+		if err != nil {
+			fmt.Println("[indexdb] get table error :",err)
+			return
+		}
+
+		for key, val := range tab{
+			err := fn(key[:],val)
+			if err != nil {
+				fmt.Println("[indexdb] TravelDB error: ",err)
+				return
+			}
+		}
+	}
+}
+
 func validateDBSchema(meta *ydcommon.Header, opt *opt.Options) error {
 	if opt.UseKvDb {
 		fmt.Println("[rocksdb] using rocksdb")
