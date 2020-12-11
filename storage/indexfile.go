@@ -51,6 +51,10 @@ func (indexFile *YTFSIndexFile) MetaData() *ydcommon.Header {
 	return indexFile.meta
 }
 
+func (indexFile *YTFSIndexFile) GetYTFSIndexFileOpts() *opt.Options {
+	return indexFile.config
+}
+
 func (indexFile *YTFSIndexFile) VerifyVHF(data []byte, vhf []byte) bool {
 	sha := crypto.MD5.New()
 	sha.Write(data)
