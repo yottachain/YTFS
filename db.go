@@ -8,6 +8,7 @@ type DB interface {
 	Put(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) error
 	BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableKey]byte, error)
 	UpdateMeta(account uint64) error
+	TravelDB(fn func(key, value []byte)) error
 	Len() uint64
 	TotalSize() uint64
 	BlockSize() uint32

@@ -294,3 +294,16 @@ func (rd *KvDB) Close() {
 
 func (rd *KvDB) Reset() {
 }
+
+func (rd *KvDB) TravelDB(fn func(key, value []byte) error) int64 {
+	iter := rd.Rdb.NewIterator(rd.ro)
+	succ := 0
+	for iter.SeekToFirst(); iter.Valid(); iter.Next(){
+		if err := fn(iter.Key().Data(),iter.Value().Data()); err != nil{
+            fmt.Println("[travelDB] exec fn() err=",err,"key=",iter.Key().Data(),"value=",iter.Value().Data())
+		    continue
+		}
+		succ++
+	}
+    return int64(succ)
+}
