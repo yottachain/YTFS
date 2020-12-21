@@ -133,6 +133,14 @@ func openYTFSI(dir string, config *opt.Options) (*YTFS, error) {
 		return nil, err
 	}
 
+	if 0 == indexDB.schema.DataEndPoint{
+		if config.IndexTableCols < 512 || config.IndexTableCols > 2048{
+			err = fmt.Errorf("yotta config: config.M setting is incorrect")
+			fmt.Println("[error]:",err,"M=",config.IndexTableCols,"N=",config.IndexTableRows)
+			return nil, err
+		}
+	}
+
 	//3. open storages
 	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint)
 	if err != nil {

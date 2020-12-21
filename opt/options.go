@@ -151,12 +151,15 @@ func FinalizeConfig(config *Options) (*Options, error) {
 		return nil, ErrConfigC
 	}
 
+	config.DataBlockSize = 16384       //this value is consistent, should not varied
+
 	// calc M, N, D
 	c, d, n, m := config.TotalVolumn, (uint64)(config.DataBlockSize), (uint64)(config.IndexTableRows), (uint64)(config.IndexTableCols)
 	m = c / (n * d)
 	if m < 4 || m >= MaxRangeCoverage {
 		return nil, ErrConfigM
 	}
+
 	config.IndexTableCols = uint32((float64)(m) * expendRatioM)
 
 	if config.IndexTableRows > MaxRangeNumber || !ytfs.IsPowerOfTwo((uint64)(config.IndexTableRows)) {
