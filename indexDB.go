@@ -1,10 +1,11 @@
 package ytfs
 
 import (
+	"fmt"
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
 	"github.com/yottachain/YTFS/storage"
-    "fmt"
+    //"fmt"
 	"path"
 	"sort"
 
@@ -126,7 +127,8 @@ func (db *IndexDB) Reset() {
 	db.indexFile.Format()
 }
 
-func (db *IndexDB) TravelDB(fn func(key, val []byte) error){
+
+func (db *IndexDB) TravelDB(fn func(key, val []byte) error) error{
 	//var DBIter storage.TableIterator
 	ytIndexFile := db.indexFile
 	options := db.indexFile.GetYTFSIndexFileOpts()
@@ -136,14 +138,17 @@ func (db *IndexDB) TravelDB(fn func(key, val []byte) error){
 		tab,err:=DBIter.GetNoNilTableBytes()
 		if err != nil {
 			fmt.Println("[indexdb] get table error :",err)
-			return
+
+			return err
+
 		}
 
 		for key, val := range tab{
 			err := fn(key[:],val)
 			if err != nil {
 				fmt.Println("[indexdb] TravelDB error: ",err)
-				return
+
+				return err
 			}
 		}
 	}
