@@ -128,30 +128,30 @@ func (db *IndexDB) Reset() {
 }
 
 
-func (db *IndexDB) TravelDB(fn func(key, val []byte) error) error{
+func (db *IndexDB) TravelDB(fn func(key, val []byte) error) int64{
 	//var DBIter storage.TableIterator
 	ytIndexFile := db.indexFile
 	options := db.indexFile.GetYTFSIndexFileOpts()
 	DBIter:= storage.GetIdxDbIter(ytIndexFile, options)
+	succ := int64(0)
 
 	for {
 		tab,err:=DBIter.GetNoNilTableBytes()
 		if err != nil {
 			fmt.Println("[indexdb] get table error :",err)
-
-			return err
-
+			continue
 		}
 
 		for key, val := range tab{
 			err := fn(key[:],val)
 			if err != nil {
 				fmt.Println("[indexdb] TravelDB error: ",err)
-
-				return err
+				continue
 			}
+			succ++
 		}
 	}
+	return succ
 }
 
 func validateDBSchema(meta *ydcommon.Header, opt *opt.Options) error {
