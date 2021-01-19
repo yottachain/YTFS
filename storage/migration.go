@@ -21,6 +21,10 @@ type TableIterator struct {
 	options       *opt.Options
 }
 
+func (ti *TableIterator) GetTableIndex() uint32{
+	return ti.tableIndex
+}
+
 func RebuildIdxHeader(ytfsIndexFile *YTFSIndexFile, mpath string) error {
 	writer, err := os.OpenFile(mpath, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
@@ -116,6 +120,7 @@ func (ti *TableIterator) LoadTable(tbindex uint32) (bytesTable, error) {
 	tableBuf := make([]byte, tableSize*itemSize, tableSize*itemSize)
 	_, err := reader.Read(tableBuf)
 	if err != nil {
+		fmt.Println("tableSize=",tableSize," tableindex=",tbindex)
 		return nil, err
 	}
 
