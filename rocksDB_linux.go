@@ -3,6 +3,7 @@ package ytfs
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/mr-tron/base58/base58"
 	"github.com/tecbot/gorocksdb"
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
@@ -15,6 +16,7 @@ import (
 var mdbFileName = "/maindb"
 var ytPosKey    = "yt_rocks_pos_key"
 var ytBlkSzKey  = "yt_blk_size_key"
+var VerifyedNumFile string = "/gc/n_file"
 
 type KvDB struct {
 	Rdb *gorocksdb.DB
@@ -295,15 +297,35 @@ func (rd *KvDB) Close() {
 func (rd *KvDB) Reset() {
 }
 
-func (rd *KvDB) TravelDB(fn func(key, value []byte) error) int64 {
-	iter := rd.Rdb.NewIterator(rd.ro)
-	succ := 0
-	for iter.SeekToFirst(); iter.Valid(); iter.Next(){
-		if err := fn(iter.Key().Data(),iter.Value().Data()); err != nil{
-            fmt.Println("[travelDB] exec fn() err=",err,"key=",iter.Key().Data(),"value=",iter.Value().Data())
-		    continue
-		}
-		succ++
+func (rd *KvDB) TravelDBforFn(fn func(key, value []byte) ([]byte,error), startkey string, traveEntries uint64) (int64, error) {
+	var errShard [][]byte
+	begin,err := base58.Decode(startkey)
+	if err != nil{
+		fmt.Println("[TravelDBforFn] decode startkey error")
+		return 0, err
 	}
-    return int64(succ)
+
+	iter := rd.Rdb.NewIterator(rd.ro)
+	iter.Seek(begin)
+	failCnt := 0
+	num := uint64(0)
+
+	for iter.SeekToFirst(); iter.Valid(); iter.Next(){
+		num++
+		if num > traveEntries{
+			break
+		}
+		if _,err := fn(iter.Key().Data(),iter.Value().Data()); err != nil{
+            fmt.Println("[travelDB] exec fn() err=",err,"key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data())
+		    errShard = append(errShard,iter.Key().Data)
+			failCnt++
+            //continue
+		}
+	}
+	slicecompare.SaveValueToFile(base58.Encode(iter.Key().Data()), VerifyedNumFile)
+	return int64(failCnt)
+}
+
+func (rd *KvDB) ScanDB(){
+
 }

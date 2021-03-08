@@ -128,30 +128,36 @@ func (db *IndexDB) Reset() {
 }
 
 
-func (db *IndexDB) TravelDB(fn func(key, val []byte) error) int64{
+func (db *IndexDB) TravelDBforFn(fn func(key, val []byte) ([]byte,error),startkey string, traveEtries uint64) (int64,error){
 	//var DBIter storage.TableIterator
-	ytIndexFile := db.indexFile
-	options := db.indexFile.GetYTFSIndexFileOpts()
-	DBIter:= storage.GetIdxDbIter(ytIndexFile, options)
-	succ := int64(0)
+	var err error
+	//ytIndexFile := db.indexFile
+	//options := db.indexFile.GetYTFSIndexFileOpts()
+	//DBIter:= storage.GetIdxDbIter(ytIndexFile, options)
+	errCnt := int64(0)
 
-	for {
-		tab,err:=DBIter.GetNoNilTableBytes()
-		if err != nil {
-			fmt.Println("[indexdb] get table error :",err)
-			continue
-		}
-
-		for key, val := range tab{
-			err := fn(key[:],val)
-			if err != nil {
-				fmt.Println("[indexdb] TravelDB error: ",err)
-				continue
-			}
-			succ++
-		}
-	}
-	return succ
+	//for {
+	//	tab,err:=DBIter.GetNoNilTableBytes()
+	//	if err != nil {
+	//		fmt.Println("[indexdb] get table error :",err)
+	//		//continue
+	//		return errCnt,err
+	//	}
+	//
+	//	for key, val := range tab{
+	//		_, err := fn(key[:],val)
+	//		if err != nil{
+	//			errCnt++
+	//			return errCnt,err
+	//		}
+	//		//if !b {
+	//		//	fmt.Println("[indexdb] TravelDB error: ",err)
+	//		//	continue
+	//		//}
+	//		//succ++
+	//	}
+	//}
+	return errCnt,err
 }
 
 func validateDBSchema(meta *ydcommon.Header, opt *opt.Options) error {
@@ -169,3 +175,8 @@ func validateDBSchema(meta *ydcommon.Header, opt *opt.Options) error {
 	}
 	return nil
 }
+
+func (db *IndexDB) ScanDB() {
+	//db.indexFile.Format()
+}
+

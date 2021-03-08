@@ -1,7 +1,9 @@
 package ytfs
 
 import (
-//	"encoding/binary"
+	"bytes"
+	"crypto"
+	//	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	//log "github.com/yottachain/YTDataNode/logger"
@@ -438,3 +440,31 @@ func (ytfs *YTFS) String() string {
 	// 	"Average table size: %d\n", len(disk.index.sizes), sum, max, min, avg)
 	return string(meta) + "\n"
 }
+
+func (ytfs *YTFS) ScanDB(){
+
+}
+
+func (ytfs *YTFS) YtfsDB() *DB{
+	return &ytfs.db
+}
+
+func (ytfs *YTFS) VerifySliceOne(key ydcommon.IndexTableKey) ([]byte, error){
+	slice, err := ytfs.Get(key)
+	if err != nil {
+		fmt.Println("get slice fail, key=",base58.Encode(key[:]))
+		return nil ,err
+	}
+	sha := crypto.MD5.New()
+	sha.Write(slice)
+	b:=bytes.Equal(sha.Sum(nil), key[:])
+	if !b {
+		err = fmt.Errorf("verify failed")
+		return nil ,err
+	}
+	return nil, nil
+}
+
+//func (ytfs *YTFS) VerifySlice(){
+//	ytfs.db.TravelDBforFn(ytfs.VerifySliceOne,startKey,)
+//}

@@ -307,3 +307,7 @@ func (rd *KvDB) TravelDB(fn func(key, value []byte) error) int64 {
 	}
 	return int64(succ)
 }
+
+func (rd *KvDB) ScanDB(){
+
+}
