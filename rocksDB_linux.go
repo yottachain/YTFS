@@ -339,6 +339,7 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte,er
 			failCnt++
             //continue
 		}
+		fmt.Println("[travelDB] exec fn() verify succ, key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data())
 	}
 	slicecompare.SaveValueToFile(base58.Encode(iter.Key().Data()), VerifyedNumFile)
 	return int64(failCnt),err
