@@ -312,8 +312,8 @@ func (rd *KvDB) TravelDB(fn func(key, value []byte) error) int64 {
 }
 
 func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte,error), startkey string, traveEntries uint64) (int64, error) {
-	var errShard []ydcommon.IndexTableValue
-	var hashKey ydcommon.IndexTableValue
+	var errShard []ydcommon.IndexTableKey
+	var hashKey ydcommon.IndexTableKey
 
 	begin,err := base58.Decode(startkey)
 	if err != nil{
