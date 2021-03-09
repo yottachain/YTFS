@@ -465,6 +465,6 @@ func (ytfs *YTFS) VerifySliceOne(key ydcommon.IndexTableKey) ([]byte, error){
 	return nil, nil
 }
 
-//func (ytfs *YTFS) VerifySlice(){
-//	ytfs.db.TravelDBforFn(ytfs.VerifySliceOne,startKey,)
-//}
+func (ytfs *YTFS) VerifySlice(startkey string, traveEntries uint64){
+	ytfs.db.TravelDBforverify(ytfs.VerifySliceOne,startkey,traveEntries)
+}

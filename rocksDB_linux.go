@@ -297,7 +297,20 @@ func (rd *KvDB) Close() {
 func (rd *KvDB) Reset() {
 }
 
-func (rd *KvDB) TravelDBforFn(fn func(key, value []byte) ([]byte,error), startkey string, traveEntries uint64) (int64, error) {
+func (rd *KvDB) TravelDB(fn func(key, value []byte) error) int64 {
+	iter := rd.Rdb.NewIterator(rd.ro)
+	succ := 0
+	for iter.SeekToFirst(); iter.Valid(); iter.Next(){
+		if err := fn(iter.Key().Data(),iter.Value().Data()); err != nil{
+			fmt.Println("[travelDB] exec fn() err=",err,"key=",iter.Key().Data(),"value=",iter.Value().Data())
+			continue
+		}
+		succ++
+	}
+	return int64(succ)
+}
+
+func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte,error), startkey string, traveEntries uint64) (int64, error) {
 	var errShard [][]byte
 	begin,err := base58.Decode(startkey)
 	if err != nil{

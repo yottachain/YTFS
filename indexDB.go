@@ -127,8 +127,33 @@ func (db *IndexDB) Reset() {
 	db.indexFile.Format()
 }
 
+func (db *IndexDB) TravelDB(fn func(key, val []byte) error) int64{
+	//var DBIter storage.TableIterator
+	ytIndexFile := db.indexFile
+	options := db.indexFile.GetYTFSIndexFileOpts()
+	DBIter:= storage.GetIdxDbIter(ytIndexFile, options)
+	succ := int64(0)
 
-func (db *IndexDB) TravelDBforFn(fn func(key, val []byte) ([]byte,error),startkey string, traveEtries uint64) (int64,error){
+	for {
+		tab,err:=DBIter.GetNoNilTableBytes()
+		if err != nil {
+			fmt.Println("[indexdb] get table error :",err)
+			continue
+		}
+
+		for key, val := range tab{
+			err := fn(key[:],val)
+			if err != nil {
+				fmt.Println("[indexdb] TravelDB error: ",err)
+				continue
+			}
+			succ++
+		}
+	}
+	return succ
+}
+
+func (db *IndexDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte,error),startkey string, traveEntries uint64) (int64,error){
 	//var DBIter storage.TableIterator
 	var err error
 	//ytIndexFile := db.indexFile
