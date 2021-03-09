@@ -314,7 +314,8 @@ func (rd *KvDB) TravelDB(fn func(key, value []byte) error) int64 {
 func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte,error), startkey string, traveEntries uint64) (int64, error) {
 	var errShard []ydcommon.IndexTableKey
 	var hashKey ydcommon.IndexTableKey
-
+	var err error
+	
 	iter := rd.Rdb.NewIterator(rd.ro)
 	if len(startkey) == 0{
 		iter.SeekToFirst()
