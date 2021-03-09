@@ -315,9 +315,10 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte,er
 	var errShard []ydcommon.IndexTableKey
 	var hashKey ydcommon.IndexTableKey
 	var err error
-	
+
+	fmt.Println("startkey=",startkey)
 	iter := rd.Rdb.NewIterator(rd.ro)
-	if len(startkey) == 0{
+	if len(startkey)==0|startkey == "0"{
 		iter.SeekToFirst()
 	}else{
 		begin,err := base58.Decode(startkey)
