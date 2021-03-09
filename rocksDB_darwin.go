@@ -4,7 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/tecbot/gorocksdb"
-	ydcommon "github.com/yottachain/YTFS/common"
+	 ydcommon "github.com/yottachain/YTFS/common"
+	"github.com/yottachain/YTDataNode/slicecompare"
 	"github.com/yottachain/YTFS/opt"
 	"os"
 	"path"
@@ -321,7 +322,7 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte,er
 	failCnt := 0
 	num := uint64(0)
 
-	for iter.SeekToFirst(); iter.Valid(); iter.Next(){
+	for ; iter.Valid(); iter.Next(){
 		num++
 		if num > traveEntries{
 			break

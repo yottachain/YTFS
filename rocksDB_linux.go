@@ -7,6 +7,7 @@ import (
 	"github.com/tecbot/gorocksdb"
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
+	"github.com/yottachain/YTDataNode/slicecompare"
 	"os"
 	"path"
 	"sync"
@@ -311,7 +312,9 @@ func (rd *KvDB) TravelDB(fn func(key, value []byte) error) int64 {
 }
 
 func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte,error), startkey string, traveEntries uint64) (int64, error) {
-	var errShard [][]byte
+	var errShard []ydcommon.IndexTableValue
+	var hashKey ydcommon.IndexTableValue
+
 	begin,err := base58.Decode(startkey)
 	if err != nil{
 		fmt.Println("[TravelDBforFn] decode startkey error")
@@ -323,20 +326,22 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte,er
 	failCnt := 0
 	num := uint64(0)
 
-	for iter.SeekToFirst(); iter.Valid(); iter.Next(){
+	for ; iter.Valid(); iter.Next(){
 		num++
 		if num > traveEntries{
 			break
 		}
-		if _,err := fn(iter.Key().Data(),iter.Value().Data()); err != nil{
+
+		copy(hashKey[:],iter.Key().Data())
+		if _,err := fn(hashKey); err != nil{
             fmt.Println("[travelDB] exec fn() err=",err,"key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data())
-		    errShard = append(errShard,iter.Key().Data)
+		    errShard = append(errShard,hashKey)
 			failCnt++
             //continue
 		}
 	}
 	slicecompare.SaveValueToFile(base58.Encode(iter.Key().Data()), VerifyedNumFile)
-	return int64(failCnt)
+	return int64(failCnt),err
 }
 
 func (rd *KvDB) ScanDB(){
