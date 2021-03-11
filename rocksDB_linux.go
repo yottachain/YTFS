@@ -336,7 +336,7 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 		iter.Seek(begin)
 	}
 
-	failCnt := 0
+	//failCnt := 0
 	num := uint64(0)
 
 	for ; iter.Valid(); iter.Next(){
