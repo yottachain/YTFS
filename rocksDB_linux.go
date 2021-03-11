@@ -317,9 +317,9 @@ func (rd *KvDB) TravelDB(fn func(key, value []byte) error) int64 {
 	return int64(succ)
 }
 
-func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash,error), startkey string, traveEntries uint64) ([]*Hashtohash, error) {
-	var errHash Hashtohash
-	var hashTab []*Hashtohash
+func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash,error), startkey string, traveEntries uint64) ([]Hashtohash, error) {
+	//var errHash Hashtohash
+	var hashTab []Hashtohash
 	var hashKey ydcommon.IndexTableKey
 	var err error
 
@@ -354,7 +354,7 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 
 		if len(ret.DBhash) != 0{
 			fmt.Println("[travelDB] exec fn() err=",err,"key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data())
-			hashTab = append(hashTab,&ret)
+			hashTab = append(hashTab,ret)
 		}else{
 			fmt.Println("[travelDB] exec fn() verify succ, key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data())
 		}
