@@ -153,13 +153,15 @@ func (db *IndexDB) TravelDB(fn func(key, val []byte) error) int64{
 	return succ
 }
 
-func (db *IndexDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte,error),startkey string, traveEntries uint64) (int64,error){
+
+func (db *IndexDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash,error), startkey string, traveEntries uint64) ([]Hashtohash, error){
 	//var DBIter storage.TableIterator
 	var err error
+	var retSlice []Hashtohash
 	//ytIndexFile := db.indexFile
 	//options := db.indexFile.GetYTFSIndexFileOpts()
 	//DBIter:= storage.GetIdxDbIter(ytIndexFile, options)
-	errCnt := int64(0)
+	//errCnt := int64(0)
 
 	//for {
 	//	tab,err:=DBIter.GetNoNilTableBytes()
@@ -182,7 +184,7 @@ func (db *IndexDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte
 	//		//succ++
 	//	}
 	//}
-	return errCnt,err
+	return retSlice,err
 }
 
 func validateDBSchema(meta *ydcommon.Header, opt *opt.Options) error {

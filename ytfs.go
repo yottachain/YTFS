@@ -449,22 +449,34 @@ func (ytfs *YTFS) YtfsDB() *DB{
 	return &ytfs.db
 }
 
-func (ytfs *YTFS) VerifySliceOne(key ydcommon.IndexTableKey) ([]byte, error){
+var hash0Str = "0000000000000000"
+type Hashtohash struct {
+	DBhash []byte
+	Datahash []byte
+}
+
+func (ytfs *YTFS) VerifySliceOne(key ydcommon.IndexTableKey) (Hashtohash, error){
+	var errHash Hashtohash
 	slice, err := ytfs.Get(key)
 	if err != nil {
 		fmt.Println("get slice fail, key=",base58.Encode(key[:]))
-		return nil ,err
+		errHash.DBhash = key[:]
+		errHash.Datahash = []byte(hash0Str)
+		return errHash ,err
 	}
 	sha := crypto.MD5.New()
 	sha.Write(slice)
 	b:=bytes.Equal(sha.Sum(nil), key[:])
 	if !b {
-		err = fmt.Errorf("verify failed")
-		return nil ,err
+		errHash.DBhash=key[:]
+		errHash.Datahash = sha.Sum(nil)
+		//err = fmt.Errorf("verify failed")
+		return errHash ,nil
 	}
-	return nil, nil
+	return errHash, nil
 }
 
-func (ytfs *YTFS) VerifySlice(startkey string, traveEntries uint64){
-	ytfs.db.TravelDBforverify(ytfs.VerifySliceOne,startkey,traveEntries)
+func (ytfs *YTFS) VerifySlice(startkey string, traveEntries uint64)([]Hashtohash, error){
+	retSlice,err:=ytfs.db.TravelDBforverify(ytfs.VerifySliceOne,startkey,traveEntries)
+    return retSlice,err
 }

@@ -309,16 +309,24 @@ func (rd *KvDB) TravelDB(fn func(key, value []byte) error) int64 {
 	return int64(succ)
 }
 
-func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte,error), startkey string, traveEntries uint64) (int64, error) {
-	var errShard [][]byte
-	begin,err := base58.Decode(startkey)
-	if err != nil{
-		fmt.Println("[TravelDBforFn] decode startkey error")
-		return 0, err
+func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte,error), startkey string, traveEntries uint64) ([][]byte, error) {
+	var retSlice [][]byte
+	var hashKey ydcommon.IndexTableKey
+	var err error
+
+	fmt.Println("startkey=",startkey)
+	iter := rd.Rdb.NewIterator(rd.ro)
+	if len(startkey)==0 || startkey == "0"{
+		iter.SeekToFirst()
+	}else{
+		begin,err := base58.Decode(startkey)
+		if err != nil {
+			fmt.Println("[TravelDBforFn] decode startkey error")
+			return 0, nil, err
+		}
+		iter.Seek(begin)
 	}
 
-	iter := rd.Rdb.NewIterator(rd.ro)
-	iter.Seek(begin)
 	failCnt := 0
 	num := uint64(0)
 
@@ -327,15 +335,23 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte,er
 		if num > traveEntries{
 			break
 		}
-		if _,err := fn(iter.Key().Data(),iter.Value().Data()); err != nil{
+
+		copy(hashKey[:],iter.Key().Data())
+		ret,err := fn(hashKey)
+		if err != nil{
+			fmt.Println("[travelDB] error:",err)
+			continue
+		}
+
+		if len(ret) != 0{
 			fmt.Println("[travelDB] exec fn() err=",err,"key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data())
-			errShard = append(errShard,iter.Key().Data)
-			failCnt++
-			//continue
+			retSlice = append(retSlice,ret)
+		}else{
+			fmt.Println("[travelDB] exec fn() verify succ, key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data())
 		}
 	}
 	slicecompare.SaveValueToFile(base58.Encode(iter.Key().Data()), VerifyedNumFile)
-	return int64(failCnt)
+	return retSlice,err
 }
 
 func (rd *KvDB) ScanDB(){

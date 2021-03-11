@@ -17,7 +17,8 @@ import (
 var mdbFileName = "/maindb"
 var ytPosKey    = "yt_rocks_pos_key"
 var ytBlkSzKey  = "yt_blk_size_key"
-var VerifyedNumFile string = "/gc/n_file"
+var VerifyedNumFile string = "/gc/rock_verify"
+//var hash0Str = "0000000000000000"
 
 type KvDB struct {
 	Rdb *gorocksdb.DB
@@ -29,6 +30,11 @@ type KvDB struct {
 	BlkVal uint32
 	Header *ydcommon.Header
 }
+
+//type Hashtohash struct {
+//	DBhash []byte
+//	Datahash []byte
+//}
 
 func openKVDB(DBPath string) (kvdb *KvDB, err error) {
 //	var posIdx uint32
@@ -311,8 +317,9 @@ func (rd *KvDB) TravelDB(fn func(key, value []byte) error) int64 {
 	return int64(succ)
 }
 
-func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte,error), startkey string, traveEntries uint64) (int64, error) {
-	var errShard []ydcommon.IndexTableKey
+func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash,error), startkey string, traveEntries uint64) ([]*Hashtohash, error) {
+	var errHash Hashtohash
+	var hashTab []*Hashtohash
 	var hashKey ydcommon.IndexTableKey
 	var err error
 
@@ -324,7 +331,7 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte,er
 		begin,err := base58.Decode(startkey)
 		if err != nil {
 			fmt.Println("[TravelDBforFn] decode startkey error")
-			return 0, err
+			return hashTab, err
 		}
 		iter.Seek(begin)
 	}
@@ -339,16 +346,21 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte,er
 		}
 
 		copy(hashKey[:],iter.Key().Data())
-		if _,err := fn(hashKey); err != nil{
-            fmt.Println("[travelDB] exec fn() err=",err,"key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data())
-		    errShard = append(errShard,hashKey)
-			failCnt++
-            //continue
+		ret,err := fn(hashKey)
+		if err != nil{
+			fmt.Println("[travelDB] error:",err)
+            continue
 		}
-		fmt.Println("[travelDB] exec fn() verify succ, key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data())
+
+		if len(ret.DBhash) != 0{
+			fmt.Println("[travelDB] exec fn() err=",err,"key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data())
+			hashTab = append(hashTab,&ret)
+		}else{
+			fmt.Println("[travelDB] exec fn() verify succ, key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data())
+		}
 	}
 	slicecompare.SaveValueToFile(base58.Encode(iter.Key().Data()), VerifyedNumFile)
-	return int64(failCnt),err
+	return hashTab,err
 }
 
 func (rd *KvDB) ScanDB(){
