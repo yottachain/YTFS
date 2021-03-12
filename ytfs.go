@@ -476,7 +476,7 @@ func (ytfs *YTFS) VerifySliceOne(key ydcommon.IndexTableKey) (Hashtohash, error)
 	return errHash, nil
 }
 
-func (ytfs *YTFS) VerifySlice(startkey string, traveEntries uint64)([]Hashtohash, error){
-	retSlice,err:=ytfs.db.TravelDBforverify(ytfs.VerifySliceOne,startkey,traveEntries)
-    return retSlice,err
+func (ytfs *YTFS) VerifySlice(startkey string, traveEntries uint64)([]Hashtohash,string, error){
+	retSlice,beginkey,err:=ytfs.db.TravelDBforverify(ytfs.VerifySliceOne,startkey,traveEntries)
+    return retSlice,beginkey,err
 }

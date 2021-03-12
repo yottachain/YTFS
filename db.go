@@ -9,7 +9,7 @@ type DB interface {
 	BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableKey]byte, error)
 	UpdateMeta(account uint64) error
 	TravelDB(fn func(key, value []byte) error) int64
-	TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash,error), startkey string, traveEntries uint64) ([]Hashtohash, error)
+	TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash,error), startkey string, traveEntries uint64) ([]Hashtohash, string, error)
 	Len() uint64
 	TotalSize() uint64
 	BlockSize() uint32

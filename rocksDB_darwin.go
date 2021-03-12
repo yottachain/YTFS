@@ -4,8 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/tecbot/gorocksdb"
-	 ydcommon "github.com/yottachain/YTFS/common"
-	"github.com/yottachain/YTDataNode/slicecompare"
+	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
 	"os"
 	"path"
@@ -309,8 +308,9 @@ func (rd *KvDB) TravelDB(fn func(key, value []byte) error) int64 {
 	return int64(succ)
 }
 
-func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte,error), startkey string, traveEntries uint64) ([][]byte, error) {
-	var retSlice [][]byte
+func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash,error), startkey string, traveEntries uint64) ([]Hashtohash, string, error) {
+	//var errHash Hashtohash
+	var hashTab []Hashtohash
 	var hashKey ydcommon.IndexTableKey
 	var err error
 
@@ -322,12 +322,12 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte,er
 		begin,err := base58.Decode(startkey)
 		if err != nil {
 			fmt.Println("[TravelDBforFn] decode startkey error")
-			return 0, nil, err
+			return hashTab, nil, err
 		}
 		iter.Seek(begin)
 	}
 
-	failCnt := 0
+	//failCnt := 0
 	num := uint64(0)
 
 	for ; iter.Valid(); iter.Next(){
@@ -343,15 +343,19 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) ([]byte,er
 			continue
 		}
 
-		if len(ret) != 0{
-			fmt.Println("[travelDB] exec fn() err=",err,"key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data())
-			retSlice = append(retSlice,ret)
+		if len(ret.DBhash) != 0{
+			fmt.Println("[travelDB] exec fn() err=",err,"key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data(),"num=",num)
+			hashTab = append(hashTab,ret)
 		}else{
-			fmt.Println("[travelDB] exec fn() verify succ, key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data())
+			fmt.Println("[travelDB] exec fn() verify succ, key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data(),"num=",num)
 		}
 	}
-	slicecompare.SaveValueToFile(base58.Encode(iter.Key().Data()), VerifyedNumFile)
-	return retSlice,err
+
+	beginKey := base58.Encode(iter.Key().Data())
+	if !iter.Valid(){
+		beginKey="0"
+	}
+	return hashTab,beginKey,err
 }
 
 func (rd *KvDB) ScanDB(){
