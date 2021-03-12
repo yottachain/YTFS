@@ -321,7 +321,7 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 	var hashTab []Hashtohash
 	var hashKey ydcommon.IndexTableKey
 	var err error
-
+	beginKey := ""
 	fmt.Println("startkey=",startkey)
 	iter := rd.Rdb.NewIterator(rd.ro)
 	if len(startkey)==0 || startkey == "0"{
@@ -330,7 +330,7 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 		begin,err := base58.Decode(startkey)
 		if err != nil {
 			fmt.Println("[TravelDBforFn] decode startkey error")
-			return hashTab, nil, err
+			return hashTab, beginKey, err
 		}
 		iter.Seek(begin)
 	}
@@ -359,9 +359,9 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 		}
 	}
 
-	beginKey := base58.Encode(iter.Key().Data())
+	beginKey = base58.Encode(iter.Key().Data())
 	if !iter.Valid(){
-		beginKey="0"
+		beginKey = "0"
 	}
 	return hashTab,beginKey,err
 }

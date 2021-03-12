@@ -154,10 +154,11 @@ func (db *IndexDB) TravelDB(fn func(key, val []byte) error) int64{
 }
 
 
-func (db *IndexDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash,error), startkey string, traveEntries uint64) ([]Hashtohash, error){
+func (db *IndexDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash,error), startkey string, traveEntries uint64) ([]Hashtohash, string, error){
 	//var DBIter storage.TableIterator
 	var err error
 	var retSlice []Hashtohash
+	beginkey :=""
 	//ytIndexFile := db.indexFile
 	//options := db.indexFile.GetYTFSIndexFileOpts()
 	//DBIter:= storage.GetIdxDbIter(ytIndexFile, options)
@@ -184,7 +185,7 @@ func (db *IndexDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashto
 	//		//succ++
 	//	}
 	//}
-	return retSlice,err
+	return retSlice,beginkey,err
 }
 
 func validateDBSchema(meta *ydcommon.Header, opt *opt.Options) error {
