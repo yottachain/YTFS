@@ -158,7 +158,8 @@ func (db *IndexDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashto
 	//var DBIter storage.TableIterator
 	var err error
 	var retSlice []Hashtohash
-	beginkey :=""
+	var beginKey string
+	beginKey=""
 	//ytIndexFile := db.indexFile
 	//options := db.indexFile.GetYTFSIndexFileOpts()
 	//DBIter:= storage.GetIdxDbIter(ytIndexFile, options)
@@ -185,7 +186,7 @@ func (db *IndexDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashto
 	//		//succ++
 	//	}
 	//}
-	return retSlice,beginkey,err
+	return retSlice,beginKey,err
 }
 
 func validateDBSchema(meta *ydcommon.Header, opt *opt.Options) error {
