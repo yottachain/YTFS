@@ -6,6 +6,11 @@ type DB interface {
 	//Type() string
 	Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error)
 	Put(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) error
+	PutDb(key, value []byte) error
+	GetDb(key []byte) ([]byte, error)
+	GetBitMapTab(num int) ([]ydcommon.GcTableItem,error)
+	Delete(key ydcommon.IndexTableKey) error
+	DeleteDb(key []byte) error
 	BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableKey]byte, error)
 	UpdateMeta(account uint64) error
 	TravelDB(fn func(key, value []byte) error) int64
@@ -17,4 +22,5 @@ type DB interface {
 	Close()
 	Reset()
 	ScanDB()
+	//GcProcess(fn func(key ydcommon.IndexTableKey) (Hashtohash,error)) error
 }

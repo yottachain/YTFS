@@ -21,6 +21,7 @@ const (
 
 const (
     HashLength = 16
+	GcHashLen  = 19
 )
 
 type Hash [HashLength]byte
@@ -47,6 +48,13 @@ type IndexTable map[IndexTableKey]IndexTableValue
 type IndexItem struct {
 	Hash      IndexTableKey
 	OffsetIdx IndexTableValue
+}
+
+type GcTableKey [GcHashLen]byte
+type GcTableValue uint32
+type GcTableItem struct{
+	Gckey  GcTableKey
+	Gcval  GcTableValue
 }
 
 // IsPowerOfTwo tells if x is power of 2

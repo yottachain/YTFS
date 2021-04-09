@@ -294,7 +294,58 @@ func (rd *KvDB) Meta() *ydcommon.Header{
 }
 
 func (rd *KvDB) Put(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) error {
-	return nil
+	valbuf := make([]byte,4)
+	binary.LittleEndian.PutUint32(valbuf, uint32(value))
+	return rd.Rdb.Put(rd.wo, key[:], valbuf)
+	//return nil
+}
+
+func (rd *KvDB) Delete(key ydcommon.IndexTableKey) error {
+	return rd.Rdb.Delete(rd.wo, key[:])
+}
+
+func (rd *KvDB) PutDb(key, value []byte) error {
+	return rd.Rdb.Put(rd.wo,key,value)
+}
+
+func (rd *KvDB) GetDb(key, value []byte) ([]byte, error) {
+	 slice,err:=rd.Rdb.Get(rd.ro, key)
+	 if err != nil {
+	 	return nil, err
+	 }
+	 data := slice.Data()
+	 return data, nil
+}
+
+func (rd *KvDB) DeleteDb(key []byte) error {
+	return rd.Rdb.Delete(rd.wo, key)
+}
+
+func (rd *KvDB)GetBitMapTab(num int) ([]ydcommon.GcTableItem,error){
+	var gctab []ydcommon.GcTableItem
+	var n int
+	iter := rd.Rdb.NewIterator(rd.ro)
+	prefix := []byte("del")
+	for iter.SeekForPrev(prefix);iter.ValidForPrefix(prefix);iter.Next(){
+		if len(iter.Key().Data()) != ydcommon.GcHashLen{
+			continue
+		}
+
+		if len(iter.Value().Data()) == 0{
+			continue
+		}
+
+		var gctabItem ydcommon.GcTableItem
+		//var gcval ydcommon.IndexTableValue
+		copy(gctabItem.Gckey[:],iter.Key().Data())
+		gctabItem.Gcval = ydcommon.GcTableValue(binary.LittleEndian.Uint32(iter.Value().Data()))
+		gctab = append(gctab,gctabItem)
+		n++
+		if n >= num{
+			break
+		}
+	}
+    return gctab,nil
 }
 
 func (rd *KvDB) Close() {
@@ -365,6 +416,21 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 	}
 	return hashTab,beginKey,err
 }
+
+//func (rc *KvDB) GcProcess(fn func(key ydcommon.IndexTableKey) (Hashtohash,error)) error{
+//   var err error
+//	slice,err:=rc.Rdb.Get(rc.ro,key[:])
+//   if err != nil {
+//   	log.Println("[gcdel] get data error:",err,"hash:",base58.Encode(key[:]))
+//   }
+//
+//	sha := crypto.MD5.New()
+//	sha.Write(slice)
+//	b:=bytes.Equal(sha.Sum(nil), key[:])
+//
+//   if
+//   return err
+//}
 
 func (rd *KvDB) ScanDB(){
 

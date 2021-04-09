@@ -230,6 +230,14 @@ func (c *Context) Put(value []byte) (uint32, error) {
 	return index, nil
 }
 
+func (c *Context) PutAtPos(value []byte, pos uint32)(uint32, error){
+	index, err := c.putAt(value, pos)
+	if err != nil {
+		return index, err
+	}
+	return index, nil
+}
+
 // PutAt puts the vale to specific offset of the corrent device
 func (c *Context) PutAt(value []byte, globalID uint32) (uint32, error) {
 	c.lock.Lock()

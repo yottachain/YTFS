@@ -209,3 +209,28 @@ func (db *IndexDB) ScanDB() {
 	//db.indexFile.Format()
 }
 
+func (db *IndexDB)Delete(key ydcommon.IndexTableKey) error{
+	err := fmt.Errorf("not support!")
+	return err
+}
+
+func (db *IndexDB) PutDb(key, value []byte) error {
+	err := fmt.Errorf("not support!")
+	return err
+	//return db.Rdb.Put(rd.wo,key,value)
+}
+
+func (db *IndexDB) GetDb(key []byte) ([]byte, error) {
+	err := fmt.Errorf("not support!")
+	return nil, err
+}
+
+func (db *IndexDB) DeleteDb(key []byte) error {
+	err := fmt.Errorf("not support!")
+	return err
+}
+
+func (db *IndexDB)GetBitMapTab(num int) ([]ydcommon.GcTableItem,error){
+	err := fmt.Errorf("not support!")
+	return nil, err
+}
