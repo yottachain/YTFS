@@ -317,6 +317,37 @@ func (rd *KvDB) GetDb(key, value []byte) ([]byte, error) {
 	return data, nil
 }
 
+func (rd *KvDB) DeleteDb(key []byte) error {
+	return rd.Rdb.Delete(rd.wo, key)
+}
+
+func (rd *KvDB)GetBitMapTab(num int) ([]ydcommon.GcTableItem,error){
+	var gctab []ydcommon.GcTableItem
+	var n int
+	iter := rd.Rdb.NewIterator(rd.ro)
+	prefix := []byte("del")
+	for iter.SeekForPrev(prefix);iter.ValidForPrefix(prefix);iter.Next(){
+		if len(iter.Key().Data()) != ydcommon.GcHashLen{
+			continue
+		}
+
+		if len(iter.Value().Data()) == 0{
+			continue
+		}
+
+		var gctabItem ydcommon.GcTableItem
+		//var gcval ydcommon.IndexTableValue
+		copy(gctabItem.Gckey[:],iter.Key().Data())
+		gctabItem.Gcval = ydcommon.GcTableValue(binary.LittleEndian.Uint32(iter.Value().Data()))
+		gctab = append(gctab,gctabItem)
+		n++
+		if n >= num{
+			break
+		}
+	}
+	return gctab,nil
+}
+
 func (rd *KvDB) Close() {
 }
 
