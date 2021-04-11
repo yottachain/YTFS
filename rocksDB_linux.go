@@ -308,7 +308,7 @@ func (rd *KvDB) PutDb(key, value []byte) error {
 	return rd.Rdb.Put(rd.wo,key,value)
 }
 
-func (rd *KvDB) GetDb(key, value []byte) ([]byte, error) {
+func (rd *KvDB) GetDb(key []byte) ([]byte, error) {
 	 slice,err:=rd.Rdb.Get(rd.ro, key)
 	 if err != nil {
 	 	return nil, err
