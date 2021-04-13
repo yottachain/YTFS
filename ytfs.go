@@ -611,7 +611,8 @@ func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 	}
 
 	if ! ytfs.VerifyOneSlice(key,slice){
-		fmt.Println("[gcdel] varify data failed")
+		fmt.Println("[gcdel] varify data failed, hash:",base58.Encode(key[:]))
+
 		err = ytfs.db.Delete(key)
 		if err != nil{
 			fmt.Println("[gcdel]  ytfs.db.Delete error:",err)
