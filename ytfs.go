@@ -640,13 +640,17 @@ func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 
     GcLock.Lock()
     defer GcLock.Unlock()
+	gccnt := uint32(0)
     gcspace, err := ytfs.db.GetDb([]byte(gcspacecntkey))
 	if err != nil{
-		fmt.Println("[gcdel]  ytfs.db.GetDb gcspacecnt error:",err)
+		if gcspace != nil {
+			gccnt = binary.LittleEndian.Uint32(gcspace)
+		}
+		fmt.Println("[gcdel]  ytfs.db.GetDb gcspacecnt error:",err,"gcspacecnt",gccnt)
 		return err
 	}
 
-    gccnt := uint32(0)
+
 	if gcspace != nil {
         gccnt = binary.LittleEndian.Uint32(gcspace)
     }
