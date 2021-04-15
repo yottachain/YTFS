@@ -3,6 +3,7 @@ package ytfs
 import (
 	"bytes"
 	"crypto"
+	"crypto/md5"
 	"encoding/binary"
 
 	//	"encoding/binary"
@@ -560,8 +561,8 @@ func (ytfs *YTFS) ScanDB(){
 
 }
 
-func (ytfs *YTFS) YtfsDB() *DB{
-	return &ytfs.db
+func (ytfs *YTFS) YtfsDB() DB{
+	return ytfs.db
 }
 
 var hash0Str = "0000000000000000"
@@ -601,17 +602,21 @@ func (ytfs *YTFS)VerifyOneSlice(key ydcommon.IndexTableKey,slice []byte) bool{
 	return bytes.Equal(sha.Sum(nil), key[:])
 }
 
+func (ytfs *YTFS)GetBitMapTab(num int)([]ydcommon.GcTableItem,error){
+	return ytfs.db.GetBitMapTab(num)
+}
+
 func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 	var err error
 
 	slice,err := ytfs.Get(key)
 	if err != nil {
-		fmt.Println("get slice fail, key=",base58.Encode(key[:]))
+		fmt.Println("[gcdel] get slice error:",err,"key=",base58.Encode(key[:]))
 		return err
 	}
 
 	if ! ytfs.VerifyOneSlice(key,slice){
-		fmt.Println("[gcdel] varify data failed, hash:",base58.Encode(key[:]))
+		fmt.Println("[gcdel] verify data error, hash:",base58.Encode(key[:]),"slice hash:",md5.Sum(slice))
 
 		err = ytfs.db.Delete(key)
 		if err != nil{
