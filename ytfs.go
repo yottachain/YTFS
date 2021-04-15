@@ -331,8 +331,10 @@ func (ytfs *YTFS) saveCurrentYTFS() {
 func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
 	if ytfs.config.UseKvDb {
 		gcspace, err := ytfs.db.GetDb([]byte(gcspacecntkey))
+
+		fmt.Println("[gcdel]  batchput get gcspacecnt len(gcspace)=",len(gcspace))
 		if err != nil || gcspace == nil{
-			fmt.Println("[gcdel]  ytfs.db.GetDb gcspacecnt error:",err)
+			fmt.Println("[gcdel]  batchput ytfs.db.GetDb gcspacecnt error:",err)
 			return ytfs.BatchPutNormal(batch)
 		}
 
@@ -409,6 +411,7 @@ func (ytfs *YTFS) BatchPutGc(batch map[ydcommon.IndexTableKey][]byte) (map[ydcom
     GcLock.Lock()
     defer GcLock.Unlock()
     bitmaptab, err := ytfs.db.GetBitMapTab(lenbatch + GcWrtOverNum)
+	fmt.Println("[gcdel]  batchputGC ytfs.db.GetBitMapTab len(bitmaptab)=",len(bitmaptab),"len(batch)=",len(batch))
     if err != nil || len(bitmaptab) < lenbatch {
     	fmt.Println("[gcdel] get del bitmaptab error:",err)
 	    return ytfs.BatchPutNormal(batch)
