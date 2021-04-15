@@ -608,13 +608,13 @@ func (ytfs *YTFS)GetBitMapTab(num int)([]ydcommon.GcTableItem,error){
 
 func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 	var err error
-
+	fmt.Println("[gcdel] GcProcess A start collect space key=",base58.Encode(key[:]))
 	slice,err := ytfs.Get(key)
 	if err != nil {
 		fmt.Println("[gcdel] get slice error:",err,"key=",base58.Encode(key[:]))
 		return err
 	}
-
+	fmt.Println("[gcdel] GcProcess B verify collect space key=",base58.Encode(key[:]))
 	if ! ytfs.VerifyOneSlice(key,slice){
 		fmt.Println("[gcdel] verify data error, hash:",base58.Encode(key[:]),"slice hash:",md5.Sum(slice))
 
@@ -625,6 +625,7 @@ func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 		return err
 	}
 
+	fmt.Println("[gcdel] GcProcess C renamekey collect space key=",base58.Encode(key[:]))
 	pos,_ := ytfs.db.Get(key)
 	val := make([]byte, 4)
 	binary.LittleEndian.PutUint32(val,uint32(pos))
@@ -637,12 +638,14 @@ func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 		return err
 	}
 
+	fmt.Println("[gcdel] GcProcess D deletekey collect space key=",base58.Encode(key[:]))
 	err = ytfs.db.Delete(key)
     if err != nil{
     	fmt.Println("[gcdel]  ytfs.db.Delete error:",err)
     	return err
     }
 
+	fmt.Println("[gcdel] GcProcess E get_old_gcspace collect space key=",base58.Encode(key[:]))
     GcLock.Lock()
     defer GcLock.Unlock()
 	gccnt := uint32(0)
@@ -655,10 +658,12 @@ func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 		return err
 	}
 
+	fmt.Println("[gcdel] GcProcess F resize_gcspace collect space key=",base58.Encode(key[:]))
 
 	if gcspace != nil {
         gccnt = binary.LittleEndian.Uint32(gcspace)
     }
+	fmt.Println("[gcdel] GcProcess G resize_gcspace collect space key=",base58.Encode(key[:]),"gcspacecnt",gccnt)
 
 	gccnt++
 	binary.LittleEndian.PutUint32(val,gccnt)
@@ -666,6 +671,7 @@ func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
     if err != nil{
 	    fmt.Println("[gcdel]  ytfs.db.PutDb gcspacecnt error:",err)
     }
+	fmt.Println("[gcdel] GcProcess H end collect space key=",base58.Encode(key[:]))
 
 	return err
 }
