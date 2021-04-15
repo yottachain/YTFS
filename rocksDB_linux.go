@@ -326,6 +326,8 @@ func (rd *KvDB)GetBitMapTab(num int) ([]ydcommon.GcTableItem,error){
 	iter := rd.Rdb.NewIterator(rd.ro)
 	prefix := []byte("del")
 	for iter.SeekForPrev(prefix);iter.ValidForPrefix(prefix);iter.Next(){
+		key := iter.Key().Data()
+		fmt.Println("[gcdel] kvdb-GetBitMapTab,key=",string(key[0:3])+base58.Encode(key[3:]),"len(key)=",len(key))
 		if len(iter.Key().Data()) != ydcommon.GcHashLen{
 			continue
 		}
@@ -344,6 +346,7 @@ func (rd *KvDB)GetBitMapTab(num int) ([]ydcommon.GcTableItem,error){
 			break
 		}
 	}
+	fmt.Println("[gcdel] kvdb-GetBitMapTab, len(gctab)=",len(gctab))
     return gctab,nil
 }
 
