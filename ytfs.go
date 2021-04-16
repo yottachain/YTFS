@@ -619,10 +619,12 @@ func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 	}
 	fmt.Println("[gcdel] GcProcess B verify collect space key=",base58.Encode(key[:]))
 	if ! ytfs.VerifyOneSlice(key,slice){
-		fmt.Println("[gcdel] verify data error, hash:",base58.Encode(key[:]),"slice hash:",md5.Sum(slice))
+		err = fmt.Errorf("verify data error!")
+		slicehs := md5.Sum(slice)
+		fmt.Println("[gcdel] verify data error, hash:",base58.Encode(key[:]),"slice hash:",base58.Encode(slicehs[:]))
 
-		err = ytfs.db.Delete(key)
-		if err != nil{
+		err1 := ytfs.db.Delete(key)
+		if err1 != nil{
 			fmt.Println("[gcdel]  ytfs.db.Delete error:",err)
 		}
 		return err
