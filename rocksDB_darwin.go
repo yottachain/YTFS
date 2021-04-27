@@ -97,12 +97,6 @@ func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
 		return nil, err
 	}
 
-	//IndexDBPath := path.Join(dir,"index.db")
-	//if PathExists(mainDBPath) && PathExists(IndexDBPath){
-	//	fmt.Println("[KVDB][error] there are two metadata DB found!!")
-	//	return nil,ErrTwoMetaFile
-	//}
-
 	Header,err := initializeHeader(config)
 	if err != nil {
 		fmt.Println("[rocksdb]initialize Header error")
@@ -278,6 +272,11 @@ func (rd *KvDB) resetKV(batchIndexes []ydcommon.IndexItem, resetCnt uint32) {
 }
 
 func (rd *KvDB) Len() uint64 {
+	gcspace,err := rd.Rdb.Get(rd.ro,[]byte(gcspacecntkey))
+	if err == nil && gcspace.Data() !=nil {
+		val := binary.LittleEndian.Uint32(gcspace.Data())
+		return uint64(rd.PosIdx) - uint64(val)
+	}
 	return uint64(rd.PosIdx)
 }
 
@@ -308,7 +307,7 @@ func (rd *KvDB) PutDb(key, value []byte) error {
 	return rd.Rdb.Put(rd.wo,key,value)
 }
 
-func (rd *KvDB) GetDb(key, value []byte) ([]byte, error) {
+func (rd *KvDB) GetDb(key []byte) ([]byte, error) {
 	slice,err:=rd.Rdb.Get(rd.ro, key)
 	if err != nil {
 		return nil, err
@@ -326,7 +325,10 @@ func (rd *KvDB)GetBitMapTab(num int) ([]ydcommon.GcTableItem,error){
 	var n int
 	iter := rd.Rdb.NewIterator(rd.ro)
 	prefix := []byte("del")
-	for iter.SeekForPrev(prefix);iter.ValidForPrefix(prefix);iter.Next(){
+	//for iter.SeekForPrev(prefix);iter.ValidForPrefix(prefix);iter.Next(){
+	for iter.Seek(prefix);iter.ValidForPrefix(prefix);iter.Next(){
+		key := iter.Key().Data()
+		fmt.Println("[gcdel] kvdb-GetBitMapTab,key=",string(key[0:3])+base58.Encode(key[3:]),"len(key)=",len(key))
 		if len(iter.Key().Data()) != ydcommon.GcHashLen{
 			continue
 		}
@@ -345,6 +347,7 @@ func (rd *KvDB)GetBitMapTab(num int) ([]ydcommon.GcTableItem,error){
 			break
 		}
 	}
+	fmt.Println("[gcdel] kvdb-GetBitMapTab, len(gctab)=",len(gctab))
 	return gctab,nil
 }
 
