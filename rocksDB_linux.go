@@ -413,9 +413,10 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 		}
 	}
 
-	beginKey = base58.Encode(iter.Key().Data())
 	if !iter.Valid(){
 		beginKey = "0"
+	}else{
+		beginKey = base58.Encode(iter.Key().Data())
 	}
 	return hashTab,beginKey,err
 }
