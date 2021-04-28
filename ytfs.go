@@ -682,6 +682,6 @@ func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 	return err
 }
 
-func (ytfs *YTFS) TravelDB(fn func(key, value []byte) error) int64 {
-	return ytfs.db.TravelDB(fn)
+func (ytfs *YTFS) GetDb() DB {
+	return ytfs.db
 }
