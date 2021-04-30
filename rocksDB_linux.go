@@ -325,7 +325,7 @@ func (rd *KvDB)GetBitMapTab(num int) ([]ydcommon.GcTableItem,error){
 	var n int
 	iter := rd.Rdb.NewIterator(rd.ro)
 	prefix := []byte("del")
-	//for iter.SeekForPrev(prefix);iter.ValidForPrefix(prefix);iter.Next(){
+
 	for iter.Seek(prefix);iter.ValidForPrefix(prefix);iter.Next(){
 		key := iter.Key().Data()
 		fmt.Println("[gcdel] kvdb-GetBitMapTab,key=",string(key[0:3])+base58.Encode(key[3:]),"len(key)=",len(key))
@@ -338,7 +338,6 @@ func (rd *KvDB)GetBitMapTab(num int) ([]ydcommon.GcTableItem,error){
 		}
 
 		var gctabItem ydcommon.GcTableItem
-		//var gcval ydcommon.IndexTableValue
 		copy(gctabItem.Gckey[:],iter.Key().Data())
 		gctabItem.Gcval = ydcommon.GcTableValue(binary.LittleEndian.Uint32(iter.Value().Data()))
 		gctab = append(gctab,gctabItem)
@@ -370,28 +369,26 @@ func (rd *KvDB) TravelDB(fn func(key, value []byte) error) int64 {
 	return int64(succ)
 }
 
-func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash,error), startkey string, traveEntries uint64) ([]Hashtohash, string, error) {
-	//var errHash Hashtohash
-	var hashTab []Hashtohash
-	var hashKey ydcommon.IndexTableKey
-	var err error
-	beginKey := ""
+func (rd *KvDB)GetSettedIter(startkey string) *gorocksdb.Iterator{
 	fmt.Println("startkey=",startkey)
 	iter := rd.Rdb.NewIterator(rd.ro)
 	if len(startkey)==0 || startkey == "0"{
 		iter.SeekToFirst()
 	}else{
-		begin,err := base58.Decode(startkey)
-		if err != nil {
-			fmt.Println("[TravelDBforFn] decode startkey error")
-			return hashTab, beginKey, err
-		}
+		begin,_ := base58.Decode(startkey)
 		iter.Seek(begin)
 	}
+	return iter
+}
 
-	//failCnt := 0
+func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash,error), startkey string, traveEntries uint64) ([]Hashtohash, string, error) {
+	var hashTab []Hashtohash
+	var hashKey ydcommon.IndexTableKey
+	var err error
+	var beginKey string
+
+	iter := rd.GetSettedIter(startkey)
 	num := uint64(0)
-
 	for ; iter.Valid(); iter.Next(){
 		num++
 		if num > traveEntries{
@@ -401,16 +398,12 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 		copy(hashKey[:],iter.Key().Data())
 		ret,err := fn(hashKey)
 		if err != nil{
-			fmt.Println("[travelDB] error:",err)
+			fmt.Println("[verify][travelDB] verify error:",err,"key=",base58.Encode(iter.Key().Data()))
+			hashTab = append(hashTab,ret)
             continue
 		}
 
-		if len(ret.DBhash) != 0{
-			fmt.Println("[travelDB] exec fn() err=",err,"key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data(),"num=",num)
-			hashTab = append(hashTab,ret)
-		}else{
-			fmt.Println("[travelDB] exec fn() verify succ, key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data(),"num=",num)
-		}
+		fmt.Println("[verify][travelDB] verify succ,key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data(),"num=",num)
 	}
 
 	if !iter.Valid(){
@@ -420,21 +413,6 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 	}
 	return hashTab,beginKey,err
 }
-
-//func (rc *KvDB) GcProcess(fn func(key ydcommon.IndexTableKey) (Hashtohash,error)) error{
-//   var err error
-//	slice,err:=rc.Rdb.Get(rc.ro,key[:])
-//   if err != nil {
-//   	log.Println("[gcdel] get data error:",err,"hash:",base58.Encode(key[:]))
-//   }
-//
-//	sha := crypto.MD5.New()
-//	sha.Write(slice)
-//	b:=bytes.Equal(sha.Sum(nil), key[:])
-//
-//   if
-//   return err
-//}
 
 func (rd *KvDB) ScanDB(){
 

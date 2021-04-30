@@ -578,7 +578,7 @@ func (ytfs *YTFS) VerifySliceOne(key ydcommon.IndexTableKey) (Hashtohash, error)
 	var errHash Hashtohash
 	slice, err := ytfs.Get(key)
 	if err != nil {
-		fmt.Println("get slice fail, key=",base58.Encode(key[:]))
+		fmt.Println("[verify]get slice fail, key=",base58.Encode(key[:]))
 		errHash.DBhash = key[:]
 		errHash.Datahash = []byte(hash0Str)
 		return errHash ,err
@@ -587,9 +587,10 @@ func (ytfs *YTFS) VerifySliceOne(key ydcommon.IndexTableKey) (Hashtohash, error)
 	sha := crypto.MD5.New()
 	sha.Write(slice)
 	if ! bytes.Equal(sha.Sum(nil), key[:]) {
+		err = fmt.Errorf("verify error")
 		errHash.DBhash=key[:]
 		errHash.Datahash = sha.Sum(nil)
-		return errHash ,nil
+		return errHash, err
 	}
 	return errHash, nil
 }
@@ -599,7 +600,7 @@ func (ytfs *YTFS) VerifySlice(startkey string, traveEntries uint64)([]Hashtohash
     return retSlice,beginkey,err
 }
 
-func (ytfs *YTFS)VerifyOneSlice(key ydcommon.IndexTableKey,slice []byte) bool{
+func (ytfs *YTFS)VerifyHashSlice(key ydcommon.IndexTableKey,slice []byte) bool{
 	sha := crypto.MD5.New()
 	sha.Write(slice)
 	return bytes.Equal(sha.Sum(nil), key[:])
@@ -618,7 +619,7 @@ func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 		return err
 	}
 	fmt.Println("[gcdel] GcProcess B verify collect space key=",base58.Encode(key[:]))
-	if ! ytfs.VerifyOneSlice(key,slice){
+	if ! ytfs.VerifyHashSlice(key,slice){
 		err = fmt.Errorf("verify data error!")
 		slicehs := md5.Sum(slice)
 		fmt.Println("[gcdel] verify data error, hash:",base58.Encode(key[:]),"slice hash:",base58.Encode(slicehs[:]))
