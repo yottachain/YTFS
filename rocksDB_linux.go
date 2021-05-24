@@ -323,7 +323,10 @@ func (rd *KvDB) DeleteDb(key []byte) error {
 func (rd *KvDB)GetBitMapTab(num int) ([]ydcommon.GcTableItem,error){
 	var gctab []ydcommon.GcTableItem
 	var n int
-	iter := rd.Rdb.NewIterator(rd.ro)
+
+	ro := gorocksdb.NewDefaultReadOptions()
+	ro.SetFillCache(false)
+	iter := rd.Rdb.NewIterator(ro)
 	prefix := []byte("del")
 
 	for iter.Seek(prefix);iter.ValidForPrefix(prefix);iter.Next(){
@@ -357,7 +360,9 @@ func (rd *KvDB) Reset() {
 }
 
 func (rd *KvDB) TravelDB(fn func(key, value []byte) error) int64 {
-	iter := rd.Rdb.NewIterator(rd.ro)
+	ro := gorocksdb.NewDefaultReadOptions()
+	ro.SetFillCache(false)
+	iter := rd.Rdb.NewIterator(ro)
 	succ := 0
 	for iter.SeekToFirst(); iter.Valid(); iter.Next(){
 		if err := fn(iter.Key().Data(),iter.Value().Data()); err != nil{
@@ -371,7 +376,9 @@ func (rd *KvDB) TravelDB(fn func(key, value []byte) error) int64 {
 
 func (rd *KvDB)GetSettedIter(startkey string) *gorocksdb.Iterator{
 	fmt.Println("startkey=",startkey)
-	iter := rd.Rdb.NewIterator(rd.ro)
+	ro := gorocksdb.NewDefaultReadOptions()
+	ro.SetFillCache(false)
+	iter := rd.Rdb.NewIterator(ro)
 	if len(startkey)==0 || startkey == "0"{
 		iter.SeekToFirst()
 	}else{
