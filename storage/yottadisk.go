@@ -75,7 +75,6 @@ func (disk *YottaDisk) ReadData(dataIndex ydcommon.IndexTableValue) ([]byte, err
 	if err != nil {
 		return nil, err
 	}
-
 	return dataBlock, nil
 }
 

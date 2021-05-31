@@ -224,7 +224,14 @@ func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
 		fmt.Println("[db] db get pos error:", err)
 		return nil, err
 	}
-	return ytfs.context.Get(pos)
+
+	data, err := ytfs.context.Get(pos)
+	if err != nil {
+		fmt.Println("[verify] get data error:", err," key:",base58.Encode(key[:]), " pos:", pos)
+	}
+
+	return data, nil
+	//return ytfs.context.Get(pos)
 }
 
 // Put sets the value for the given key. It panic if there exists any previous value
