@@ -7,9 +7,9 @@ import (
 	"github.com/tecbot/gorocksdb"
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
+	"sort"
 	"os"
 	"path"
-	"sort"
 	"sync"
 	"unsafe"
 )
@@ -386,6 +386,12 @@ func (rd *KvDB)GetSettedIter(startkey string) *gorocksdb.Iterator{
 		begin,_ := base58.Decode(startkey)
 		iter.Seek(begin)
 	}
+
+	if ! iter.Valid(){
+		fmt.Println("[verify][error] iter check failed,set to first!")
+		iter.SeekToFirst()
+	}
+
 	return iter
 }
 
@@ -396,18 +402,30 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 	var err error
 	var beginKey string
 	var verifyTab []ydcommon.IndexItem
-	var verifyItem ydcommon.IndexItem
 
 	iter := rd.GetSettedIter(startkey)
-	num := uint64(0)
+	//num := uint64(0)
 	for ; iter.Valid(); iter.Next() {
-		num++
+		//num++
 		if num > traveEntries {
 			break
 		}
+		var verifyItem ydcommon.IndexItem
 		copy(verifyItem.Hash[:], iter.Key().Data())
 		verifyItem.OffsetIdx = ydcommon.IndexTableValue(binary.LittleEndian.Uint32(iter.Value().Data()))
 		verifyTab = append(verifyTab, verifyItem)
+	}
+
+	if !iter.Valid(){
+		fmt.Println("[verify][error] iter check failed,set beginkey to 0!")
+		beginKey = "0"
+	}else{
+		beginKey = base58.Encode(iter.Key().Data())
+	}
+
+	if verifyTab == nil || len(verifyTab)==0 {
+		fmt.Println("[verify][error] verifyTab is nil")
+		return nil, beginKey, nil
 	}
 
 	sort.Slice(verifyTab, func(i, j int) bool {
@@ -417,19 +435,13 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 	for _ , v := range verifyTab{
 			ret,err := fn(v.Hash)
 			if err != nil{
-				fmt.Println("[verify][travelDB] verify error:",err,"key=",base58.Encode(iter.Key().Data()))
+				fmt.Println("[verify][travelDB] verify error:",err,"key=",base58.Encode(v.Hash[:]),"value=",v.OffsetIdx)
 				hashTab = append(hashTab,ret)
-		       continue
+		        continue
 			}
-
-			fmt.Println("[verify][travelDB] verify succ,key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data(),"num=",num)
+			fmt.Println("[verify][travelDB] verify succ,key=",base58.Encode(v.Hash[:]),"value=",v.OffsetIdx)
 	}
 
-	if !iter.Valid(){
-		beginKey = "0"
-	}else{
-		beginKey = base58.Encode(iter.Key().Data())
-	}
 	return hashTab,beginKey,err
 }
 
