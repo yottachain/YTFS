@@ -9,6 +9,7 @@ import (
 	"github.com/yottachain/YTFS/opt"
 	"os"
 	"path"
+	"sort"
 	"sync"
 	"unsafe"
 )
@@ -390,27 +391,38 @@ func (rd *KvDB)GetSettedIter(startkey string) *gorocksdb.Iterator{
 
 func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash,error), startkey string, traveEntries uint64) ([]Hashtohash, string, error) {
 	var hashTab []Hashtohash
-	var hashKey ydcommon.IndexTableKey
+	//var hashKey ydcommon.IndexTableKey
+	//var pos ydcommon.IndexTableValue
 	var err error
 	var beginKey string
+	var verifyTab []ydcommon.IndexItem
+	var verifyItem ydcommon.IndexItem
 
 	iter := rd.GetSettedIter(startkey)
 	num := uint64(0)
-	for ; iter.Valid(); iter.Next(){
+	for ; iter.Valid(); iter.Next() {
 		num++
-		if num > traveEntries{
+		if num > traveEntries {
 			break
 		}
+		copy(verifyItem.Hash[:], iter.Key().Data())
+		verifyItem.OffsetIdx = ydcommon.IndexTableValue(binary.LittleEndian.Uint32(iter.Value().Data()))
+		verifyTab = append(verifyTab, verifyItem)
+	}
 
-		copy(hashKey[:],iter.Key().Data())
-		ret,err := fn(hashKey)
-		if err != nil{
-			fmt.Println("[verify][travelDB] verify error:",err,"key=",base58.Encode(iter.Key().Data()))
-			hashTab = append(hashTab,ret)
-            continue
-		}
+	sort.Slice(verifyTab, func(i, j int) bool {
+		return verifyTab[i].OffsetIdx < verifyTab[j].OffsetIdx
+	})
 
-		fmt.Println("[verify][travelDB] verify succ,key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data(),"num=",num)
+	for _ , v := range verifyTab{
+			ret,err := fn(v.Hash)
+			if err != nil{
+				fmt.Println("[verify][travelDB] verify error:",err,"key=",base58.Encode(iter.Key().Data()))
+				hashTab = append(hashTab,ret)
+		       continue
+			}
+
+			fmt.Println("[verify][travelDB] verify succ,key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data(),"num=",num)
 	}
 
 	if !iter.Valid(){
