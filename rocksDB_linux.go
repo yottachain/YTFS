@@ -404,9 +404,9 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 	var verifyTab []ydcommon.IndexItem
 
 	iter := rd.GetSettedIter(startkey)
-	//num := uint64(0)
+	num := uint64(0)
 	for ; iter.Valid(); iter.Next() {
-		//num++
+		num++
 		if num > traveEntries {
 			break
 		}
