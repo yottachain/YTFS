@@ -71,7 +71,8 @@ func (disk *YottaDisk) ReadData(dataIndex ydcommon.IndexTableValue) ([]byte, err
 	reader, err := disk.store.Reader()
 	dataBlock := make([]byte, disk.meta.DataBlockSize, disk.meta.DataBlockSize)
 	reader.Seek(int64(disk.meta.DataOffset)+int64(disk.meta.DataBlockSize)*int64(dataIndex), io.SeekStart)
-	_, err = reader.Read(dataBlock)
+	err = binary.Read(reader,binary.LittleEndian,dataBlock)
+	//_, err = reader.Read(dataBlock)
 	if err != nil {
 		return nil, err
 	}

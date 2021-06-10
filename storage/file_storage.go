@@ -111,6 +111,7 @@ func (file *FileStorage) Open(fd FileDesc) (Reader, error) {
 	}
 
 	fp, err := os.Open(fd.Path)
+	//fp, err := os.OpenFile(fd.Path,os.O_RDWR,666)
 	if err != nil {
 		return nil, err
 	}
