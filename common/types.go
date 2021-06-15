@@ -22,6 +22,7 @@ const (
 const (
     HashLength = 16
 	GcHashLen  = 19
+	RocksConstKeyLen = 23
 )
 
 type Hash [HashLength]byte
@@ -56,6 +57,8 @@ type GcTableItem struct{
 	Gckey  GcTableKey
 	Gcval  GcTableValue
 }
+
+type RocksConstKey [RocksConstKeyLen]byte
 
 // IsPowerOfTwo tells if x is power of 2
 func IsPowerOfTwo(x uint64) bool {
