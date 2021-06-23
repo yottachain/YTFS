@@ -605,6 +605,17 @@ func initializeIndexStorage(store Storage, config *opt.Options) (*ydcommon.Heade
 	// +---+----------+
 	// | TAG: eofPos  |
 	// +---+----------+
+	valueBuf := make([]byte, 4)
+	for i := int64(0); i < int64(n + 1) ; i++{
+		countPos := int64(m*20 + 4) * i + int64(h)
+		writer.Seek(countPos, io.SeekStart)
+		binary.LittleEndian.PutUint32(valueBuf, uint32(0))
+		_, err = writer.Write(valueBuf)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if !config.UseKvDb {
 		eofPos := int64(m*20+4)*int64(n+1) + int64(h)
 		writer.Seek(eofPos, io.SeekStart)
