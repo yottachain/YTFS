@@ -120,58 +120,6 @@ func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
     	return nil, err
     }
 
-	//get start Pos from rocksdb
-	//HKey := ydcommon.BytesToHash([]byte(ytPosKey))
-	//mDB.PosKey = ydcommon.IndexTableKey(HKey)
-	//PosRocksdb, err := mDB.Get(mDB.PosKey)
-	//if err != nil {
-	//	fmt.Println("[rocksdb] get start write pos err=",err)
-	//	return nil, err
-	//}
-	//
-	////if indexdb exist, get write start pos from index.db
-	//fileIdxdb := path.Join(dir,"index.db")
-	//if PathExists(fileIdxdb){
-	//	indexDB, err := NewIndexDB(dir, config)
-	//	if err != nil {
-	//		return nil,err
-	//	}
-	//
-	//	//if rocksdb start pos < index.db start pos, there must be some error
-	//	posIdxdb := indexDB.schema.DataEndPoint
-	//	if uint64(PosRocksdb) < posIdxdb{
-	//		fmt.Println("pos error:",ErrDBConfig)
-	//		return nil,ErrDBConfig
-	//	}
-	//}
-	//
-	//mDB.PosIdx = PosRocksdb
-	//fmt.Println("[rocksdb] OpenYTFSK Current start posidx=",mDB.PosIdx)
-
-	//check blksize to rocksdb
-	//HKey = ydcommon.BytesToHash([]byte(ytBlkSzKey))
-	//mDB.BlkKey = ydcommon.IndexTableKey(HKey)
-	//Blksize,err := mDB.Get(mDB.BlkKey)
-	//if  err != nil  {
-	//	fmt.Println("[rocksdb] get BlkSize error")
-	//	return nil,err
-	//}
-	//
-	//valbuf := make([]byte,4)
-	//if uint32(Blksize) != Header.DataBlockSize {
-	//	if uint32(Blksize) != 0{
-	//		fmt.Println("[rocksdb] error, BlkSize mismatch")
-	//		return nil,err
-	//	}
-	//
-	//	binary.LittleEndian.PutUint32(valbuf, uint32(Header.DataBlockSize))
-	//	err := mDB.Rdb.Put(mDB.wo, mDB.BlkKey[:], valbuf)
-	//	if err != nil {
-	//		fmt.Println("[rocksdb]set blksize to rocksdb err:", err)
-	//		return nil, err
-	//	}
-	//}
-
 	//3. open storages
 	context, err := NewContext(dir, config, uint64(mDB.PosIdx))
 	if err != nil {
@@ -542,5 +490,4 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 }
 
 func (rd *KvDB) ScanDB(){
-
 }
