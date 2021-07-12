@@ -41,7 +41,6 @@ type Options struct {
 	IndexTableRows uint32           `json:"N"`
 	DataBlockSize  uint32           `json:"D"`
 	TotalVolumn    uint64           `json:"C"`
-	UseKvDb  	   bool             `json:"UseKvDb"`
 }
 
 // Equal compares 2 Options to tell if it is equal
@@ -151,7 +150,7 @@ func FinalizeConfig(config *Options) (*Options, error) {
 		return nil, ErrConfigC
 	}
 
-	config.DataBlockSize = 16384       //this value is consistent, should not varied
+	config.DataBlockSize = 16384 //this value is consistent, should not varied
 
 	// calc M, N, D
 	c, d, n, m := config.TotalVolumn, (uint64)(config.DataBlockSize), (uint64)(config.IndexTableRows), (uint64)(config.IndexTableCols)
