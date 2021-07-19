@@ -31,12 +31,6 @@ type ytfsStatus struct {
 
 var gcspacecntkey = "gcspacecnt_rocksdb"
 
-//type KvDB struct {
-//	Rdb *gorocksdb.DB
-//	ro  *gorocksdb.ReadOptions
-//	wo  *gorocksdb.WriteOptions
-//}
-
 // YTFS is a data block save/load lib based on key-value styled db APIs.
 type YTFS struct {
 	// config of this YTFS
@@ -144,7 +138,7 @@ func openYTFSI(dir string, config *opt.Options) (*YTFS, error) {
 	}
 
 	if 0 == indexDB.schema.DataEndPoint {
-		if config.IndexTableCols < 512 || config.IndexTableCols > 2048 {
+		if config.IndexTableCols < 512 || config.IndexTableCols > 16384 {
 			err = fmt.Errorf("yotta config: config.M setting is incorrect")
 			fmt.Println("[error]:", err, "M=", config.IndexTableCols, "N=", config.IndexTableRows)
 			return nil, err
