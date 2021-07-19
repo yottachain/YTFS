@@ -311,11 +311,11 @@ func (rd *KvDB) resetKV(batchIndexes []ydcommon.IndexItem, resetCnt uint32) {
 }
 
 func (rd *KvDB) Len() uint64 {
-	gcspace,err := rd.Rdb.Get(rd.ro,[]byte(gcspacecntkey))
-	if err == nil && gcspace.Data() !=nil {
-		val := binary.LittleEndian.Uint32(gcspace.Data())
-		return uint64(rd.PosIdx) - uint64(val)
-	}
+	//gcspace,err := rd.Rdb.Get(rd.ro,[]byte(gcspacecntkey))
+	//if err != nil && gcspace.Data() !=nil {
+	//	val := binary.LittleEndian.Uint32(gcspace.Data())
+	//	return uint64(rd.PosIdx) - uint64(val)
+	//}
 	return uint64(rd.PosIdx)
 }
 
@@ -478,6 +478,7 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 
 	for _ , v := range verifyTab{
 			ret,err := fn(v.Hash)
+			//pos := binary.LittleEndian.Uint32(v.OffsetIdx)
 			if err != nil{
 				fmt.Println("[verify][travelDB] verify error:",err,"key=",base58.Encode(v.Hash[:]),"value=",v.OffsetIdx)
 				hashTab = append(hashTab,ret)
