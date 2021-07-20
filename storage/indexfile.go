@@ -427,19 +427,6 @@ func (indexFile *YTFSIndexFile) getTableSize(tbIndex uint32) (*uint32, error) {
 
 func (indexFile *YTFSIndexFile) updateTable(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) error {
 	idx := indexFile.getTableEntryIndex(key)
-	//table, err := indexFile.loadTableFromStorage(idx)
-	//
-	//if err != nil {
-	//	fmt.Println("[memtrace] loadTableFromStorage err:",err)
-	//	return err
-	//}
-	//
-	//if _, ok := table[key]; ok {
-	//	fmt.Println("[memtrace] updateTable conflict!!")
-	//	return errors.ErrConflict
-	//}
-
-	//	rowCount := uint32(len(table))
 
 	rowCountPtr, err := indexFile.getTableSize(idx)
 	if err != nil {
@@ -450,12 +437,7 @@ func (indexFile *YTFSIndexFile) updateTable(key ydcommon.IndexTableKey, value yd
 	if rowCount >= indexFile.meta.RangeCoverage {
 		// move to overflow region
 		idx = indexFile.meta.RangeCapacity
-		//table, err = indexFile.loadTableFromStorage(idx)
-		//if err != nil {
-		//	fmt.Println("[memtrace] loadTableFromStorage error:",err)
-		//	return err
-		//}
-		//rowCount := uint32(len(table))
+
 		rowCountPtr, err := indexFile.getTableSize(idx)
 		if err != nil {
 			fmt.Printf("get tablesize of indextable=%v, error:%v \n", idx, err)

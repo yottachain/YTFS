@@ -7,15 +7,19 @@ import (
 	"github.com/tecbot/gorocksdb"
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
+	"sort"
 	"os"
 	"path"
 	"sync"
 	"unsafe"
 )
 
+const YtBlkSize = 16384
 var mdbFileName = "/maindb"
-var ytPosKey    = "yt_rocks_pos_key"
+const ytPosKey    = "yt_rocks_pos_key"
+const ytPosKeyNew    = "yt_rocks_pos_key_newpos"
 var ytBlkSzKey  = "yt_blk_size_key"
+var ytBlkSzKeyNew  = "yt_blk_size_key_blk16KB"
 var VerifyedKvFile string = "/gc/rock_verify"
 //var hash0Str = "0000000000000000"
 
@@ -23,9 +27,9 @@ type KvDB struct {
 	Rdb *gorocksdb.DB
 	ro  *gorocksdb.ReadOptions
 	wo  *gorocksdb.WriteOptions
-	PosKey ydcommon.IndexTableKey
+	PosKey ydcommon.RocksConstKey
 	PosIdx ydcommon.IndexTableValue
-	BlkKey ydcommon.IndexTableKey
+	BlkKey ydcommon.RocksConstKey
 	BlkVal uint32
 	Header *ydcommon.Header
 }
@@ -36,7 +40,7 @@ type KvDB struct {
 //}
 
 func openKVDB(DBPath string) (kvdb *KvDB, err error) {
-	//	var posIdx uint32
+//	var posIdx uint32
 	bbto := gorocksdb.NewDefaultBlockBasedTableOptions()
 	bbto.SetBlockCache(gorocksdb.NewLRUCache(3 << 30))
 	opts := gorocksdb.NewDefaultOptions()
@@ -45,7 +49,7 @@ func openKVDB(DBPath string) (kvdb *KvDB, err error) {
 
 	db, err := gorocksdb.OpenDb(opts, DBPath)
 	if err != nil {
-		fmt.Println("[kvdb] open rocksdb error")
+		fmt.Println("[KvDB] open rocksdb error")
 		return nil, err
 	}
 
@@ -93,68 +97,28 @@ func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
 	mainDBPath := path.Join(dir, mdbFileName)
 	mDB, err := openKVDB(mainDBPath)
 	if err != nil {
-		fmt.Println("[KVDB]open main kv-DB for save hash error:", err)
+		fmt.Println("[KvDB]open main kv-DB for save hash error:", err)
 		return nil, err
 	}
 
 	Header,err := initializeHeader(config)
 	if err != nil {
-		fmt.Println("[rocksdb]initialize Header error")
+		fmt.Println("[KvDB]initialize Header error")
 		return nil,err
 	}
-	mDB.Header = Header
+    mDB.Header = Header
 
-	//get start Pos from rocksdb
-	HKey := ydcommon.BytesToHash([]byte(ytPosKey))
-	mDB.PosKey = ydcommon.IndexTableKey(HKey)
-	PosRocksdb, err := mDB.Get(mDB.PosKey)
-	if err != nil {
-		fmt.Println("[rocksdb] get start write pos err=",err)
-		return nil, err
-	}
+    err = mDB.ChkDataPos(dir, config)
+    if err != nil {
+    	fmt.Println("[KvDB] GetDataPos from maindb error:",err)
+    	return nil, err
+    }
 
-	//if indexdb exist, get write start pos from index.db
-	fileIdxdb := path.Join(dir,"index.db")
-	if PathExists(fileIdxdb){
-		indexDB, err := NewIndexDB(dir, config)
-		if err != nil {
-			return nil,err
-		}
-
-		//if rocksdb start pos < index.db start pos, there must be some error
-		posIdxdb := indexDB.schema.DataEndPoint
-		if uint64(PosRocksdb) < posIdxdb{
-			fmt.Println("pos error:",ErrDBConfig)
-			return nil,ErrDBConfig
-		}
-	}
-
-	mDB.PosIdx = PosRocksdb
-	fmt.Println("[rocksdb] OpenYTFSK Current start posidx=",mDB.PosIdx)
-
-	//check blksize to rocksdb
-	HKey = ydcommon.BytesToHash([]byte(ytBlkSzKey))
-	mDB.BlkKey = ydcommon.IndexTableKey(HKey)
-	Blksize,err := mDB.Get(mDB.BlkKey)
-	if  err != nil  {
-		fmt.Println("[rocksdb] get BlkSize error")
-		return nil,err
-	}
-
-	valbuf := make([]byte,4)
-	if uint32(Blksize) != Header.DataBlockSize {
-		if uint32(Blksize) != 0{
-			fmt.Println("[rocksdb] error, BlkSize mismatch")
-			return nil,err
-		}
-
-		binary.LittleEndian.PutUint32(valbuf, uint32(Header.DataBlockSize))
-		err := mDB.Rdb.Put(mDB.wo, mDB.BlkKey[:], valbuf)
-		if err != nil {
-			fmt.Println("[rocksdb]set blksize to rocksdb err:", err)
-			return nil, err
-		}
-	}
+    err = mDB.ChkBlkSizeKvDB()
+    if err != nil {
+    	fmt.Println("[KvDB] CheckBlkSize Error:",err)
+    	return nil, err
+    }
 
 	//3. open storages
 	context, err := NewContext(dir, config, uint64(mDB.PosIdx))
@@ -181,18 +145,94 @@ func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
 	return ytfs, nil
 }
 
+func (rd *KvDB) GetOldDataPos()(ydcommon.IndexTableValue, error){
+	HKey := ydcommon.BytesToHash([]byte(ytPosKey))
+	PosRocksdb, err := rd.Get(ydcommon.IndexTableKey(HKey))
+	if err != nil {
+		return  0, err
+	}
+
+	return PosRocksdb, nil
+}
+
+func (rd *KvDB) ChkDataPos(dir string, config *opt.Options) error{
+	var PosRocksdb ydcommon.IndexTableValue
+
+	Nkey := []byte(ytPosKeyNew)
+	copy(rd.PosKey[:], Nkey)
+	NPosSlice, err := rd.Rdb.Get(rd.ro, Nkey)
+	if err != nil || !NPosSlice.Exists() {
+		fmt.Println("[KvDB] get ytPosKeyNew error:",err)
+		PosRocksdb, err = rd.GetOldDataPos()
+		fmt.Println("[KvDB] oldPosKey pos:", PosRocksdb)
+		if err != nil{
+			fmt.Println("[rocksdb] get start write pos error:",err)
+			return err
+		}
+		BPos := make([]byte, 4)
+		binary.LittleEndian.PutUint32(BPos, uint32(PosRocksdb))
+		err = rd.Rdb.Put(rd.wo, Nkey, BPos)
+		if err != nil {
+			fmt.Println("[KvDB] err:",err)
+			return err
+		}
+	}else{
+		PosRocksdb = ydcommon.IndexTableValue(binary.LittleEndian.Uint32(NPosSlice.Data()))
+		fmt.Println("[KvDB] newPosKey pos:", PosRocksdb)
+	}
+
+	Hkey := ydcommon.BytesToHash([]byte(ytPosKey))
+	_ = rd.Rdb.Delete(rd.wo, Hkey[:] )
+
+	//if indexdb exist, get write start pos from index.db
+	fileIdxdb := path.Join(dir,"index.db")
+	if PathExists(fileIdxdb){
+		indexDB, err := NewIndexDB(dir, config)
+		if err != nil {
+			return err
+		}
+
+		//if rocksdb start pos < index.db start pos, there must be some error
+		posIdxdb := indexDB.schema.DataEndPoint
+		if uint64(PosRocksdb) < posIdxdb{
+			fmt.Println("pos error:",ErrDBConfig)
+			return ErrDBConfig
+		}
+	}
+
+	rd.PosIdx = PosRocksdb
+	fmt.Println("[rocksdb] OpenYTFSK Current start posidx=",rd.PosIdx)
+	return nil
+}
+
+func (rd *KvDB) ChkBlkSizeKvDB() error {
+	if YtBlkSize != rd.Header.DataBlockSize {
+			err :=fmt.Errorf("blksize of config error")
+			return  err
+	}
+
+	HKey := ydcommon.BytesToHash([]byte(ytBlkSzKey))
+	_ = rd.Rdb.Delete(rd.wo,HKey[:])
+	return nil
+}
 
 func (rd *KvDB) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error) {
 	var retval uint32
 	val, err := rd.Rdb.Get(rd.ro, key[:])
-	if err != nil {
+	if err != nil  {
 		fmt.Println("[rocksdb] get pos error:", err)
 		return 0, err
 	}
 
-	if val.Exists(){
+	if val.Exists() {
 		retval = binary.LittleEndian.Uint32(val.Data())
 	}
+	
+	//todo: when key is not exist
+	//else{
+	//	err = fmt.Errorf("key:",base58.Encode(key[:])," not exist")
+	//	return 0, err
+	//}
 	return ydcommon.IndexTableValue(retval), nil
 }
 
@@ -242,7 +282,6 @@ func (rd *KvDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableK
 		HPos := value.OffsetIdx
 		binary.LittleEndian.PutUint32(valbuf, uint32(HPos))
 		err := rd.Rdb.Put(rd.wo, HKey, valbuf)
-
 		if err != nil {
 			fmt.Println("[rocksdb]put dnhash to rocksdb error:", err)
 			return nil, err
@@ -272,11 +311,11 @@ func (rd *KvDB) resetKV(batchIndexes []ydcommon.IndexItem, resetCnt uint32) {
 }
 
 func (rd *KvDB) Len() uint64 {
-	gcspace,err := rd.Rdb.Get(rd.ro,[]byte(gcspacecntkey))
-	if err == nil && gcspace.Data() !=nil {
-		val := binary.LittleEndian.Uint32(gcspace.Data())
-		return uint64(rd.PosIdx) - uint64(val)
-	}
+	//gcspace,err := rd.Rdb.Get(rd.ro,[]byte(gcspacecntkey))
+	//if err != nil && gcspace.Data() !=nil {
+	//	val := binary.LittleEndian.Uint32(gcspace.Data())
+	//	return uint64(rd.PosIdx) - uint64(val)
+	//}
 	return uint64(rd.PosIdx)
 }
 
@@ -308,12 +347,12 @@ func (rd *KvDB) PutDb(key, value []byte) error {
 }
 
 func (rd *KvDB) GetDb(key []byte) ([]byte, error) {
-	slice,err:=rd.Rdb.Get(rd.ro, key)
-	if err != nil {
-		return nil, err
-	}
-	data := slice.Data()
-	return data, nil
+	 slice,err:=rd.Rdb.Get(rd.ro, key)
+	 if err != nil {
+	 	return nil, err
+	 }
+	 data := slice.Data()
+	 return data, nil
 }
 
 func (rd *KvDB) DeleteDb(key []byte) error {
@@ -323,9 +362,12 @@ func (rd *KvDB) DeleteDb(key []byte) error {
 func (rd *KvDB)GetBitMapTab(num int) ([]ydcommon.GcTableItem,error){
 	var gctab []ydcommon.GcTableItem
 	var n int
-	iter := rd.Rdb.NewIterator(rd.ro)
+
+	ro := gorocksdb.NewDefaultReadOptions()
+	ro.SetFillCache(false)
+	iter := rd.Rdb.NewIterator(ro)
 	prefix := []byte("del")
-	//for iter.SeekForPrev(prefix);iter.ValidForPrefix(prefix);iter.Next(){
+
 	for iter.Seek(prefix);iter.ValidForPrefix(prefix);iter.Next(){
 		key := iter.Key().Data()
 		fmt.Println("[gcdel] kvdb-GetBitMapTab,key=",string(key[0:3])+base58.Encode(key[3:]),"len(key)=",len(key))
@@ -338,7 +380,6 @@ func (rd *KvDB)GetBitMapTab(num int) ([]ydcommon.GcTableItem,error){
 		}
 
 		var gctabItem ydcommon.GcTableItem
-		//var gcval ydcommon.IndexTableValue
 		copy(gctabItem.Gckey[:],iter.Key().Data())
 		gctabItem.Gcval = ydcommon.GcTableValue(binary.LittleEndian.Uint32(iter.Value().Data()))
 		gctab = append(gctab,gctabItem)
@@ -348,7 +389,7 @@ func (rd *KvDB)GetBitMapTab(num int) ([]ydcommon.GcTableItem,error){
 		}
 	}
 	fmt.Println("[gcdel] kvdb-GetBitMapTab, len(gctab)=",len(gctab))
-	return gctab,nil
+    return gctab,nil
 }
 
 func (rd *KvDB) Close() {
@@ -358,9 +399,14 @@ func (rd *KvDB) Reset() {
 }
 
 func (rd *KvDB) TravelDB(fn func(key, value []byte) error) int64 {
-	iter := rd.Rdb.NewIterator(rd.ro)
+	ro := gorocksdb.NewDefaultReadOptions()
+	ro.SetFillCache(false)
+	iter := rd.Rdb.NewIterator(ro)
 	succ := 0
 	for iter.SeekToFirst(); iter.Valid(); iter.Next(){
+		if iter.Key().Size() != ydcommon.HashLength{
+			continue
+		}
 		if err := fn(iter.Key().Data(),iter.Value().Data()); err != nil{
 			fmt.Println("[travelDB] exec fn() err=",err,"key=",iter.Key().Data(),"value=",iter.Value().Data())
 			continue
@@ -370,71 +416,79 @@ func (rd *KvDB) TravelDB(fn func(key, value []byte) error) int64 {
 	return int64(succ)
 }
 
-func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash,error), startkey string, traveEntries uint64) ([]Hashtohash, string, error) {
-	//var errHash Hashtohash
-	var hashTab []Hashtohash
-	var hashKey ydcommon.IndexTableKey
-	var err error
-	beginKey := ""
+func (rd *KvDB)GetSettedIter(startkey string) *gorocksdb.Iterator{
 	fmt.Println("startkey=",startkey)
-	iter := rd.Rdb.NewIterator(rd.ro)
+	ro := gorocksdb.NewDefaultReadOptions()
+	ro.SetFillCache(false)
+	iter := rd.Rdb.NewIterator(ro)
 	if len(startkey)==0 || startkey == "0"{
 		iter.SeekToFirst()
 	}else{
-		begin,err := base58.Decode(startkey)
-		if err != nil {
-			fmt.Println("[TravelDBforFn] decode startkey error")
-			return hashTab, beginKey, err
-		}
+		begin,_ := base58.Decode(startkey)
 		iter.Seek(begin)
 	}
 
-	//failCnt := 0
-	num := uint64(0)
+	if ! iter.Valid(){
+		fmt.Println("[verify][error] iter check failed,set to first!")
+		iter.SeekToFirst()
+	}
 
-	for ; iter.Valid(); iter.Next(){
+	return iter
+}
+
+func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash,error), startkey string, traveEntries uint64) ([]Hashtohash, string, error) {
+	var hashTab []Hashtohash
+
+	var err error
+	var beginKey string
+	var verifyTab []ydcommon.IndexItem
+
+	iter := rd.GetSettedIter(startkey)
+	num := uint64(0)
+	for ; iter.Valid(); iter.Next() {
 		num++
-		if num > traveEntries{
+		if num > traveEntries {
 			break
 		}
-
-		copy(hashKey[:],iter.Key().Data())
-		ret,err := fn(hashKey)
-		if err != nil{
-			fmt.Println("[travelDB] error:",err)
+		if iter.Key().Size() != ydcommon.HashLength {
 			continue
 		}
 
-		if len(ret.DBhash) != 0{
-			fmt.Println("[travelDB] exec fn() err=",err,"key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data(),"num=",num)
-			hashTab = append(hashTab,ret)
-		}else{
-			fmt.Println("[travelDB] exec fn() verify succ, key=",base58.Encode(iter.Key().Data()),"value=",iter.Value().Data(),"num=",num)
-		}
+		var verifyItem ydcommon.IndexItem
+		copy(verifyItem.Hash[:], iter.Key().Data())
+		verifyItem.OffsetIdx = ydcommon.IndexTableValue(binary.LittleEndian.Uint32(iter.Value().Data()))
+		verifyTab = append(verifyTab, verifyItem)
 	}
 
-	beginKey = base58.Encode(iter.Key().Data())
 	if !iter.Valid(){
+		fmt.Println("[verify][error] iter check failed,set beginkey to 0!")
 		beginKey = "0"
+	}else{
+		beginKey = base58.Encode(iter.Key().Data())
 	}
+
+	if verifyTab == nil || len(verifyTab)==0 {
+		fmt.Println("[verify][error] verifyTab is nil")
+		return nil, beginKey, nil
+	}
+
+	sort.Slice(verifyTab, func(i, j int) bool {
+		return verifyTab[i].OffsetIdx < verifyTab[j].OffsetIdx
+	})
+
+	for _ , v := range verifyTab{
+			ret,err := fn(v.Hash)
+			//pos := binary.LittleEndian.Uint32(v.OffsetIdx)
+			if err != nil{
+				fmt.Println("[verify][travelDB] verify error:",err,"key=",base58.Encode(v.Hash[:]),"value=",v.OffsetIdx)
+				hashTab = append(hashTab,ret)
+		        continue
+			}
+			fmt.Println("[verify][travelDB] verify succ,key=",base58.Encode(v.Hash[:]),"value=",v.OffsetIdx)
+	}
+
 	return hashTab,beginKey,err
 }
 
-//func (rc *KvDB) GcProcess(fn func(key ydcommon.IndexTableKey) (Hashtohash,error)) error{
-//   var err error
-//	slice,err:=rc.Rdb.Get(rc.ro,key[:])
-//   if err != nil {
-//   	log.Println("[gcdel] get data error:",err,"hash:",base58.Encode(key[:]))
-//   }
-//
-//	sha := crypto.MD5.New()
-//	sha.Write(slice)
-//	b:=bytes.Equal(sha.Sum(nil), key[:])
-//
-//   if
-//   return err
-//}
-
 func (rd *KvDB) ScanDB(){
-
 }
