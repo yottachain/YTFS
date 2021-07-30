@@ -418,7 +418,7 @@ func (ytfs *YTFS) BatchPutGc(batch map[ydcommon.IndexTableKey][]byte) (map[ydcom
     GcLock.Lock()
     defer GcLock.Unlock()
     bitmaptab, err := ytfs.db.GetBitMapTab(lenbatch + GcWrtOverNum)
-	fmt.Println("[gcdel]  batchputGC ytfs.db.GetBitMapTab len(bitmaptab)=",len(bitmaptab),"len(batch)=",len(batch))
+	//fmt.Println("[gcdel]  batchputGC ytfs.db.GetBitMapTab len(bitmaptab)=",len(bitmaptab),"len(batch)=",len(batch))
     if err != nil || len(bitmaptab) < lenbatch {
     	fmt.Println("[gcdel] get del bitmaptab error:",err)
 	    return ytfs.BatchPutNormal(batch)
