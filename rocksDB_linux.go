@@ -311,11 +311,11 @@ func (rd *KvDB) resetKV(batchIndexes []ydcommon.IndexItem, resetCnt uint32) {
 }
 
 func (rd *KvDB) Len() uint64 {
-	//gcspace,err := rd.Rdb.Get(rd.ro,[]byte(gcspacecntkey))
-	//if err != nil && gcspace.Data() !=nil {
-	//	val := binary.LittleEndian.Uint32(gcspace.Data())
-	//	return uint64(rd.PosIdx) - uint64(val)
-	//}
+	gcspace,err := rd.Rdb.Get(rd.ro,[]byte(gcspacecntkey))
+	if err != nil && gcspace.Data() !=nil {
+		val := binary.LittleEndian.Uint32(gcspace.Data())
+		return uint64(rd.PosIdx) - uint64(val)
+	}
 	return uint64(rd.PosIdx)
 }
 
