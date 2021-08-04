@@ -484,7 +484,7 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 				hashTab = append(hashTab,ret)
 		        continue
 			}
-			//fmt.Println("[verify][travelDB] verify succ,key=",base58.Encode(v.Hash[:]),"value=",v.OffsetIdx)
+			fmt.Println("[verify][travelDB] verify succ,key=",base58.Encode(v.Hash[:]),"value=",v.OffsetIdx)
 	}
 
 	return hashTab,beginKey,err
