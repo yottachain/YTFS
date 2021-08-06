@@ -30,7 +30,6 @@ func (db *IndexDB) PosPtr() uint64 {
 	return db.schema.DataEndPoint
 }
 
-
 func (db *IndexDB) BlockSize() uint32{
 	return db.schema.DataBlockSize
 }

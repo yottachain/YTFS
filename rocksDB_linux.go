@@ -162,7 +162,7 @@ func (rd *KvDB) ChkDataPos(dir string, config *opt.Options) error{
 	copy(rd.PosKey[:], Nkey)
 	NPosSlice, err := rd.Rdb.Get(rd.ro, Nkey)
 	if err != nil {
-		fmt.Println("[KvDB] newPosKey Get pos error:", err.error())
+		fmt.Println("[KvDB] newPosKey Get pos error:", err.Error())
 		return err
 	}
 
