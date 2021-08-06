@@ -26,6 +26,11 @@ func (db *IndexDB) Len() uint64 {
 	return db.schema.DataEndPoint
 }
 
+func (db *IndexDB) PosIdx() uint64 {
+	return db.schema.DataEndPoint
+}
+
+
 func (db *IndexDB) BlockSize() uint32{
 	return db.schema.DataBlockSize
 }

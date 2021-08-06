@@ -5,7 +5,6 @@ import (
 	"crypto"
 	"crypto/md5"
 	"encoding/binary"
-
 	//	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -603,6 +602,7 @@ func (ytfs *YTFS) VerifySliceOne(key ydcommon.IndexTableKey) (Hashtohash, error)
 }
 
 func (ytfs *YTFS) VerifySlice(startkey string, traveEntries uint64)([]Hashtohash,string, error){
+	//log.Println("[verify] VerifySlice start")
 	retSlice,beginkey,err:=ytfs.db.TravelDBforverify(ytfs.VerifySliceOne,startkey,traveEntries)
     return retSlice,beginkey,err
 }
@@ -640,6 +640,11 @@ func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 
 	fmt.Println("[gcdel] GcProcess C renamekey collect space key=",base58.Encode(key[:]))
 	pos,_ := ytfs.db.Get(key)
+	if pos < 5{
+		err = fmt.Errorf("reserve data block, pos<5")
+		return err
+	}
+
 	val := make([]byte, 4)
 	binary.LittleEndian.PutUint32(val,uint32(pos))
 
@@ -687,4 +692,8 @@ func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 	fmt.Println("[gcdel] GcProcess H end collect space key=",base58.Encode(key[:]))
 
 	return err
+}
+
+func (ytfs *YTFS) PosIdx() uint64{
+	return ytfs.db.PosIdx()
 }

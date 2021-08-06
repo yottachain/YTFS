@@ -161,10 +161,16 @@ func (rd *KvDB) ChkDataPos(dir string, config *opt.Options) error{
 	Nkey := []byte(ytPosKeyNew)
 	copy(rd.PosKey[:], Nkey)
 	NPosSlice, err := rd.Rdb.Get(rd.ro, Nkey)
-	if err != nil || !NPosSlice.Exists() {
-		fmt.Println("[KvDB] get ytPosKeyNew error:",err)
+	if err != nil {
+		fmt.Println("[KvDB] newPosKey Get pos error:", err.error())
+		return err
+	}
+
+	if NPosSlice.Exists() {
+		PosRocksdb = ydcommon.IndexTableValue(binary.LittleEndian.Uint32(NPosSlice.Data()))
+		fmt.Println("[KvDB] newPosKey pos:", PosRocksdb)
+	}else{
 		PosRocksdb, err = rd.GetOldDataPos()
-		fmt.Println("[KvDB] oldPosKey pos:", PosRocksdb)
 		if err != nil{
 			fmt.Println("[rocksdb] get start write pos error:",err)
 			return err
@@ -176,13 +182,9 @@ func (rd *KvDB) ChkDataPos(dir string, config *opt.Options) error{
 			fmt.Println("[KvDB] err:",err)
 			return err
 		}
-	}else{
-		PosRocksdb = ydcommon.IndexTableValue(binary.LittleEndian.Uint32(NPosSlice.Data()))
-		fmt.Println("[KvDB] newPosKey pos:", PosRocksdb)
+		Hkey := ydcommon.BytesToHash([]byte(ytPosKey))
+		_ = rd.Rdb.Delete(rd.wo, Hkey[:] )
 	}
-
-	Hkey := ydcommon.BytesToHash([]byte(ytPosKey))
-	_ = rd.Rdb.Delete(rd.wo, Hkey[:] )
 
 	//if indexdb exist, get write start pos from index.db
 	fileIdxdb := path.Join(dir,"index.db")
@@ -312,10 +314,14 @@ func (rd *KvDB) resetKV(batchIndexes []ydcommon.IndexItem, resetCnt uint32) {
 
 func (rd *KvDB) Len() uint64 {
 	gcspace,err := rd.Rdb.Get(rd.ro,[]byte(gcspacecntkey))
-	if err != nil && gcspace.Data() !=nil {
+	if err == nil && gcspace.Data() !=nil {
 		val := binary.LittleEndian.Uint32(gcspace.Data())
 		return uint64(rd.PosIdx) - uint64(val)
 	}
+	return uint64(rd.PosIdx)
+}
+
+func (rd *KvDB) PosIdx(){
 	return uint64(rd.PosIdx)
 }
 
