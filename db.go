@@ -16,7 +16,7 @@ type DB interface {
 	TravelDB(fn func(key, value []byte) error) int64
 	TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash,error), startkey string, traveEntries uint64) ([]Hashtohash, string, error)
 	Len() uint64
-	PosIdx() uint64
+	PosPtr() uint64
 	TotalSize() uint64
 	BlockSize() uint32
 	Meta() *ydcommon.Header

@@ -321,7 +321,7 @@ func (rd *KvDB) Len() uint64 {
 	return uint64(rd.PosIdx)
 }
 
-func (rd *KvDB) PosIdx(){
+func (rd *KvDB) PosPtr() uint64 {
 	return uint64(rd.PosIdx)
 }
 

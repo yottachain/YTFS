@@ -26,7 +26,7 @@ func (db *IndexDB) Len() uint64 {
 	return db.schema.DataEndPoint
 }
 
-func (db *IndexDB) PosIdx() uint64 {
+func (db *IndexDB) PosPtr() uint64 {
 	return db.schema.DataEndPoint
 }
 
