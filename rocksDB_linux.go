@@ -95,6 +95,8 @@ func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
 
 	//open main kv-db
 	mainDBPath := path.Join(dir, mdbFileName)
+	fmt.Println("dir:",dir,"mdbFileName",mdbFileName,"mainDBPath:",mainDBPath)
+
 	mDB, err := openKVDB(mainDBPath)
 	if err != nil {
 		fmt.Println("[KvDB]open main kv-DB for save hash error:", err)
