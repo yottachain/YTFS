@@ -235,15 +235,13 @@ func (rd *KvDB) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error
 		return 0, err
 	}
 
-	if val.Exists() {
-		retval = binary.LittleEndian.Uint32(val.Data())
+	if !val.Exists() {
+		err = fmt.Errorf("key:",base58.Encode(key[:])," not exist")
+		return 0, err
 	}
-	
-	//todo: when key is not exist
-	//else{
-	//	err = fmt.Errorf("key:",base58.Encode(key[:])," not exist")
-	//	return 0, err
-	//}
+
+	retval = binary.LittleEndian.Uint32(val.Data())
+
 	return ydcommon.IndexTableValue(retval), nil
 }
 

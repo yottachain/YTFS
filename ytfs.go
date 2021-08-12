@@ -233,6 +233,25 @@ func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
 	//return ytfs.context.Get(pos)
 }
 
+func (ytfs *YTFS)GetData(pos uint32)([]byte, error){
+	data, err := ytfs.context.Get(ydcommon.IndexTableValue(pos))
+	if err != nil {
+		fmt.Println("[verify] get data error:", err," pos:", pos)
+	}
+
+	return data, err
+}
+
+func (ytfs *YTFS)GetPosIdx(key ydcommon.IndexTableKey)( ydcommon.IndexTableValue, error){
+	pos, err := ytfs.db.Get(key)
+	if err != nil {
+		fmt.Println("[db] db get pos error:", err)
+		return 0, err
+	}
+
+	return pos, nil
+}
+
 // Put sets the value for the given key. It panic if there exists any previous value
 // for that key; YottaDisk is not a multi-map.
 // It is safe to modify the contents of the arguments after Put returns but not
