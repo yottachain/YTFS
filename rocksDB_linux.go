@@ -171,12 +171,6 @@ func (rd *KvDB) ChkDataPos(dir string, config *opt.Options) error{
 	if NPosSlice.Exists() {
 		PosRocksdb = ydcommon.IndexTableValue(binary.LittleEndian.Uint32(NPosSlice.Data()))
 		fmt.Println("[KvDB] newPosKey pos:", PosRocksdb)
-		PosRocksdb2, err := rd.GetOldDataPos()
-		if err != nil{
-			fmt.Println("[rocksdb] get start write pos error:",err)
-			return err
-		}
-		fmt.Println("[KvDB] oldPosKey pos:",PosRocksdb2)
 	}else{
 		PosRocksdb, err = rd.GetOldDataPos()
 		if err != nil{
