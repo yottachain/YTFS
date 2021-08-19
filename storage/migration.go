@@ -43,7 +43,7 @@ func RebuildIdxHeader(ytfsIndexFile *YTFSIndexFile, mpath string) error {
 // GetTableIterator 返回Table遍历器
 func GetTableIterator(indexpath string, opts *opt.Options) (*TableIterator, error) {
 	var ti TableIterator
-	ytfsIndexFile, err := OpenYTFSIndexFile(indexpath, opts)
+	ytfsIndexFile, err := OpenYTFSIndexFile(indexpath, opts,false)
 	if err != nil {
 		return nil, err
 	}
