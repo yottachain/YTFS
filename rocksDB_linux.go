@@ -317,7 +317,6 @@ func (rd *KvDB) BatchWriteKV(batch map[ydcommon.IndexTableKey][]byte) error {
 	Wbatch := new(gorocksdb.WriteBatch)
 	for key, val := range batch {
 		Wbatch.Put(key[:], val)
-
 	}
 	err = rd.Rdb.Write(rd.wo, Wbatch)
 	return err
