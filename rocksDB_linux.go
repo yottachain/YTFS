@@ -163,7 +163,7 @@ func (rd *KvDB) GetOldDataPos()(ydcommon.IndexTableValue, error){
 	return PosRocksdb, nil
 }
 
-func (rd *KvDB) ChkDataPos(dir string, config *opt.Options, init) error{
+func (rd *KvDB) ChkDataPos(dir string, config *opt.Options, init bool) error{
 	var PosRocksdb ydcommon.IndexTableValue
 
 	Nkey := []byte(ytPosKeyNew)
