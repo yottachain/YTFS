@@ -165,6 +165,9 @@ func (rd *KvDB) GetOldDataPos()(ydcommon.IndexTableValue, error){
 
 func (rd *KvDB) ChkDataPos(dir string, config *opt.Options, init bool) error{
 	var PosRocksdb ydcommon.IndexTableValue
+	//var BPos  []byte
+	//var Hkey  ydcommon.Hash
+	var fileIdxdb string
 
 	Nkey := []byte(ytPosKeyNew)
 	copy(rd.PosKey[:], Nkey)
@@ -181,7 +184,7 @@ func (rd *KvDB) ChkDataPos(dir string, config *opt.Options, init bool) error{
 		PosRocksdb, err = rd.GetOldDataPos()
 		if err != nil{
 			fmt.Println("[rocksdb] get start write pos error:",err)
-			return err
+			goto INIT
 		}
 		fmt.Println("[KvDB] oldPosKey pos:",PosRocksdb)
 		BPos := make([]byte, 4)
@@ -196,7 +199,7 @@ func (rd *KvDB) ChkDataPos(dir string, config *opt.Options, init bool) error{
 	}
 
 	//if indexdb exist, get write start pos from index.db
-	fileIdxdb := path.Join(dir,"index.db")
+	fileIdxdb = path.Join(dir,"index.db")
 	if PathExists(fileIdxdb){
 		indexDB, err := NewIndexDB(dir, config, init)
 		if err != nil {
@@ -214,6 +217,14 @@ func (rd *KvDB) ChkDataPos(dir string, config *opt.Options, init bool) error{
 	rd.PosIdx = PosRocksdb
 	fmt.Println("[rocksdb] OpenYTFSK Current start posidx=",rd.PosIdx)
 	return nil
+
+INIT:
+	if init {
+		rd.PosIdx = 0
+		return nil
+	}else{
+		return err
+	}
 }
 
 func (rd *KvDB) ChkBlkSizeKvDB() error {
