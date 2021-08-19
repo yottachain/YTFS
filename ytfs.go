@@ -91,13 +91,13 @@ func Open(dir string, config *opt.Options) (ytfs *YTFS, err error) {
 }
 
 // NewYTFS create a YTFS by config
-func NewYTFS(dir string, config *opt.Options) (*YTFS, error) {
+func NewYTFS(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	ytfs := new(YTFS)
-	indexDB, err := NewIndexDB(dir, config)
+	indexDB, err := NewIndexDB(dir, config, init)
 	if err != nil {
 		return nil, err
 	}
-	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint)
+	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint, init)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +157,7 @@ func openYTFSI(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	}
 
 	//3. open storages
-	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint)
+	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint, init)
 	if err != nil {
 		return nil, err
 	}

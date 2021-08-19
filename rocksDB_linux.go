@@ -110,7 +110,7 @@ func openYTFSK(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	}
     mDB.Header = Header
 
-    err = mDB.ChkDataPos(dir, config)
+    err = mDB.ChkDataPos(dir, config, init)
     if err != nil {
     	fmt.Println("[KvDB] GetDataPos from maindb error:",err)
     	return nil, err
@@ -123,7 +123,7 @@ func openYTFSK(dir string, config *opt.Options, init bool) (*YTFS, error) {
     }
 
 	//3. open storages
-	context, err := NewContext(dir, config, uint64(mDB.PosIdx))
+	context, err := NewContext(dir, config, uint64(mDB.PosIdx),init)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +163,7 @@ func (rd *KvDB) GetOldDataPos()(ydcommon.IndexTableValue, error){
 	return PosRocksdb, nil
 }
 
-func (rd *KvDB) ChkDataPos(dir string, config *opt.Options) error{
+func (rd *KvDB) ChkDataPos(dir string, config *opt.Options, init) error{
 	var PosRocksdb ydcommon.IndexTableValue
 
 	Nkey := []byte(ytPosKeyNew)
@@ -198,7 +198,7 @@ func (rd *KvDB) ChkDataPos(dir string, config *opt.Options) error{
 	//if indexdb exist, get write start pos from index.db
 	fileIdxdb := path.Join(dir,"index.db")
 	if PathExists(fileIdxdb){
-		indexDB, err := NewIndexDB(dir, config)
+		indexDB, err := NewIndexDB(dir, config, init)
 		if err != nil {
 			return err
 		}
