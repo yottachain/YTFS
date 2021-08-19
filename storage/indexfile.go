@@ -506,7 +506,7 @@ func (indexFile *YTFSIndexFile) updateTable(key ydcommon.IndexTableKey, value yd
 // The returned YTFSIndexFile instance is safe for concurrent use.
 // The YTFSIndexFile must be closed after use, by calling Close method.
 //
-func OpenYTFSIndexFile(path string, ytfsConfig *opt.Options) (*YTFSIndexFile, error) {
+func OpenYTFSIndexFile(path string, ytfsConfig *opt.Options, init bool) (*YTFSIndexFile, error) {
 	storage, err := openIndexStorage(path, ytfsConfig)
 	if err != nil {
 		fmt.Println("storage open err")
@@ -515,10 +515,14 @@ func OpenYTFSIndexFile(path string, ytfsConfig *opt.Options) (*YTFSIndexFile, er
 
 	header, err := readIndexHeader(storage)
 	if err != nil {
-		fmt.Println("read storage index header err:",err)
-		header, err = initializeIndexStorage(storage, ytfsConfig)
-		if err != nil {
-			fmt.Println("initialize index header err",err)
+		if init {
+			header, err = initializeIndexStorage(storage, ytfsConfig)
+			if err != nil {
+				fmt.Println("initialize indexfile header err",err)
+				return nil, err
+			}
+		}else{
+			fmt.Println("read storage indexfile header err:",err)
 			return nil, err
 		}
 	}

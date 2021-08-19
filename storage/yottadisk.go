@@ -124,7 +124,7 @@ func (disk *YottaDisk) WriteData(dataOffsetIndex ydcommon.IndexTableValue, data 
 // The returned YottaDisk instance is safe for concurrent use.
 // The YottaDisk must be closed after use, by calling Close method.
 //
-func OpenYottaDisk(yottaConfig *opt.StorageOptions) (*YottaDisk, error) {
+func OpenYottaDisk(yottaConfig *opt.StorageOptions, init bool) (*YottaDisk, error) {
 	storage, err := openStorage(yottaConfig)
 	if err != nil {
 		return nil, err
@@ -132,8 +132,14 @@ func OpenYottaDisk(yottaConfig *opt.StorageOptions) (*YottaDisk, error) {
 
 	header, err := readHeader(storage)
 	if err != nil {
-		header, err = initializeStorage(storage, yottaConfig)
-		if err != nil {
+		if init {
+			header, err = initializeStorage(storage, yottaConfig)
+			if err != nil {
+				fmt.Println("initialize storage header err",err.Error())
+				return nil, err
+			}
+		}else{
+			fmt.Println("read storage header err:",err.Error())
 			return nil, err
 		}
 	}

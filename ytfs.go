@@ -74,12 +74,20 @@ const GcWrtOverNum = 3
 //			panic(err)
 //		}
 //		...
+func OpenInit(dir string, config *opt.Options) (ytfs *YTFS, err error) {
+	settings, err := opt.FinalizeConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	return openYTFS(dir, settings, true)
+}
+
 func Open(dir string, config *opt.Options) (ytfs *YTFS, err error) {
 	settings, err := opt.FinalizeConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	return openYTFS(dir, settings)
+	return openYTFS(dir, settings,false)
 }
 
 // NewYTFS create a YTFS by config
@@ -101,7 +109,7 @@ func NewYTFS(dir string, config *opt.Options) (*YTFS, error) {
 
 
 
-func openYTFSI(dir string, config *opt.Options) (*YTFS, error) {
+func openYTFSI(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	//TODO: file lock to avoid re-open.
 	//1. open system dir for YTFS
 	fileName := path.Join(dir, "dbsafe")
@@ -135,7 +143,7 @@ func openYTFSI(dir string, config *opt.Options) (*YTFS, error) {
 	}
 
 	// open index db
-	indexDB, err := NewIndexDB(dir, config)
+	indexDB, err := NewIndexDB(dir, config, init)
 	if err != nil {
 		return nil, err
 	}
@@ -159,6 +167,12 @@ func openYTFSI(dir string, config *opt.Options) (*YTFS, error) {
 		db: indexDB,
 		context: context,
 		mutex: new(sync.Mutex),
+	}
+
+	if !init && ytfs.PosIdx() < 5 {
+		err = fmt.Errorf("ytfs not init")
+		fmt.Println("[ytfs] error:",err.Error())
+		return nil, err
 	}
 
 	fmt.Println("Open YTFS success @" + dir)

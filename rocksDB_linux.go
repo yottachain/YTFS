@@ -65,7 +65,7 @@ func openKVDB(DBPath string) (kvdb *KvDB, err error) {
 	}, err
 }
 
-func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
+func openYTFSK(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	//TODO: file lock to avoid re-open.
 	//1. open system dir for YTFS
 
@@ -133,6 +133,12 @@ func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
 		db     : mDB,
 		context: context,
 		mutex  : new(sync.Mutex),
+	}
+
+	if !init && ytfs.PosIdx() < 5{
+		err = fmt.Errorf("ytfs not init")
+		fmt.Println("[ytfs] error:",err.Error())
+		return nil, err
 	}
 
 	fileName := path.Join(dir, "dbsafe")

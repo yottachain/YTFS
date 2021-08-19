@@ -64,10 +64,10 @@ func CheckDbStatus(dir,file1,file2 string) bool {
 }
 
 // NewIndexDB creates a new index db based on input file if it's exist.
-func NewIndexDB(dir string, config *opt.Options) (*IndexDB, error) {
+func NewIndexDB(dir string, config *opt.Options, init bool) (*IndexDB, error) {
 	fileName := path.Join(dir, "index.db")
 
-	indexFile, err := storage.OpenYTFSIndexFile(fileName, config)
+	indexFile, err := storage.OpenYTFSIndexFile(fileName, config, init)
 	if err != nil {
 		return nil, err
 	}

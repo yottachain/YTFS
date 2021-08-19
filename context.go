@@ -47,8 +47,8 @@ type Context struct {
 }
 
 // NewContext creates a new YTFS context
-func NewContext(dir string, config *opt.Options, dataCount uint64) (*Context, error) {
-	storages, err := initStorages(config)
+func NewContext(dir string, config *opt.Options, dataCount uint64, init bool) (*Context, error) {
+	storages, err := initStorages(config, init)
 	if err != nil {
 		return nil, err
 	}
@@ -80,10 +80,10 @@ func GetRealDiskCap(path string)uint64{
 	  return getresource.GetDiskCap(path)
 }
 
-func initStorages(config *opt.Options) ([]*storageContext, error) {
+func initStorages(config *opt.Options, init bool) ([]*storageContext, error) {
 	contexts := []*storageContext{}
 	for _, storageOpt := range config.Storages {
-		disk, err := storage.OpenYottaDisk(&storageOpt)
+		disk, err := storage.OpenYottaDisk(&storageOpt, init)
 		if err != nil {
 			// TODO: handle error if necessary, like keep using successed storages.
 			return nil, err
