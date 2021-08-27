@@ -542,9 +542,10 @@ func OpenYTFSIndexFile(path string, ytfsConfig *opt.Options, init bool) (*YTFSIn
 
 func Check2Orders(num uint32) bool{
 	var ret = false
-	var order = 1
+	var order = uint32(1)
 	for {
-		if num == (1<<order){
+
+		if num == (1 << order){
 			ret = true
 			break
 		}
