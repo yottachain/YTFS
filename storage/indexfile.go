@@ -540,6 +540,25 @@ func OpenYTFSIndexFile(path string, ytfsConfig *opt.Options, init bool) (*YTFSIn
 	return yd, nil
 }
 
+func Check2Orders(num uint32) bool{
+	var ret = false
+	var order = 1
+	for {
+		if num == (1<<order){
+			ret = true
+			break
+		}
+
+		if order > 32 {
+			break
+		}
+
+		order++
+	}
+
+	return ret
+}
+
 func initializeIndexStorage(store Storage, config *opt.Options) (*ydcommon.Header, error) {
 	writer, err := store.Writer()
 	if err != nil {
@@ -552,6 +571,18 @@ func initializeIndexStorage(store Storage, config *opt.Options) (*ydcommon.Heade
 	ytfsSize := uint64(0)
 	for _, storageOption := range config.Storages {
 		ytfsSize += storageOption.StorageVolume
+	}
+
+	if m > 2048 || m <512 {
+		err := fmt.Errorf("IndexTableCols(M) not suitable")
+		fmt.Println("[error] ",err.Error())
+		return nil, err
+	}
+
+	if !Check2Orders(n){
+		err := fmt.Errorf("IndexTableRows(N) not suitable")
+		fmt.Println("[error] ",err.Error())
+		return nil, err
 	}
 
 	// write header.
