@@ -121,11 +121,11 @@ func openYTFSI(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	idxFile := path.Join(dir,"index.db")
 	if ! PathExists(idxFile) {
 		if !init{
-			fmt.Printf("indexdb Miss")
+			fmt.Println("indexdb Miss")
 			return nil,ErrDBMiss
 		}
 	}
-	
+
 	//1. open system dir for YTFS
 	if fi, err := os.Stat(dir); err == nil {
 		// dir/file exists, check if it can be reloaded.
