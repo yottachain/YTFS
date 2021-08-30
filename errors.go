@@ -7,6 +7,7 @@ import (
 // Common errors.
 var (
 	ErrDBConfig            = errors.New("YTFS: error DB config")
+	ErrDBMiss            = errors.New("YTFS: error DB Miss")
 	ErrTwoMetaFile         = errors.New("YTFS: two metafile exist")
 	ErrDataConflict        = errors.New("YTFS: hash key conflict happens")
 	ErrDirNameConflict     = errors.New("YTFS: ytfs can not open dir because of name conflict")

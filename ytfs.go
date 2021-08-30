@@ -111,13 +111,22 @@ func NewYTFS(dir string, config *opt.Options, init bool) (*YTFS, error) {
 
 func openYTFSI(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	//TODO: file lock to avoid re-open.
-	//1. open system dir for YTFS
+
 	fileName := path.Join(dir, "dbsafe")
 	if PathExists(fileName) {
 		fmt.Printf("db config error!")
 		return nil,ErrDBConfig
 	}
 
+	idxFile := path.Join(dir,"index.db")
+	if ! PathExists(idxFile) {
+		if !init{
+			fmt.Printf("indexdb Miss")
+			return nil,ErrDBMiss
+		}
+	}
+	
+	//1. open system dir for YTFS
 	if fi, err := os.Stat(dir); err == nil {
 		// dir/file exists, check if it can be reloaded.
 		if !fi.IsDir() {
