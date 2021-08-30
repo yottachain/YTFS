@@ -575,7 +575,7 @@ func initializeIndexStorage(store Storage, config *opt.Options) (*ydcommon.Heade
 	}
 
 	//  M * expendRatioM  that is (2048 * 1.2) >= m >= (512 * 1.2)
-	if m > 2457 || m <614 {
+	if m > 2048 || m < 512 {
 		err := fmt.Errorf("IndexTableCols(M) not suitable,M=",m)
 		fmt.Println("[error] ",err.Error())
 		return nil, err
