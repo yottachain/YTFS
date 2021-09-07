@@ -14,14 +14,16 @@ import (
 	"unsafe"
 )
 
+//should not modify
 const YtBlkSize = 16384
-var mdbFileName = "/maindb"
+const mdbFileName = "/maindb"
 const ytPosKey    = "yt_rocks_pos_key"
-const ytPosKeyNew    = "yt_rocks_pos_key_newpos"
-var ytBlkSzKey  = "yt_blk_size_key"
-var ytBlkSzKeyNew  = "yt_blk_size_key_blk16KB"
-var VerifyedKvFile string = "/gc/rock_verify"
-//var hash0Str = "0000000000000000"
+const ytPosKeyNew = "yt_rocks_pos_key_newpos"
+const ytBlkSzKey  = "yt_blk_size_key"
+const ytBlkSzKeyNew  = "yt_blk_size_key_blk16KB"
+const VerifyedKvFile = "/gc/rock_verify"
+const YtfsDnIdKey = "YtfsDnIdKeyKv"
+
 
 type KvDB struct {
 	Rdb *gorocksdb.DB
@@ -65,6 +67,7 @@ func openKVDB(DBPath string) (kvdb *KvDB, err error) {
 	}, err
 }
 
+//used for init ytfs
 func openYTFSK(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	//TODO: file lock to avoid re-open.
 	//1. open system dir for YTFS
@@ -151,6 +154,148 @@ func openYTFSK(dir string, config *opt.Options, init bool) (*YTFS, error) {
 
 	fmt.Println("Open YTFS success @" + dir)
 	return ytfs, nil
+}
+
+//used for start ytfs
+func startYTFSK(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS, error){
+	if fi, err := os.Stat(dir); err == nil {
+		// dir/file exists, check if it can be reloaded.
+		if !fi.IsDir() {
+			return nil, ErrDirNameConflict
+		}
+		err := openYTFSDir(dir, config)
+		if err != nil && err != ErrEmptyYTFSDir {
+			return nil, err
+		}
+	} else {
+		// create new dir
+		if err := os.MkdirAll(dir, os.ModeDir|os.ModePerm); err != nil {
+			return nil, err
+		}
+	}
+
+	// initial a new ytfs.
+	// save config
+	configName := path.Join(dir, "config.json")
+	err := opt.SaveConfig(config, configName)
+	if err != nil {
+		return nil, err
+	}
+
+	//open main kv-db
+	mainDBPath := path.Join(dir, mdbFileName)
+	fmt.Println("dir:",dir,"mdbFileName",mdbFileName,"mainDBPath:",mainDBPath)
+
+	mDB, err := openKVDB(mainDBPath)
+	if err != nil {
+		fmt.Println("[KvDB]open main kv-DB for save hash error:", err)
+		return nil, err
+	}
+
+	ret,err := mDB.CheckDbDnId(dnid)
+	if !ret {
+		fmt.Println("CheckDbDnId error:", err)
+		return nil, err
+	}
+
+	Header,err := initializeHeader(config)
+	if err != nil {
+		fmt.Println("[KvDB]initialize Header error")
+		return nil,err
+	}
+	mDB.Header = Header
+
+	err = mDB.ChkDataPos(dir, config, init)
+	if err != nil {
+		fmt.Println("[KvDB] GetDataPos from maindb error:",err)
+		return nil, err
+	}
+
+	err = mDB.ChkBlkSizeKvDB()
+	if err != nil {
+		fmt.Println("[KvDB] CheckBlkSize Error:",err)
+		return nil, err
+	}
+
+	//3. open storages
+	context, err := NewContext(dir, config, uint64(mDB.PosIdx),init)
+	if err != nil {
+		return nil, err
+	}
+
+	ret, err = context.CheckStorageDnid(dnid)
+	if !ret {
+		fmt.Println("CheckStorageDnid error:",err)
+		return nil, err
+	}
+
+	ytfs := &YTFS{
+		config : config,
+		db     : mDB,
+		context: context,
+		mutex  : new(sync.Mutex),
+	}
+
+	if !init && ytfs.PosIdx() < 5{
+		err = fmt.Errorf("ytfs not init")
+		fmt.Println("[ytfs] error:",err.Error())
+		return nil, err
+	}
+
+	fileName := path.Join(dir, "dbsafe")
+	if ! PathExists(fileName) {
+		if _, err := os.Create(fileName);err != nil {
+			fmt.Println("create arbiration file error!")
+			return nil,err
+		}
+	}
+
+	fmt.Println("Open YTFS success @" + dir)
+	return ytfs, nil
+
+}
+
+func (rd *KvDB)SetDnIdToKvDB(dnid uint32) error{
+	Bdn := make([]byte,4)
+	binary.LittleEndian.PutUint32(Bdn, dnid)
+    err := rd.PutDb([]byte(YtfsDnIdKey), Bdn)
+    return err
+}
+
+func (rd *KvDB)GetDnIdFromKvDB() (uint32, error){
+	Bdn, err := rd.GetDb([]byte(YtfsDnIdKey))
+	if err != nil{
+		fmt.Println("Get YtfsDnIdKey from KvDB error:",err.Error())
+		return 0, err
+	}
+
+	if len(Bdn) == 0 {
+		err = fmt.Errorf("YtfsDnIdKey not found in kvdb")
+		return 0, err
+	}
+
+	dnid := binary.LittleEndian.Uint32(Bdn)
+	return dnid, nil
+}
+
+func (rd *KvDB)CheckDbDnId(dnid uint32) (bool, error){
+	dbDn,err := rd.GetDnIdFromKvDB()
+	if err != nil{
+		err = rd.SetDnIdToKvDB(dnid)
+		if err != nil{
+			fmt.Println("SetDnIdToIdxDB error",err.Error())
+			return false, err
+		}
+	}else{
+		if dbDn != dnid {
+			fmt.Println("error: dnid not equal,db=",dbDn," cfg=",dnid)
+			err = fmt.Errorf("dnid(db) not equal dnid(cfg)")
+			return false, err
+		}
+	}
+
+	fmt.Println("CheckDbDnId, db=",dbDn," cfg=",dnid)
+	return true, nil
 }
 
 func (rd *KvDB) GetOldDataPos()(ydcommon.IndexTableValue, error){
@@ -277,7 +422,8 @@ func initializeHeader( config *opt.Options) (*ydcommon.Header, error) {
 		HashOffset:     h,
 		DataEndPoint:   0,
 		RecycleOffset:  uint64(h) + (uint64(n)+1)*(uint64(m)*36+4),
-		Reserved:       0xCDCDCDCDCDCDCDCD,
+		DataNodeId:     0xFFFFFFFF,
+		Reserved:       0xCDCDCDCD,
 	}
 	return &header, nil
 }

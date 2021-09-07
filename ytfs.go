@@ -82,12 +82,12 @@ func OpenInit(dir string, config *opt.Options) (ytfs *YTFS, err error) {
 	return openYTFS(dir, settings, true)
 }
 
-func Open(dir string, config *opt.Options) (ytfs *YTFS, err error) {
+func Open(dir string, config *opt.Options, dnid uint32) (ytfs *YTFS, err error) {
 	settings, err := opt.FinalizeConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	return openYTFS(dir, settings,false)
+	return startYTFS(dir, settings, dnid)
 }
 
 // NewYTFS create a YTFS by config
@@ -107,8 +107,102 @@ func NewYTFS(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	return ytfs, nil
 }
 
+const DbVersion = "0.04"
+const StoreVersion = "0.02"
+const OldDbVersion = "0.03"
+const OldStoreVersion = "0.01"
+//used for start ytfs-node
+func startYTFSI(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS, error) {
+	//TODO: file lock to avoid re-open.
+
+	fileName := path.Join(dir, "dbsafe")
+	if PathExists(fileName) {
+		fmt.Printf("db config error!")
+		return nil,ErrDBConfig
+	}
+
+	idxFile := path.Join(dir,"index.db")
+	if ! PathExists(idxFile) {
+		if !init{
+			fmt.Println("indexdb Miss")
+			return nil,ErrDBMiss
+		}
+	}
+
+	//1. open system dir for YTFS
+	if fi, err := os.Stat(dir); err == nil {
+		// dir/file exists, check if it can be reloaded.
+		if !fi.IsDir() {
+			return nil, ErrDirNameConflict
+		}
+		err := openYTFSDir(dir, config)
+		if err != nil && err != ErrEmptyYTFSDir {
+			return nil, err
+		}
+	} else {
+		// create new dir
+		if err := os.MkdirAll(dir, os.ModeDir|os.ModePerm); err != nil {
+			return nil, err
+		}
+	}
+
+	// initial a new ytfs.
+	// save config
+	configName := path.Join(dir, "config.json")
+	err := opt.SaveConfig(config, configName)
+	if err != nil {
+		return nil, err
+	}
+
+	// open index db
+	indexDB, err := NewIndexDB(dir, config, init)
+	if err != nil {
+		return nil, err
+	}
+
+	ret, err := indexDB.CheckDbDnId(dnid)
+	if !ret {
+        return nil, err
+	}
+
+	if 0 == indexDB.schema.DataEndPoint{
+		if config.IndexTableCols < 512 || config.IndexTableCols > 2048{
+			err = fmt.Errorf("yotta config: config.M setting is incorrect")
+			fmt.Println("[error]:",err,"M=",config.IndexTableCols,"N=",config.IndexTableRows)
+			return nil, err
+		}
+	}
+
+	//3. open storages
+	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint, init)
+	if err != nil {
+		return nil, err
+	}
+
+	ret, err = context.CheckStorageDnid(dnid)
+    if err != nil{
+    	return nil, err
+    }
+
+	ytfs := &YTFS{
+		config: config,
+		db: indexDB,
+		context: context,
+		mutex: new(sync.Mutex),
+	}
+
+	if !init && ytfs.PosIdx() < 5 {
+		err = fmt.Errorf("ytfs not init")
+		fmt.Println("[ytfs] error:",err.Error())
+		return nil, err
+	}
+
+	fmt.Println("Open YTFS success @" + dir)
+	return ytfs, nil
+}
 
 
+// used for init ytfs-node
 func openYTFSI(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	//TODO: file lock to avoid re-open.
 
@@ -150,6 +244,7 @@ func openYTFSI(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	if err != nil {
 		return nil, err
 	}
+
 
 	// open index db
 	indexDB, err := NewIndexDB(dir, config, init)

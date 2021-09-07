@@ -210,6 +210,7 @@ func initializeStorage(store Storage, config *opt.StorageOptions) (*ydcommon.Sto
 		DataOffset:    dataOffset,
 		DataCapacity:  uint32((t - h) / d),
 		Reserved:      uint32((t - h) % d), // left-overs
+		DataNodeId:    0xFFFFFFFF,
 	}
 
 	writer.Seek(0, io.SeekStart)
@@ -247,4 +248,39 @@ func readHeader(store Storage) (*ydcommon.StorageHeader, error) {
 	}
 
 	return &header, nil
+}
+
+func (disk *YottaDisk)GetStorageHeader()(ydcommon.StorageHeader){
+	return disk.meta
+}
+
+func (disk *YottaDisk)SetDnIdToStore(Bdn []byte) error{
+	writer, _ := disk.store.Writer()
+	header := disk.meta
+	writer.Seek(int64(unsafe.Offsetof(header.DataNodeId)), io.SeekStart)
+	_, err := writer.Write(Bdn)
+	return err
+}
+
+func (disk *YottaDisk)SetVersionToStore(Bvs []byte) error{
+	writer, _ := disk.store.Writer()
+	header := disk.meta
+	writer.Seek(int64(unsafe.Offsetof(header.Version)), io.SeekStart)
+	_, err := writer.Write(Bvs)
+	return err
+}
+
+func (disk *YottaDisk)GetDnIdFromStore() uint32 {
+	reader, _ := disk.store.Reader()
+	header := disk.meta
+	reader.Seek(int64(unsafe.Offsetof(header.DataNodeId)), io.SeekStart)
+	Bdn := make([]byte, 4)
+	_, err := reader.Read(Bdn)
+	if err != nil{
+		fmt.Println("GetDnIdFromStore error:",err.Error())
+		return 0
+	}
+
+	dnid := binary.LittleEndian.Uint32(Bdn)
+	return dnid
 }

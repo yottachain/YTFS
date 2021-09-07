@@ -425,6 +425,37 @@ func (indexFile *YTFSIndexFile) getTableSize(tbIndex uint32) (*uint32, error) {
 	return &tableSize, nil
 }
 
+func (indexFile *YTFSIndexFile)SetDnIdToIdxDB(Bdn []byte) error{
+	writer, _ := indexFile.store.Writer()
+	header := indexFile.meta
+	writer.Seek(int64(unsafe.Offsetof(header.DataNodeId)), io.SeekStart)
+	_, err := writer.Write(Bdn)
+	return err
+}
+
+func (indexFile *YTFSIndexFile)SetVersionToIdxDB(Bvs []byte) error{
+	writer, _ := indexFile.store.Writer()
+	header := indexFile.meta
+	writer.Seek(int64(unsafe.Offsetof(header.Version)), io.SeekStart)
+	_, err := writer.Write(Bvs)
+	return err
+}
+
+func (indexFile *YTFSIndexFile)GetDnIdFromIdxDB() uint32 {
+	reader, _ := indexFile.store.Reader()
+	header := indexFile.meta
+	reader.Seek(int64(unsafe.Offsetof(header.DataNodeId)), io.SeekStart)
+	Bdn := make([]byte, 4)
+	_, err := reader.Read(Bdn)
+	if err != nil{
+		fmt.Println("GetDnIdFromIdxDB error:",err.Error())
+		return 0
+	}
+
+	dnid := binary.LittleEndian.Uint32(Bdn)
+	return dnid
+}
+
 func (indexFile *YTFSIndexFile) updateTable(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) error {
 	idx := indexFile.getTableEntryIndex(key)
 
@@ -599,7 +630,8 @@ func initializeIndexStorage(store Storage, config *opt.Options) (*ydcommon.Heade
 		HashOffset:     h,
 		DataEndPoint:   0,
 		RecycleOffset:  uint64(h) + (uint64(n)+1)*(uint64(m)*36+4),
-		Reserved:       0xCDCDCDCDCDCDCDCD,
+		DataNodeId:     0xFFFFFFFF,
+		Reserved:       0xCDCDCDCD,
 	}
 
 	writer.Seek(0, io.SeekStart)

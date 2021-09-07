@@ -1,6 +1,7 @@
 package ytfs
 
 import (
+	"encoding/binary"
 	"fmt"
 	"runtime"
 	"math"
@@ -107,6 +108,12 @@ func initStorages(config *opt.Options, init bool) ([]*storageContext, error) {
 
 	return contexts, nil
 }
+
+//func (c *Context)GetStorageHead(){
+//	storage.GetStorageHeader(c.storages[0].Disk)
+//
+//	return
+//}
 
 // SetStoragePointer set the storage pointer position of current storage context
 func (c *Context) SetStoragePointer(globalID uint32) error {
@@ -318,4 +325,55 @@ func (c *Context) Reset() {
 	for _, storage := range c.storages {
 		storage.Disk.Format()
 	}
+}
+
+func (c *Context)GetStorageHeader() (ydcommon.StorageHeader){
+	return c.storages[0].Disk.GetStorageHeader()
+}
+
+func (c *Context)SetDnIdToStor(dnid uint32) error {
+	var err error
+	Bdn := make([]byte,4)
+	binary.LittleEndian.PutUint32(Bdn, dnid)
+	err = c.storages[0].Disk.SetDnIdToStore(Bdn)
+	return err
+}
+
+func (c *Context)SetVersionToStor(version string) error {
+	var err error
+	vs := []byte(version)
+	//binary.LittleEndian.PutUint32(Bdn, dnid)
+	err = c.storages[0].Disk.SetVersionToStore(vs[0:4])
+	return err
+}
+
+func (c *Context)GetDnIdFromStor() uint32{
+	return c.storages[0].Disk.GetDnIdFromStore()
+}
+
+
+func (c *Context) CheckStorageDnid(dnid uint32) (bool,error) {
+	var err error
+	var StorDn uint32
+	header := c.GetStorageHeader()
+	version := header.Version
+	fmt.Println("version=",string(version[:]))
+	OldVersion := [4]byte{0x0,'.',0x0,0x1}
+	if version == OldVersion || string(version[:]) == OldStoreVersion{
+		err = c.SetDnIdToStor(dnid)
+		if err != nil{
+			fmt.Println("SetDnIdToIdxDB error:",err.Error())
+			return false, err
+		}
+		_ = c.SetVersionToStor(StoreVersion)
+	}else{
+		StorDn = c.GetDnIdFromStor()
+		if StorDn != dnid {
+			fmt.Println("error: dnid not equal,stor=",StorDn," cfg=",dnid)
+			err = fmt.Errorf("dnid not equal,stor=",StorDn," cfg=",dnid)
+			return false, err
+		}
+	}
+	fmt.Println("CheckStorageDnid, stor=",StorDn," cfg=",dnid)
+	return true,nil
 }

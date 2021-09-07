@@ -13,7 +13,8 @@ type Header struct {
 	HashOffset     uint32  `json:"hashOffset"`
 	DataEndPoint   uint64  `json:"dataEndPoint"` // if no del, it is the data count, if have del, it tells the sp of context.
 	RecycleOffset  uint64  `json:"RecycleOffset"`
-	Reserved       uint64  `json:"reserved"`
+	DataNodeId     uint32  `json:"DataNodeId"`
+	Reserved       uint32  `json:"reserved"`
 }
 
 // StorageHeader header of storage
@@ -25,4 +26,5 @@ type StorageHeader struct {
 	DataOffset    uint32  `json:"dataOffset"`
 	DataCapacity  uint32  `json:"DataCapacity"`
 	Reserved      uint32  `json:"reserved"`
+	DataNodeId    uint32  `json:"DataNodeId"`
 }
