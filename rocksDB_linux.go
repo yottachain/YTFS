@@ -192,8 +192,8 @@ func startYTFSK(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 		return nil, err
 	}
 
-	ret,err := mDB.CheckDbDnId(dnid)
-	if !ret {
+	ret,flag, err := mDB.CheckDbDnId(dnid)
+	if !ret && !flag{
 		fmt.Println("CheckDbDnId error:", err)
 		return nil, err
 	}
@@ -223,10 +223,24 @@ func startYTFSK(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 		return nil, err
 	}
 
-	ret, err = context.CheckStorageDnid(dnid)
-	if !ret {
+	ret, flag2, err := context.CheckStorageDnid(dnid)
+	if !ret && !flag2{
 		fmt.Println("CheckStorageDnid error:",err)
 		return nil, err
+	}
+
+	if flag && flag2 {
+		err = mDB.SetDnIdToKvDB(dnid)
+		if err != nil{
+			fmt.Println("SetDnIdToKvDb error:",err.Error())
+			return nil,err
+		}
+
+		err = context.SetDnIdVersion(dnid)
+		if err != nil{
+			fmt.Println("SetDnIdVersion error:",err.Error())
+			return nil,err
+		}
 	}
 
 	ytfs := &YTFS{
@@ -270,7 +284,7 @@ func (rd *KvDB)GetDnIdFromKvDB() (uint32, error){
 	}
 
 	if len(Bdn) == 0 {
-		err = fmt.Errorf("YtfsDnIdKey not found in kvdb")
+		err = fmt.Errorf("not_exist")
 		return 0, err
 	}
 
@@ -278,24 +292,24 @@ func (rd *KvDB)GetDnIdFromKvDB() (uint32, error){
 	return dnid, nil
 }
 
-func (rd *KvDB)CheckDbDnId(dnid uint32) (bool, error){
+func (rd *KvDB)CheckDbDnId(dnid uint32) (bool, bool, error){
 	dbDn,err := rd.GetDnIdFromKvDB()
 	if err != nil{
-		err = rd.SetDnIdToKvDB(dnid)
-		if err != nil{
-			fmt.Println("SetDnIdToIdxDB error",err.Error())
-			return false, err
+		fmt.Println("GetDnIdFromKvDB error=",err)
+		if err.Error() == "not_exist"{
+			return false, true, err
 		}
+		return false, false, err
 	}else{
 		if dbDn != dnid {
 			fmt.Println("error: dnid not equal,db=",dbDn," cfg=",dnid)
 			err = fmt.Errorf("dnid(db) not equal dnid(cfg)")
-			return false, err
+			return false, false, nil
 		}
 	}
 
 	fmt.Println("CheckDbDnId, db=",dbDn," cfg=",dnid)
-	return true, nil
+	return true, false, nil
 }
 
 func (rd *KvDB) GetOldDataPos()(ydcommon.IndexTableValue, error){

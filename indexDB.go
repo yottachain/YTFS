@@ -84,27 +84,33 @@ func (db *IndexDB)GetDnIdFromIdxDB() uint32{
 	return db.indexFile.GetDnIdFromIdxDB()
 }
 
-func (db *IndexDB)CheckDbDnId(dnid uint32) (bool, error){
+func (db *IndexDB)SetDnIdVersion(dnid uint32) error {
+	err := db.SetDnIdToIdxDB(dnid)
+	if err != nil{
+		fmt.Println("SetDnIdToIdxDB error",err.Error())
+		return  err
+	}
+	err = db.SetVersionToIdxDB(DbVersion)
+	return err
+}
+
+func (db *IndexDB)CheckDbDnId(dnid uint32) (bool, bool, error){
 	fmt.Println("version=",string(db.schema.Version[:]))
 	var err error
 	var dbDn uint32
+
 	if string(db.schema.Version[:]) == OldDbVersion {
-		err = db.SetDnIdToIdxDB(dnid)
-		if err != nil{
-			fmt.Println("SetDnIdToIdxDB error",err.Error())
-			return false, err
-		}
-		_ = db.SetVersionToIdxDB(DbVersion)
+		return false, true, nil
 	}else{
 		dbDn = db.GetDnIdFromIdxDB()
 		if dbDn != dnid {
 			fmt.Println("error: dnid not equal,db=",dbDn," cfg=",dnid)
 			err = fmt.Errorf("dnid(db) not equal dnid(cfg)")
-			return false, err
+			return false,false, err
 		}
 	}
 	fmt.Println("CheckDbDnId, db=",dbDn," cfg=",dnid)
-	return true, nil
+	return true, false, nil
 }
 
 // NewIndexDB creates a new index db based on input file if it's exist.

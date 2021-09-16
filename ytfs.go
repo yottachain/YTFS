@@ -160,8 +160,8 @@ func startYTFSI(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 		return nil, err
 	}
 
-	ret, err := indexDB.CheckDbDnId(dnid)
-	if !ret {
+	ret, flag, err := indexDB.CheckDbDnId(dnid)
+	if !ret && !flag {
         return nil, err
 	}
 
@@ -179,8 +179,23 @@ func startYTFSI(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 		return nil, err
 	}
 
-	ret, err = context.CheckStorageDnid(dnid)
-    if err != nil{
+	ret, flag2, err := context.CheckStorageDnid(dnid)
+    if !ret || !flag2 {
+    	return nil, err
+    }
+
+    if flag && flag2{
+    	err = indexDB.SetDnIdVersion(dnid)
+    	if err != nil{
+    		return nil, err
+	    }
+
+	    err = context.SetDnIdVersion(dnid)
+	    if err != nil{
+		    return nil, err
+	    }
+    }else{
+    	err = fmt.Errorf("dnid init request for db and storage not coherent")
     	return nil, err
     }
 

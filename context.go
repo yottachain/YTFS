@@ -351,8 +351,17 @@ func (c *Context)GetDnIdFromStor() uint32{
 	return c.storages[0].Disk.GetDnIdFromStore()
 }
 
+func (c *Context) SetDnIdVersion(dnid uint32) error{
+	err := c.SetDnIdToStor(dnid)
+	if err != nil{
+		fmt.Println("SetDnIdToIdxDB error:",err.Error())
+		return err
+	}
+	err = c.SetVersionToStor(StoreVersion)
+	return err
+}
 
-func (c *Context) CheckStorageDnid(dnid uint32) (bool,error) {
+func (c *Context) CheckStorageDnid(dnid uint32) (bool, bool, error) {
 	var err error
 	var StorDn uint32
 	header := c.GetStorageHeader()
@@ -360,20 +369,15 @@ func (c *Context) CheckStorageDnid(dnid uint32) (bool,error) {
 	fmt.Println("version=",string(version[:]))
 	OldVersion := [4]byte{0x0,'.',0x0,0x1}
 	if version == OldVersion || string(version[:]) == OldStoreVersion{
-		err = c.SetDnIdToStor(dnid)
-		if err != nil{
-			fmt.Println("SetDnIdToIdxDB error:",err.Error())
-			return false, err
-		}
-		_ = c.SetVersionToStor(StoreVersion)
+		return false, true, nil
 	}else{
 		StorDn = c.GetDnIdFromStor()
 		if StorDn != dnid {
 			fmt.Println("error: dnid not equal,stor=",StorDn," cfg=",dnid)
 			err = fmt.Errorf("dnid not equal,stor=",StorDn," cfg=",dnid)
-			return false, err
+			return false, false, err
 		}
 	}
 	fmt.Println("CheckStorageDnid, stor=",StorDn," cfg=",dnid)
-	return true,nil
+	return true,false, nil
 }
