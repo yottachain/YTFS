@@ -25,6 +25,14 @@ func (ti *TableIterator) GetTableIndex() uint32{
 	return ti.tableIndex
 }
 
+func (ti *TableIterator)GetTableVersion() [4]byte{
+	return ti.ytfsIndexFile.meta.Version
+}
+
+func (ti *TableIterator)GetDnIdFromTab() uint32{
+	return ti.ytfsIndexFile.meta.DataNodeId
+}
+
 func RebuildIdxHeader(ytfsIndexFile *YTFSIndexFile, mpath string) error {
 	writer, err := os.OpenFile(mpath, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {

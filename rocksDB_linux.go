@@ -14,17 +14,6 @@ import (
 	"unsafe"
 )
 
-//should not modify
-const YtBlkSize = 16384
-const mdbFileName = "/maindb"
-const ytPosKey    = "yt_rocks_pos_key"
-const ytPosKeyNew = "yt_rocks_pos_key_newpos"
-const ytBlkSzKey  = "yt_blk_size_key"
-const ytBlkSzKeyNew  = "yt_blk_size_key_blk16KB"
-const VerifyedKvFile = "/gc/rock_verify"
-const YtfsDnIdKey = "YtfsDnIdKeyKv"
-
-
 type KvDB struct {
 	Rdb *gorocksdb.DB
 	ro  *gorocksdb.ReadOptions
@@ -229,7 +218,7 @@ func startYTFSK(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 		return nil, err
 	}
 
-	if flag && flag2 {
+	if flag2 && flag {
 		err = mDB.SetDnIdToKvDB(dnid)
 		if err != nil{
 			fmt.Println("SetDnIdToKvDb error:",err.Error())
@@ -241,6 +230,10 @@ func startYTFSK(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 			fmt.Println("SetDnIdVersion error:",err.Error())
 			return nil,err
 		}
+	}else if flag2 != flag {
+		err = fmt.Errorf("dnid init request for db and storage not coherent")
+		fmt.Println("error:",err)
+		return nil, err
 	}
 
 	ytfs := &YTFS{

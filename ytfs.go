@@ -27,6 +27,21 @@ type ytfsStatus struct {
 	//TODO: index status
 }
 
+//should not modify
+const YtBlkSize = 16384
+const mdbFileName = "/maindb"
+const ytPosKey    = "yt_rocks_pos_key"
+const ytPosKeyNew = "yt_rocks_pos_key_newpos"
+const ytBlkSzKey  = "yt_blk_size_key"
+const ytBlkSzKeyNew  = "yt_blk_size_key_blk16KB"
+const VerifyedKvFile = "/gc/rock_verify"
+const YtfsDnIdKey = "YtfsDnIdKeyKv"
+
+const DbVersion = "0.04"
+const StoreVersion = "0.02"
+const OldDbVersion = "0.03"
+const OldStoreVersion = "0.01"
+
 var gcspacecntkey = "gcspacecnt_rocksdb"
 //type KvDB struct {
 //	Rdb *gorocksdb.DB
@@ -107,10 +122,6 @@ func NewYTFS(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	return ytfs, nil
 }
 
-const DbVersion = "0.04"
-const StoreVersion = "0.02"
-const OldDbVersion = "0.03"
-const OldStoreVersion = "0.01"
 //used for start ytfs-node
 func startYTFSI(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS, error) {
 	//TODO: file lock to avoid re-open.
@@ -180,22 +191,26 @@ func startYTFSI(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 	}
 
 	ret, flag2, err := context.CheckStorageDnid(dnid)
-    if !ret || !flag2 {
+    if !ret && !flag2 {
+    	fmt.Println("CheckStorageDnid err,ret=",ret,"flag2=",flag2)
     	return nil, err
     }
 
-    if flag && flag2{
+    if flag && flag2 {
     	err = indexDB.SetDnIdVersion(dnid)
     	if err != nil{
+    		fmt.Println("indexDB.SetDnIdVersion error:",err)
     		return nil, err
 	    }
 
 	    err = context.SetDnIdVersion(dnid)
 	    if err != nil{
+		    fmt.Println("context.SetDnIdVersion error:",err)
 		    return nil, err
 	    }
-    }else{
+    }else if flag != flag2{
     	err = fmt.Errorf("dnid init request for db and storage not coherent")
+    	fmt.Println("error:",err)
     	return nil, err
     }
 
@@ -215,7 +230,6 @@ func startYTFSI(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 	fmt.Println("Open YTFS success @" + dir)
 	return ytfs, nil
 }
-
 
 // used for init ytfs-node
 func openYTFSI(dir string, config *opt.Options, init bool) (*YTFS, error) {
