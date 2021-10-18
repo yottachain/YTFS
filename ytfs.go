@@ -304,17 +304,19 @@ func (ytfs *YTFS) DiskAndUseCap() (uint32, uint32) {
 	return totalRealCap, NowPos
 }
 
-func (ytfs *YTFS) GetTotalCap() (uint32, uint32) {
+func (ytfs *YTFS) GetTotalCap() (uint32, uint32, uint) {
 	var totalRealCap uint32
 	var totalConfCap uint32
+	var diskNums uint
 	storArray := ytfs.context.storages
 
 	for _, stordev := range storArray {
+		diskNums++
 		totalRealCap += stordev.RealDiskCap
 		totalConfCap += stordev.Cap
 	}
 
-	return totalConfCap, totalRealCap
+	return totalConfCap, totalRealCap, diskNums
 }
 
 func openYTFSDir(dir string, config *opt.Options) error {
