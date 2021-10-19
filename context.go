@@ -145,6 +145,8 @@ func (c *Context) GetAvailablePos(data []byte, writeEndPos uint32) uint32 {
 	//从当前写入位置偏离1024个位置
 	var startPos = sp.index + 1024
 	var writeAblePos = writeEndPos
+	var lastFailPos uint32 = 0
+	var lastSucPos uint32 = 0
 
 	for startPos != writeAblePos {
 		_, err := c.PutAt(data, writeAblePos)
@@ -152,11 +154,19 @@ func (c *Context) GetAvailablePos(data []byte, writeEndPos uint32) uint32 {
 			resdata, err := c.Get(ydcommon.IndexTableValue(writeAblePos))
 			if err != nil {
 				fmt.Printf("[cap proof] error, cur data pos %d, write suc, get err pos %d", sp.index, writeAblePos)
+				lastFailPos = writeAblePos
 				goto con
 			}
 			resKey := md5.Sum(resdata)
 			if !bytes.Equal(srcKey[:], resKey[:]) {
 				fmt.Printf("[cap proof] error, data check error, cur data pos %d, write err pos %d", sp.index, writeAblePos)
+				lastFailPos = writeAblePos
+				goto con
+			}
+			lastSucPos = writeAblePos
+			if lastSucPos < lastFailPos {
+				startPos = lastSucPos
+				writeAblePos = lastFailPos
 				goto con
 			}
 			break
