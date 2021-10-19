@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/md5"
+	"crypto/rand"
 	"encoding/binary"
 	//	"encoding/binary"
 	"encoding/json"
@@ -656,6 +657,32 @@ func (ytfs *YTFS) BatchPutNormal(batch map[ydcommon.IndexTableKey][]byte) (map[y
 	}
 
 	return nil, nil
+}
+
+func (ytfs *YTFS) GetCapProofSpace() uint32 {
+	ytfs.mutex.Lock()
+	defer ytfs.mutex.Unlock()
+	buf := make([]byte, 16*1024)
+
+	storageContexts := ytfs.context.GetStorageContext()
+	var useCap uint32
+	var useAbleCap uint32
+	for _, storage := range storageContexts {
+		confCap := storage.Cap
+		RealCap := storage.RealDiskCap
+		if confCap >= RealCap {
+			useCap += RealCap
+		} else {
+			useCap += confCap
+		}
+		rand.Read(buf)
+		useAbleCap = ytfs.context.GetAvailablePos(buf, useCap-1)
+		if useAbleCap+1 != useCap {
+			return useAbleCap + 1
+		}
+	}
+
+	return useAbleCap + 1
 }
 
 // Meta reports current meta information.

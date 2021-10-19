@@ -1,18 +1,20 @@
 package ytfs
 
 import (
+	"bytes"
+	"crypto/md5"
 	"encoding/binary"
 	"fmt"
-	"runtime"
 	"math"
+	"runtime"
 	"sync"
 
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/errors"
+	"github.com/yottachain/YTFS/getresource"
 	"github.com/yottachain/YTFS/opt"
 	"github.com/yottachain/YTFS/storage"
 	"unsafe"
-	"github.com/yottachain/YTFS/getresource"
 )
 
 var (
@@ -29,7 +31,7 @@ type storageContext struct {
 	// Storage
 	Disk *storage.YottaDisk
 	// Storage real Capacity
-	RealDiskCap  uint32
+	RealDiskCap uint32
 }
 
 type storagePointer struct {
@@ -71,14 +73,14 @@ func NewContext(dir string, config *opt.Options, dataCount uint64, init bool) (*
 		return context, nil
 	}
 
-	fmt.Println("[error]Create new YTFS content error:",err,"current sp = ", context.sp)
+	fmt.Println("[error]Create new YTFS content error:", err, "current sp = ", context.sp)
 	//maybe err happens, here we still need start storage for read
 	err = nil
 	return context, err
 }
 
-func GetRealDiskCap(path string)uint64{
-	  return getresource.GetDiskCap(path)
+func GetRealDiskCap(path string) uint64 {
+	return getresource.GetDiskCap(path)
 }
 
 func initStorages(config *opt.Options, init bool) ([]*storageContext, error) {
@@ -90,18 +92,18 @@ func initStorages(config *opt.Options, init bool) ([]*storageContext, error) {
 			return nil, err
 		}
 
-		RealCap :=uint64(0)
-		if runtime.GOOS == "linux"{
+		RealCap := uint64(0)
+		if runtime.GOOS == "linux" {
 			header := ydcommon.StorageHeader{}
-			RealCap = GetRealDiskCap(storageOpt.StorageName)-(uint64)(unsafe.Sizeof(header))
-			RealCap = (RealCap/16384)
+			RealCap = GetRealDiskCap(storageOpt.StorageName) - (uint64)(unsafe.Sizeof(header))
+			RealCap = (RealCap / 16384)
 		}
 
 		contexts = append(contexts, &storageContext{
-			Name: storageOpt.StorageName,
-			Cap:  disk.Capability(),
-			Len:  0,
-			Disk: disk,
+			Name:        storageOpt.StorageName,
+			Cap:         disk.Capability(),
+			Len:         0,
+			Disk:        disk,
 			RealDiskCap: uint32(RealCap),
 		})
 	}
@@ -122,6 +124,49 @@ func (c *Context) SetStoragePointer(globalID uint32) error {
 		c.sp = sp
 	}
 	return err
+}
+
+func (c *Context) GetStorageContext() []*storageContext {
+	return c.storages
+}
+
+func (c *Context) GetAvailablePos(data []byte, writeEndPos uint32) uint32 {
+	sp := c.sp
+	if sp.index >= writeEndPos {
+		return writeEndPos
+	}
+
+	if writeEndPos-sp.index < 1024 {
+		return writeEndPos
+	}
+
+	srcKey := md5.Sum(data)
+
+	//从当前写入位置偏离1024个位置
+	var startPos = sp.index + 1024
+	var writeAblePos = writeEndPos
+
+	for startPos != writeAblePos {
+		_, err := c.PutAt(data, writeAblePos)
+		if err == nil {
+			resdata, err := c.Get(ydcommon.IndexTableValue(writeAblePos))
+			if err != nil {
+				fmt.Printf("[cap proof] error, cur data pos %d, write suc, get err pos %d", sp.index, writeAblePos)
+				goto con
+			}
+			resKey := md5.Sum(resdata)
+			if !bytes.Equal(srcKey[:], resKey[:]) {
+				fmt.Printf("[cap proof] error, data check error, cur data pos %d, write err pos %d", sp.index, writeAblePos)
+				goto con
+			}
+			break
+		}
+		fmt.Printf("[cap proof] error, cur data pos %d, write err pos %d", sp.index, writeAblePos)
+	con:
+		writeAblePos = startPos + (writeAblePos-startPos)/2
+	}
+
+	return writeAblePos
 }
 
 // Locate find the correct offset in correct device
@@ -170,27 +215,27 @@ func (c *Context) forward() error {
 	return nil
 }
 
-func (c *Context)  fastforward(n int, commit bool) error {
+func (c *Context) fastforward(n int, commit bool) error {
 	sp := *c.sp
 	var err error
 	i := 0
 	for i = 0; i < n && err == nil; i++ {
-			err = c.forward()
+		err = c.forward()
 	}
 	if !commit {
-			*c.sp = sp
+		*c.sp = sp
 	}
 
 	if i <= n && err != nil {
-			// last i reach the eof is ok.
-		fmt.Println("[memtrace] in fastforward error:",err)
+		// last i reach the eof is ok.
+		fmt.Println("[memtrace] in fastforward error:", err)
 		return err
 	}
 	return nil
 }
 
 func (c *Context) save() *storagePointer {
-	saveSP := *c.sp;
+	saveSP := *c.sp
 	return &saveSP
 }
 
@@ -245,7 +290,7 @@ func (c *Context) Put(value []byte) (uint32, error) {
 //	return index, nil
 //}
 
-// PutAt puts the vale to specific offset of the corrent device
+// PutAt puts the vale to specific offset of the correct device
 func (c *Context) PutAt(value []byte, globalID uint32) (uint32, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -272,18 +317,18 @@ func (c *Context) BatchPut(cnt int, valueArray []byte) (uint32, error) {
 
 	var err error
 	var index uint32
-	if (c.sp.posIdx + uint32(cnt) <= c.storages[c.sp.dev].Cap) {
+	if c.sp.posIdx+uint32(cnt) <= c.storages[c.sp.dev].Cap {
 		index, err = c.putAt(valueArray, c.sp)
 	} else {
-		currentSP := *c.sp;
+		currentSP := *c.sp
 		step1 := c.storages[currentSP.dev].Cap - currentSP.posIdx
 		index, err = c.putAt(valueArray[:step1*c.config.DataBlockSize], &currentSP)
 		step2 := uint32(cnt) - step1
 		currentSP.dev++
 		currentSP.posIdx = 0
 		currentSP.index += step1
-		if (currentSP.posIdx + uint32(step2) > c.storages[currentSP.dev].Cap) {
-				return 0, errors.New("Batch across 3 storage devices, not supported")
+		if currentSP.posIdx+uint32(step2) > c.storages[currentSP.dev].Cap {
+			return 0, errors.New("Batch across 3 storage devices, not supported")
 		}
 		_, err = c.putAt(valueArray[step1*c.config.DataBlockSize:], &currentSP)
 	}
@@ -327,19 +372,19 @@ func (c *Context) Reset() {
 	}
 }
 
-func (c *Context)GetStorageHeader() (ydcommon.StorageHeader){
+func (c *Context) GetStorageHeader() ydcommon.StorageHeader {
 	return c.storages[0].Disk.GetStorageHeader()
 }
 
-func (c *Context)SetDnIdToStor(dnid uint32) error {
+func (c *Context) SetDnIdToStor(dnid uint32) error {
 	var err error
-	Bdn := make([]byte,4)
+	Bdn := make([]byte, 4)
 	binary.LittleEndian.PutUint32(Bdn, dnid)
 	err = c.storages[0].Disk.SetDnIdToStore(Bdn)
 	return err
 }
 
-func (c *Context)SetVersionToStor(version string) error {
+func (c *Context) SetVersionToStor(version string) error {
 	var err error
 	vs := []byte(version)
 	//binary.LittleEndian.PutUint32(Bdn, dnid)
@@ -347,33 +392,32 @@ func (c *Context)SetVersionToStor(version string) error {
 	return err
 }
 
-func (c *Context)GetDnIdFromStor() uint32{
+func (c *Context) GetDnIdFromStor() uint32 {
 	return c.storages[0].Disk.GetDnIdFromStore()
 }
 
-
-func (c *Context) CheckStorageDnid(dnid uint32) (bool,error) {
+func (c *Context) CheckStorageDnid(dnid uint32) (bool, error) {
 	var err error
 	var StorDn uint32
 	header := c.GetStorageHeader()
 	version := header.Version
-	fmt.Println("version=",string(version[:]))
-	OldVersion := [4]byte{0x0,'.',0x0,0x1}
-	if version == OldVersion || string(version[:]) == OldStoreVersion{
+	fmt.Println("version=", string(version[:]))
+	OldVersion := [4]byte{0x0, '.', 0x0, 0x1}
+	if version == OldVersion || string(version[:]) == OldStoreVersion {
 		err = c.SetDnIdToStor(dnid)
-		if err != nil{
-			fmt.Println("SetDnIdToIdxDB error:",err.Error())
+		if err != nil {
+			fmt.Println("SetDnIdToIdxDB error:", err.Error())
 			return false, err
 		}
 		_ = c.SetVersionToStor(StoreVersion)
-	}else{
+	} else {
 		StorDn = c.GetDnIdFromStor()
 		if StorDn != dnid {
-			fmt.Println("error: dnid not equal,stor=",StorDn," cfg=",dnid)
-			err = fmt.Errorf("dnid not equal,stor=",StorDn," cfg=",dnid)
+			fmt.Println("error: dnid not equal,stor=", StorDn, " cfg=", dnid)
+			err = fmt.Errorf("dnid not equal,stor=", StorDn, " cfg=", dnid)
 			return false, err
 		}
 	}
-	fmt.Println("CheckStorageDnid, stor=",StorDn," cfg=",dnid)
-	return true,nil
+	fmt.Println("CheckStorageDnid, stor=", StorDn, " cfg=", dnid)
+	return true, nil
 }
