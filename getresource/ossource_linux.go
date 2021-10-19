@@ -1,6 +1,7 @@
 package getresource
 
 import (
+	"fmt"
 	"syscall"
 )
 
@@ -17,6 +18,7 @@ func GetDiskCap(path string) uint64 {
 		return uint64(0)
 	}
 	diskAllCap := fs.Blocks * uint64(fs.Bsize)
+	fmt.Printf("disk info blocks %d, block size %d\n", fs.Blocks, fs.Bsize)
 	//	disk.Free = fs.Bfree * uint64(fs.Bsize)
 	//	disk.Used = disk.All - disk.Free
 	return diskAllCap
