@@ -675,10 +675,11 @@ func (ytfs *YTFS) GetCapProofSpace() uint32 {
 		} else {
 			useCap += confCap
 		}
+		fmt.Printf("[cap proof] dev name %s, config cap %d, real cap %d\n", storage.Name, confCap, RealCap)
 		rand.Read(buf)
 		useAbleCap = ytfs.context.GetAvailablePos(buf, useCap-1)
 		if useAbleCap+1 != useCap {
-			return useAbleCap + 1
+			break
 		}
 	}
 
