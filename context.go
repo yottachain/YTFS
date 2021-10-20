@@ -152,6 +152,7 @@ func (c *Context) GetAvailablePos(data []byte, writeEndPos uint32) uint32 {
 	var lastSucPos uint32 = 0
 
 	for startPos != writeAblePos {
+		fmt.Printf("[cap proof] sp.index %d, startWritePos %d, write pos %d\n", sp.index, startPos, writeAblePos)
 		_, err := c.PutAt(data, writeAblePos)
 		if err == nil {
 			resdata, err := c.Get(ydcommon.IndexTableValue(writeAblePos))
