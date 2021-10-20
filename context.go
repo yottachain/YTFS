@@ -79,8 +79,11 @@ func NewContext(dir string, config *opt.Options, dataCount uint64, init bool) (*
 	return context, err
 }
 
-func GetRealDiskCap(path string) uint64 {
-	return getresource.GetDiskCap(path)
+//func GetRealDiskCap(path string) uint64 {
+//	return getresource.GetDiskCap(path)
+//}
+func GetRealDiskCap(stor storage.Storage) uint64 {
+	return getresource.GetDiskCap(stor)
 }
 
 func initStorages(config *opt.Options, init bool) ([]*storageContext, error) {
@@ -95,7 +98,7 @@ func initStorages(config *opt.Options, init bool) ([]*storageContext, error) {
 		RealCap := uint64(0)
 		if runtime.GOOS == "linux" {
 			header := ydcommon.StorageHeader{}
-			RealCap = GetRealDiskCap(storageOpt.StorageName) - (uint64)(unsafe.Sizeof(header))
+			RealCap = GetRealDiskCap(disk.GetStorage()) - (uint64)(unsafe.Sizeof(header))
 			RealCap = (RealCap / 16384)
 		}
 
