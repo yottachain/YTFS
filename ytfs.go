@@ -683,7 +683,7 @@ func (ytfs *YTFS) GetCapProofSpace() uint32 {
 		}
 	}
 
-	return useAbleCap + 1
+	return ytfs.context.RandCheckAvailablePos(buf, 10, useAbleCap) + 1
 }
 
 // Meta reports current meta information.

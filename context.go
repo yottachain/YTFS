@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"math/rand"
 	"runtime"
 	"sync"
 
@@ -174,13 +175,71 @@ func (c *Context) GetAvailablePos(data []byte, writeEndPos uint32) uint32 {
 				goto con
 			}
 			break
+		} else {
+			lastFailPos = writeAblePos
+			fmt.Printf("[cap proof] error, cur data pos %d, write err pos %d", sp.index, writeAblePos)
 		}
-		fmt.Printf("[cap proof] error, cur data pos %d, write err pos %d", sp.index, writeAblePos)
 	con:
 		writeAblePos = startPos + (writeAblePos-startPos)/2
 	}
 
 	return writeAblePos
+}
+
+func (c *Context) RandCheckAvailablePos(data []byte, randTimes int, EndPos uint32) uint32 {
+	sp := c.sp
+	if sp.index >= EndPos {
+		return EndPos
+	}
+
+	if EndPos-sp.index < 1024 {
+		return EndPos
+	}
+
+	status := true
+	minFailPos := EndPos
+	AvaliablePos := EndPos
+
+	var startPos = sp.index + 1024
+	var scope = EndPos - startPos
+	srcKey := md5.Sum(data)
+	for i := 0; i < randTimes; i++ {
+		randPos := rand.Int63n(int64(scope))
+		_, err := c.PutAt(data, uint32(randPos))
+		if err == nil {
+			resdata, err := c.Get(ydcommon.IndexTableValue(randPos))
+			if err != nil {
+				fmt.Printf("[cap proof rand RW] error, cur data pos %d, write suc, get err pos %d",
+					sp.index, randPos)
+				status = false
+				goto con
+			}
+			resKey := md5.Sum(resdata)
+			if !bytes.Equal(srcKey[:], resKey[:]) {
+				fmt.Printf("[cap proof rand RW] error, data check error, cur data pos %d, write err pos %d",
+					sp.index, randPos)
+				status = false
+				goto con
+			}
+			fmt.Printf("[cap proof rand RW], data check success, cur data pos %d, write success pos %d",
+				sp.index, randPos)
+			continue
+		} else {
+			status = false
+		}
+	con:
+		if !status {
+			if uint32(randPos) < minFailPos {
+				minFailPos = uint32(randPos)
+			}
+		}
+	}
+
+	if !status {
+		AvaliablePos = c.GetAvailablePos(data, minFailPos)
+	}
+
+	return AvaliablePos
 }
 
 // Locate find the correct offset in correct device
