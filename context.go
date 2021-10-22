@@ -166,7 +166,7 @@ func (c *Context) GetAvailablePos(data []byte, writeEndPos uint32) uint32 {
 			}
 			resKey := md5.Sum(resdata)
 			if !bytes.Equal(srcKey[:], resKey[:]) {
-				fmt.Printf("[cap proof] error, data check error, cur data pos %d, write err pos %d",
+				fmt.Printf("[cap proof] error, data check error, cur data pos %d, check err pos %d\n",
 					sp.index, writeAblePos)
 				lastFailPos = writeAblePos
 				goto con
@@ -177,10 +177,12 @@ func (c *Context) GetAvailablePos(data []byte, writeEndPos uint32) uint32 {
 				writeAblePos = lastFailPos
 				goto con
 			}
+			fmt.Printf("[cap proof] success, data write success, cur data pos %d, write suc pos %d\n",
+				sp.index, writeAblePos)
 			break
 		} else {
 			lastFailPos = writeAblePos
-			fmt.Printf("[cap proof] error, data write error, cur data pos %d, write err pos %d",
+			fmt.Printf("[cap proof] error, data write error, cur data pos %d, write err pos %d\n",
 				sp.index, writeAblePos)
 		}
 	con:
@@ -209,28 +211,29 @@ func (c *Context) RandCheckAvailablePos(data []byte, randTimes int, EndPos uint3
 	srcKey := md5.Sum(data)
 	for i := 0; i < randTimes; i++ {
 		randPos := rand.Int63n(int64(scope))
-		_, err := c.PutAt(data, uint32(randPos))
+		writePos := startPos + uint32(randPos)
+		_, err := c.PutAt(data, writePos)
 		if err == nil {
-			resdata, err := c.Get(ydcommon.IndexTableValue(randPos))
+			resdata, err := c.Get(ydcommon.IndexTableValue(writePos))
 			if err != nil {
 				fmt.Printf("[cap proof rand RW] error, get data error, cur data pos %d, get err pos %d\n",
-					sp.index, randPos)
+					sp.index, writePos)
 				status = false
 				goto con
 			}
 			resKey := md5.Sum(resdata)
 			if !bytes.Equal(srcKey[:], resKey[:]) {
 				fmt.Printf("[cap proof rand RW] error, data check error, cur data pos %d, write err pos %d\n",
-					sp.index, randPos)
+					sp.index, writePos)
 				status = false
 				goto con
 			}
 			fmt.Printf("[cap proof rand RW], data check success, cur data pos %d, write success pos %d\n",
-				sp.index, randPos)
+				sp.index, writePos)
 			continue
 		} else {
 			fmt.Printf("[cap proof rand RW] error, write data error, cur data pos %d, write err pos %d\n",
-				sp.index, randPos)
+				sp.index, writePos)
 			status = false
 		}
 	con:
