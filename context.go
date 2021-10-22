@@ -153,18 +153,21 @@ func (c *Context) GetAvailablePos(data []byte, writeEndPos uint32) uint32 {
 	var lastSucPos uint32 = 0
 
 	for startPos != writeAblePos {
-		fmt.Printf("[cap proof] sp.index %d, startWritePos %d, write pos %d\n", sp.index, startPos, writeAblePos)
+		fmt.Printf("[cap proof] sp.index %d, startWritePos %d, write pos %d\n",
+			sp.index, startPos, writeAblePos)
 		_, err := c.PutAt(data, writeAblePos)
 		if err == nil {
 			resdata, err := c.Get(ydcommon.IndexTableValue(writeAblePos))
 			if err != nil {
-				fmt.Printf("[cap proof] error, cur data pos %d, write suc, get err pos %d", sp.index, writeAblePos)
+				fmt.Printf("[cap proof] error, date get error, cur data pos %d, get err pos %d\n",
+					sp.index, writeAblePos)
 				lastFailPos = writeAblePos
 				goto con
 			}
 			resKey := md5.Sum(resdata)
 			if !bytes.Equal(srcKey[:], resKey[:]) {
-				fmt.Printf("[cap proof] error, data check error, cur data pos %d, write err pos %d", sp.index, writeAblePos)
+				fmt.Printf("[cap proof] error, data check error, cur data pos %d, write err pos %d",
+					sp.index, writeAblePos)
 				lastFailPos = writeAblePos
 				goto con
 			}
@@ -177,7 +180,8 @@ func (c *Context) GetAvailablePos(data []byte, writeEndPos uint32) uint32 {
 			break
 		} else {
 			lastFailPos = writeAblePos
-			fmt.Printf("[cap proof] error, cur data pos %d, write err pos %d", sp.index, writeAblePos)
+			fmt.Printf("[cap proof] error, data write error, cur data pos %d, write err pos %d",
+				sp.index, writeAblePos)
 		}
 	con:
 		writeAblePos = startPos + (writeAblePos-startPos)/2
@@ -209,22 +213,24 @@ func (c *Context) RandCheckAvailablePos(data []byte, randTimes int, EndPos uint3
 		if err == nil {
 			resdata, err := c.Get(ydcommon.IndexTableValue(randPos))
 			if err != nil {
-				fmt.Printf("[cap proof rand RW] error, cur data pos %d, write suc, get err pos %d",
+				fmt.Printf("[cap proof rand RW] error, get data error, cur data pos %d, get err pos %d\n",
 					sp.index, randPos)
 				status = false
 				goto con
 			}
 			resKey := md5.Sum(resdata)
 			if !bytes.Equal(srcKey[:], resKey[:]) {
-				fmt.Printf("[cap proof rand RW] error, data check error, cur data pos %d, write err pos %d",
+				fmt.Printf("[cap proof rand RW] error, data check error, cur data pos %d, write err pos %d\n",
 					sp.index, randPos)
 				status = false
 				goto con
 			}
-			fmt.Printf("[cap proof rand RW], data check success, cur data pos %d, write success pos %d",
+			fmt.Printf("[cap proof rand RW], data check success, cur data pos %d, write success pos %d\n",
 				sp.index, randPos)
 			continue
 		} else {
+			fmt.Printf("[cap proof rand RW] error, write data error, cur data pos %d, write err pos %d\n",
+				sp.index, randPos)
 			status = false
 		}
 	con:
@@ -237,6 +243,8 @@ func (c *Context) RandCheckAvailablePos(data []byte, randTimes int, EndPos uint3
 
 	if !status {
 		AvaliablePos = c.GetAvailablePos(data, minFailPos)
+	} else {
+		fmt.Printf("[cap proof rand RW] all success\n")
 	}
 
 	return AvaliablePos
