@@ -5,6 +5,8 @@ import (
 	"crypto"
 	"crypto/md5"
 	"encoding/binary"
+	"github.com/yottachain/YTFS/errors"
+
 	//	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -501,7 +503,8 @@ func (ytfs *YTFS) saveCurrentYTFS() {
 // before.
 
 func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
-	if ytfs.config.UseKvDb {
+	fmt.Println("[gcdel]  batchput get batch len(batch)=",len(batch))
+	if ytfs.config.UseKvDb && len(batch) <= 5 {
 		gcspace, err := ytfs.db.GetDb([]byte(gcspacecntkey))
 
 		fmt.Println("[gcdel]  batchput get gcspacecnt len(gcspace)=",len(gcspace))
@@ -512,7 +515,7 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 
 		gccnt := binary.LittleEndian.Uint32(gcspace)
 		if gccnt > uint32(len(batch)) {
-			return ytfs.BatchPutGc(batch)
+			return ytfs.BatchPutGc(batch,true)
 		}
 	}
 	return ytfs.BatchPutNormal(batch)
@@ -578,16 +581,26 @@ func (ytfs *YTFS) BatchPutGcDo( bitmaptab []ydcommon.GcTableItem, num uint32) (i
     return 0, err
 }
 
-func (ytfs *YTFS) BatchPutGc(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
+func (ytfs *YTFS) BatchPutGc(batch map[ydcommon.IndexTableKey][]byte, putnormal bool) (map[ydcommon.IndexTableKey]byte, error) {
     lenbatch := len(batch)
     GcLock.Lock()
     defer GcLock.Unlock()
     bitmaptab, err := ytfs.db.GetBitMapTab(lenbatch + GcWrtOverNum)
 	//fmt.Println("[gcdel]  batchputGC ytfs.db.GetBitMapTab len(bitmaptab)=",len(bitmaptab),"len(batch)=",len(batch))
-    if err != nil || len(bitmaptab) < lenbatch {
-    	fmt.Println("[gcdel] get del bitmaptab error:",err)
-	    return ytfs.BatchPutNormal(batch)
+    if err != nil {
+    	if putnormal{
+		    fmt.Println("[gcdel] get del bitmaptab error:",err)
+		    return ytfs.BatchPutNormal(batch)
+	    }else{
+	    	return nil, err
+	    }
     }
+
+	if len(bitmaptab) < lenbatch{
+		err = fmt.Errorf("no enough space!")
+		return nil, err
+	}
+
     i := 0
     for key,val := range batch {
     	gctabItem := bitmaptab[i]
@@ -640,6 +653,10 @@ func (ytfs *YTFS) BatchPutNormal(batch map[ydcommon.IndexTableKey][]byte) (map[y
 	startPos, err := ytfs.context.BatchPut(bufCnt, batchBuffer)
 
 	if err != nil {
+		if errors.ErrDataOverflow == err {
+			return ytfs.BatchPutGc(batch, false)
+		}
+
 		fmt.Println("[indexdb] ytfs.context.BatchPut error")
 		ytfs.restoreYTFS()
 		return nil, err
