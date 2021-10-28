@@ -57,6 +57,10 @@ func NewContext(dir string, config *opt.Options, dataCount uint64, init bool) (*
 		return nil, err
 	}
 
+	if init {
+		dataCount = 0
+	}
+
 	if dataCount > math.MaxUint32 {
 		return nil, errors.ErrContextOverflow
 	}
