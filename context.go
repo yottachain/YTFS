@@ -135,6 +135,9 @@ func (c *Context) GetStorageContext() []*storageContext {
 }
 
 func (c *Context) GetAvailablePos(data []byte, writeEndPos uint32) uint32 {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	sp := c.sp
 	if sp.index >= writeEndPos {
 		return writeEndPos
@@ -193,6 +196,9 @@ func (c *Context) GetAvailablePos(data []byte, writeEndPos uint32) uint32 {
 }
 
 func (c *Context) RandCheckAvailablePos(data []byte, randTimes int, EndPos uint32) uint32 {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	sp := c.sp
 	if sp.index >= EndPos {
 		return EndPos
