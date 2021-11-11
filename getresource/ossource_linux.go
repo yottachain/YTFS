@@ -1,7 +1,8 @@
 package getresource
 
 import (
-	"syscall"
+	"github.com/yottachain/YTFS/storage"
+	"io"
 )
 
 type DiskStatus struct {
@@ -10,14 +11,20 @@ type DiskStatus struct {
 	Free uint64 `json:"free"`
 }
 
-func GetDiskCap(path string) uint64 {
-	fs := syscall.Statfs_t{}
-	err := syscall.Statfs(path, &fs)
-	if err != nil {
-		return uint64(0)
-	}
-	diskAllCap := fs.Blocks * uint64(fs.Bsize)
-	//	disk.Free = fs.Bfree * uint64(fs.Bsize)
-	//	disk.Used = disk.All - disk.Free
-	return diskAllCap
+//func GetDiskCap(path string) uint64 {
+//	fs := syscall.Statfs_t{}
+//	err := syscall.Statfs(path, &fs)
+//	if err != nil {
+//		return uint64(0)
+//	}
+//	diskAllCap := fs.Blocks * uint64(fs.Bsize)
+//	fmt.Printf("disk info blocks %d, block size %d\n", fs.Blocks, fs.Bsize)
+//	//	disk.Free = fs.Bfree * uint64(fs.Bsize)
+//	//	disk.Used = disk.All - disk.Free
+//	return diskAllCap
+//}
+func GetDiskCap(stor storage.Storage) uint64 {
+	read, _ := stor.Reader()
+	size, _ := read.Seek(0, io.SeekEnd)
+	return uint64(size)
 }

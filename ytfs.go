@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/md5"
+	"crypto/rand"
 	"encoding/binary"
 	"github.com/yottachain/YTFS/errors"
 
@@ -32,10 +33,10 @@ type ytfsStatus struct {
 //should not modify
 const YtBlkSize = 16384
 const mdbFileName = "/maindb"
-const ytPosKey    = "yt_rocks_pos_key"
+const ytPosKey = "yt_rocks_pos_key"
 const ytPosKeyNew = "yt_rocks_pos_key_newpos"
-const ytBlkSzKey  = "yt_blk_size_key"
-const ytBlkSzKeyNew  = "yt_blk_size_key_blk16KB"
+const ytBlkSzKey = "yt_blk_size_key"
+const ytBlkSzKeyNew = "yt_blk_size_key_blk16KB"
 const VerifyedKvFile = "/gc/rock_verify"
 const YtfsDnIdKey = "YtfsDnIdKeyKv"
 
@@ -45,6 +46,7 @@ const OldDbVersion = "0.03"
 const OldStoreVersion = "0.01"
 
 var gcspacecntkey = "gcspacecnt_rocksdb"
+
 //type KvDB struct {
 //	Rdb *gorocksdb.DB
 //	ro  *gorocksdb.ReadOptions
@@ -66,7 +68,9 @@ type YTFS struct {
 }
 
 var GcLock sync.Mutex
+
 const GcWrtOverNum = 3
+
 // Open opens or creates a YTFS for the given storage.
 // The YTFS will be created if not exist.
 //
@@ -131,14 +135,14 @@ func startYTFSI(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 	fileName := path.Join(dir, "dbsafe")
 	if PathExists(fileName) {
 		fmt.Printf("db config error!")
-		return nil,ErrDBConfig
+		return nil, ErrDBConfig
 	}
 
-	idxFile := path.Join(dir,"index.db")
-	if ! PathExists(idxFile) {
-		if !init{
+	idxFile := path.Join(dir, "index.db")
+	if !PathExists(idxFile) {
+		if !init {
 			fmt.Println("indexdb Miss")
-			return nil,ErrDBMiss
+			return nil, ErrDBMiss
 		}
 	}
 
@@ -175,13 +179,13 @@ func startYTFSI(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 
 	ret, flag, err := indexDB.CheckDbDnId(dnid)
 	if !ret && !flag {
-        return nil, err
+		return nil, err
 	}
 
-	if 0 == indexDB.schema.DataEndPoint{
-		if config.IndexTableCols < 512 || config.IndexTableCols > 2048{
+	if 0 == indexDB.schema.DataEndPoint {
+		if config.IndexTableCols < 512 || config.IndexTableCols > 2048 {
 			err = fmt.Errorf("yotta config: config.M setting is incorrect")
-			fmt.Println("[error]:",err,"M=",config.IndexTableCols,"N=",config.IndexTableRows)
+			fmt.Println("[error]:", err, "M=", config.IndexTableCols, "N=", config.IndexTableRows)
 			return nil, err
 		}
 	}
@@ -193,39 +197,39 @@ func startYTFSI(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 	}
 
 	ret, flag2, err := context.CheckStorageDnid(dnid)
-    if !ret && !flag2 {
-    	fmt.Println("CheckStorageDnid err,ret=",ret,"flag2=",flag2)
-    	return nil, err
-    }
+	if !ret && !flag2 {
+		fmt.Println("CheckStorageDnid err,ret=", ret, "flag2=", flag2)
+		return nil, err
+	}
 
-    if flag && flag2 {
-    	err = indexDB.SetDnIdVersion(dnid)
-    	if err != nil{
-    		fmt.Println("indexDB.SetDnIdVersion error:",err)
-    		return nil, err
-	    }
+	if flag && flag2 {
+		err = indexDB.SetDnIdVersion(dnid)
+		if err != nil {
+			fmt.Println("indexDB.SetDnIdVersion error:", err)
+			return nil, err
+		}
 
-	    err = context.SetDnIdVersion(dnid)
-	    if err != nil{
-		    fmt.Println("context.SetDnIdVersion error:",err)
-		    return nil, err
-	    }
-    }else if flag != flag2{
-    	err = fmt.Errorf("dnid init request for db and storage not coherent")
-    	fmt.Println("error:",err)
-    	return nil, err
-    }
+		err = context.SetDnIdVersion(dnid)
+		if err != nil {
+			fmt.Println("context.SetDnIdVersion error:", err)
+			return nil, err
+		}
+	} else if flag != flag2 {
+		err = fmt.Errorf("dnid init request for db and storage not coherent")
+		fmt.Println("error:", err)
+		return nil, err
+	}
 
 	ytfs := &YTFS{
-		config: config,
-		db: indexDB,
+		config:  config,
+		db:      indexDB,
 		context: context,
-		mutex: new(sync.Mutex),
+		mutex:   new(sync.Mutex),
 	}
 
 	if !init && ytfs.PosIdx() < 5 {
 		err = fmt.Errorf("ytfs not init")
-		fmt.Println("[ytfs] error:",err.Error())
+		fmt.Println("[ytfs] error:", err.Error())
 		return nil, err
 	}
 
@@ -240,14 +244,14 @@ func openYTFSI(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	fileName := path.Join(dir, "dbsafe")
 	if PathExists(fileName) {
 		fmt.Printf("db config error!")
-		return nil,ErrDBConfig
+		return nil, ErrDBConfig
 	}
 
-	idxFile := path.Join(dir,"index.db")
-	if ! PathExists(idxFile) {
-		if !init{
+	idxFile := path.Join(dir, "index.db")
+	if !PathExists(idxFile) {
+		if !init {
 			fmt.Println("indexdb Miss")
-			return nil,ErrDBMiss
+			return nil, ErrDBMiss
 		}
 	}
 
@@ -276,17 +280,16 @@ func openYTFSI(dir string, config *opt.Options, init bool) (*YTFS, error) {
 		return nil, err
 	}
 
-
 	// open index db
 	indexDB, err := NewIndexDB(dir, config, init)
 	if err != nil {
 		return nil, err
 	}
 
-	if 0 == indexDB.schema.DataEndPoint{
-		if config.IndexTableCols < 512 || config.IndexTableCols > 2048{
+	if 0 == indexDB.schema.DataEndPoint {
+		if config.IndexTableCols < 512 || config.IndexTableCols > 2048 {
 			err = fmt.Errorf("yotta config: config.M setting is incorrect")
-			fmt.Println("[error]:",err,"M=",config.IndexTableCols,"N=",config.IndexTableRows)
+			fmt.Println("[error]:", err, "M=", config.IndexTableCols, "N=", config.IndexTableRows)
 			return nil, err
 		}
 	}
@@ -298,15 +301,15 @@ func openYTFSI(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	}
 
 	ytfs := &YTFS{
-		config: config,
-		db: indexDB,
+		config:  config,
+		db:      indexDB,
 		context: context,
-		mutex: new(sync.Mutex),
+		mutex:   new(sync.Mutex),
 	}
 
 	if !init && ytfs.PosIdx() < 5 {
 		err = fmt.Errorf("ytfs not init")
-		fmt.Println("[ytfs] error:",err.Error())
+		fmt.Println("[ytfs] error:", err.Error())
 		return nil, err
 	}
 
@@ -331,6 +334,21 @@ func (ytfs *YTFS) DiskAndUseCap() (uint32, uint32) {
 	}
 	fmt.Println("[diskcap] totalRealCap=", totalRealCap, "NowPos=", NowPos)
 	return totalRealCap, NowPos
+}
+
+func (ytfs *YTFS) GetTotalCap() (uint32, uint32, uint) {
+	var totalRealCap uint32
+	var totalConfCap uint32
+	var diskNums uint
+	storArray := ytfs.context.storages
+
+	for _, stordev := range storArray {
+		diskNums++
+		totalRealCap += stordev.RealDiskCap
+		totalConfCap += stordev.Cap
+	}
+
+	return totalConfCap, totalRealCap, diskNums
 }
 
 func openYTFSDir(dir string, config *opt.Options) error {
@@ -375,23 +393,23 @@ func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
 
 	data, err := ytfs.context.Get(pos)
 	if err != nil {
-		fmt.Println("[verify] get data error:", err," key:",base58.Encode(key[:]), " pos:", pos)
+		fmt.Println("[verify] get data error:", err, " key:", base58.Encode(key[:]), " pos:", pos)
 	}
 
 	return data, nil
 	//return ytfs.context.Get(pos)
 }
 
-func (ytfs *YTFS)GetData(pos uint32)([]byte, error){
+func (ytfs *YTFS) GetData(pos uint32) ([]byte, error) {
 	data, err := ytfs.context.Get(ydcommon.IndexTableValue(pos))
 	if err != nil {
-		fmt.Println("[verify] get data error:", err," pos:", pos)
+		fmt.Println("[verify] get data error:", err, " pos:", pos)
 	}
 
 	return data, err
 }
 
-func (ytfs *YTFS)GetPosIdx(key ydcommon.IndexTableKey)( ydcommon.IndexTableValue, error){
+func (ytfs *YTFS) GetPosIdx(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error) {
 	pos, err := ytfs.db.Get(key)
 	if err != nil {
 		fmt.Println("[db] db get pos error:", err)
@@ -495,7 +513,6 @@ func (ytfs *YTFS) saveCurrentYTFS() {
 //	}
 //}
 
-
 //var mutexindex uint64 = 0
 // BatchPut sets the value array for the given key array.
 // It panics if there exists any previous value for that key as YottaDisk is not a multi-map.
@@ -503,126 +520,126 @@ func (ytfs *YTFS) saveCurrentYTFS() {
 // before.
 
 func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
-	fmt.Println("[gcdel]  batchput get batch len(batch)=",len(batch))
+	fmt.Println("[gcdel]  batchput get batch len(batch)=", len(batch))
 	if ytfs.config.UseKvDb && len(batch) <= 5 {
 		gcspace, err := ytfs.db.GetDb([]byte(gcspacecntkey))
 
-		fmt.Println("[gcdel]  batchput get gcspacecnt len(gcspace)=",len(gcspace))
-		if err != nil || gcspace == nil{
-			fmt.Println("[gcdel]  batchput ytfs.db.GetDb gcspacecnt error:",err)
+		fmt.Println("[gcdel]  batchput get gcspacecnt len(gcspace)=", len(gcspace))
+		if err != nil || gcspace == nil {
+			fmt.Println("[gcdel]  batchput ytfs.db.GetDb gcspacecnt error:", err)
 			return ytfs.BatchPutNormal(batch)
 		}
 
 		gccnt := binary.LittleEndian.Uint32(gcspace)
 		if gccnt > uint32(len(batch)) {
-			return ytfs.BatchPutGc(batch,true)
+			return ytfs.BatchPutGc(batch, true)
 		}
 	}
 	return ytfs.BatchPutNormal(batch)
 }
 
-func (ytfs *YTFS) BatchPutGcUnDo( bitmaptab []ydcommon.GcTableItem, num uint32, errcode int) {
-    if errcode < 3{
-        return
-    }
+func (ytfs *YTFS) BatchPutGcUnDo(bitmaptab []ydcommon.GcTableItem, num uint32, errcode int) {
+	if errcode < 3 {
+		return
+	}
 
-    gcspace, err := ytfs.db.GetDb([]byte(gcspacecntkey))
-    if err != nil{
-        fmt.Println("[gcdel]  ytfs.db.GetDb gcspacecnt error:",err)
-        return
-    }
+	gcspace, err := ytfs.db.GetDb([]byte(gcspacecntkey))
+	if err != nil {
+		fmt.Println("[gcdel]  ytfs.db.GetDb gcspacecnt error:", err)
+		return
+	}
 
-    gccnt := binary.LittleEndian.Uint32(gcspace)
-    gccnt = gccnt + num
-    space := make([]byte,4)
-    binary.LittleEndian.PutUint32(space,gccnt)
-    err = ytfs.db.PutDb([]byte(gcspacecntkey),space)
-    if err != nil{
-        fmt.Println("[gcdel]  ytfs.db.PutDb gcspacecnt error:",err)
-        return
-    }
+	gccnt := binary.LittleEndian.Uint32(gcspace)
+	gccnt = gccnt + num
+	space := make([]byte, 4)
+	binary.LittleEndian.PutUint32(space, gccnt)
+	err = ytfs.db.PutDb([]byte(gcspacecntkey), space)
+	if err != nil {
+		fmt.Println("[gcdel]  ytfs.db.PutDb gcspacecnt error:", err)
+		return
+	}
 
-    pos := make([]byte, 4)
-    for _,gctabItem := range bitmaptab {
-        binary.LittleEndian.PutUint32(pos,uint32(gctabItem.Gcval))
-        err := ytfs.db.PutDb(gctabItem.Gckey[:], pos)
-        if err != nil {
-            fmt.Println("[gcdel] delete Gckey:del-", base58.Encode(gctabItem.Gckey[3:]), "from db error:", err)
-            return
-        }
-    }
-    return
+	pos := make([]byte, 4)
+	for _, gctabItem := range bitmaptab {
+		binary.LittleEndian.PutUint32(pos, uint32(gctabItem.Gcval))
+		err := ytfs.db.PutDb(gctabItem.Gckey[:], pos)
+		if err != nil {
+			fmt.Println("[gcdel] delete Gckey:del-", base58.Encode(gctabItem.Gckey[3:]), "from db error:", err)
+			return
+		}
+	}
+	return
 }
 
-func (ytfs *YTFS) BatchPutGcDo( bitmaptab []ydcommon.GcTableItem, num uint32) (int, error) {
-    gcspace, err := ytfs.db.GetDb([]byte(gcspacecntkey))
-    if err != nil{
-        fmt.Println("[gcdel]  ytfs.db.GetDb gcspacecnt error:",err)
-        return 1, err
-    }
+func (ytfs *YTFS) BatchPutGcDo(bitmaptab []ydcommon.GcTableItem, num uint32) (int, error) {
+	gcspace, err := ytfs.db.GetDb([]byte(gcspacecntkey))
+	if err != nil {
+		fmt.Println("[gcdel]  ytfs.db.GetDb gcspacecnt error:", err)
+		return 1, err
+	}
 
-    gccnt := binary.LittleEndian.Uint32(gcspace)
-    gccnt = gccnt - num
-    space := make([]byte,4)
-    binary.LittleEndian.PutUint32(space,gccnt)
-    err = ytfs.db.PutDb([]byte(gcspacecntkey),space)
-    if err != nil{
-        fmt.Println("[gcdel]  ytfs.db.PutDb gcspacecnt error:",err)
-        return 2, err
-    }
+	gccnt := binary.LittleEndian.Uint32(gcspace)
+	gccnt = gccnt - num
+	space := make([]byte, 4)
+	binary.LittleEndian.PutUint32(space, gccnt)
+	err = ytfs.db.PutDb([]byte(gcspacecntkey), space)
+	if err != nil {
+		fmt.Println("[gcdel]  ytfs.db.PutDb gcspacecnt error:", err)
+		return 2, err
+	}
 
-    for _,gctabItem := range bitmaptab {
-        err := ytfs.db.DeleteDb(gctabItem.Gckey[:])
-        if err != nil {
-            fmt.Println("[gcdel] delete Gckey:del-", base58.Encode(gctabItem.Gckey[3:]), "from db error:", err)
-            return 3, err
-        }
-    }
-    return 0, err
+	for _, gctabItem := range bitmaptab {
+		err := ytfs.db.DeleteDb(gctabItem.Gckey[:])
+		if err != nil {
+			fmt.Println("[gcdel] delete Gckey:del-", base58.Encode(gctabItem.Gckey[3:]), "from db error:", err)
+			return 3, err
+		}
+	}
+	return 0, err
 }
 
 func (ytfs *YTFS) BatchPutGc(batch map[ydcommon.IndexTableKey][]byte, putnormal bool) (map[ydcommon.IndexTableKey]byte, error) {
-    lenbatch := len(batch)
-    GcLock.Lock()
-    defer GcLock.Unlock()
-    bitmaptab, err := ytfs.db.GetBitMapTab(lenbatch + GcWrtOverNum)
+	lenbatch := len(batch)
+	GcLock.Lock()
+	defer GcLock.Unlock()
+	bitmaptab, err := ytfs.db.GetBitMapTab(lenbatch + GcWrtOverNum)
 	//fmt.Println("[gcdel]  batchputGC ytfs.db.GetBitMapTab len(bitmaptab)=",len(bitmaptab),"len(batch)=",len(batch))
-    if err != nil {
-    	if putnormal{
-		    fmt.Println("[gcdel] get del bitmaptab error:",err)
-		    return ytfs.BatchPutNormal(batch)
-	    }else{
-	    	return nil, err
-	    }
-    }
+	if err != nil {
+		if putnormal {
+			fmt.Println("[gcdel] get del bitmaptab error:", err)
+			return ytfs.BatchPutNormal(batch)
+		} else {
+			return nil, err
+		}
+	}
 
-	if len(bitmaptab) < lenbatch{
+	if len(bitmaptab) < lenbatch {
 		err = fmt.Errorf("no enough space!")
 		return nil, err
 	}
 
-    i := 0
-    for key,val := range batch {
-    	gctabItem := bitmaptab[i]
-    	pos := gctabItem.Gcval
-    	_,err := ytfs.context.PutAt(val,uint32(pos))
-    	if err != nil{
-    		fmt.Println("[gcdel] put data to disk pos:",pos,"error",err)
-    		return nil, err
-	    }
-    	err = ytfs.db.Put(key,ydcommon.IndexTableValue(pos))
-    	if err != nil{
-		    fmt.Println("[gcdel] put indexkey:",base58.Encode(key[:]),"to db error",err)
-		    return nil, err
-	    }
-	    i++
-    	//ytfs.Put(batch[0])
-    }
+	i := 0
+	for key, val := range batch {
+		gctabItem := bitmaptab[i]
+		pos := gctabItem.Gcval
+		_, err := ytfs.context.PutAt(val, uint32(pos))
+		if err != nil {
+			fmt.Println("[gcdel] put data to disk pos:", pos, "error", err)
+			return nil, err
+		}
+		err = ytfs.db.Put(key, ydcommon.IndexTableValue(pos))
+		if err != nil {
+			fmt.Println("[gcdel] put indexkey:", base58.Encode(key[:]), "to db error", err)
+			return nil, err
+		}
+		i++
+		//ytfs.Put(batch[0])
+	}
 
-    errcode, err := ytfs.BatchPutGcDo(bitmaptab, uint32(i))
-    if err != nil {
-        ytfs.BatchPutGcUnDo(bitmaptab,uint32(i),errcode)
-    }
+	errcode, err := ytfs.BatchPutGcDo(bitmaptab, uint32(i))
+	if err != nil {
+		ytfs.BatchPutGcUnDo(bitmaptab, uint32(i), errcode)
+	}
 
 	return nil, err
 }
@@ -665,8 +682,8 @@ func (ytfs *YTFS) BatchPutNormal(batch map[ydcommon.IndexTableKey][]byte) (map[y
 	//update the write position to db
 	err = ytfs.db.UpdateMeta(uint64(bufCnt))
 	if err != nil {
-		fmt.Println("update position error:",err)
-		return nil,err
+		fmt.Println("update position error:", err)
+		return nil, err
 	}
 
 	for i := uint32(0); i < uint32(bufCnt); i++ {
@@ -688,17 +705,44 @@ func (ytfs *YTFS) BatchPutNormal(batch map[ydcommon.IndexTableKey][]byte) (map[y
 	return nil, nil
 }
 
-// Meta reports current meta information.
-func (ytfs *YTFS) Meta() *ydcommon.Header {
-//	return ytfs.db.(*IndexDB).schema
-    return ytfs.db.Meta()
+func (ytfs *YTFS) GetCapProofSpace() uint32 {
+	ytfs.mutex.Lock()
+	defer ytfs.mutex.Unlock()
+	buf := make([]byte, 16*1024)
+
+	storageContexts := ytfs.context.GetStorageContext()
+	var useCap uint32
+	var useAbleCap uint32
+	for _, storage := range storageContexts {
+		confCap := storage.Cap
+		RealCap := storage.RealDiskCap
+		if confCap >= RealCap {
+			useCap += RealCap
+		} else {
+			useCap += confCap
+		}
+		fmt.Printf("[cap proof] dev name %s, config cap %d, real cap %d\n", storage.Name, confCap, RealCap)
+		rand.Read(buf)
+		useAbleCap = ytfs.context.GetAvailablePos(buf, useCap-1)
+		if useAbleCap+1 != useCap {
+			break
+		}
+	}
+
+	return ytfs.context.RandCheckAvailablePos(buf, 10, useAbleCap) + 1
 }
 
-func (ytfs *YTFS) Totalsize() uint64{
+// Meta reports current meta information.
+func (ytfs *YTFS) Meta() *ydcommon.Header {
+	//	return ytfs.db.(*IndexDB).schema
+	return ytfs.db.Meta()
+}
+
+func (ytfs *YTFS) Totalsize() uint64 {
 	return ytfs.db.TotalSize()
 }
 
-func (ytfs *YTFS) BlkSize() uint32{
+func (ytfs *YTFS) BlkSize() uint32 {
 	return ytfs.db.BlockSize()
 }
 
@@ -749,134 +793,135 @@ func (ytfs *YTFS) String() string {
 	return string(meta) + "\n"
 }
 
-func (ytfs *YTFS) ScanDB(){
+func (ytfs *YTFS) ScanDB() {
 
 }
 
-func (ytfs *YTFS) YtfsDB() DB{
+func (ytfs *YTFS) YtfsDB() DB {
 	return ytfs.db
 }
 
 var hash0Str = "0000000000000000"
+
 type Hashtohash struct {
-	DBhash []byte
+	DBhash   []byte
 	Datahash []byte
 }
 
-func (ytfs *YTFS) VerifySliceOne(key ydcommon.IndexTableKey) (Hashtohash, error){
+func (ytfs *YTFS) VerifySliceOne(key ydcommon.IndexTableKey) (Hashtohash, error) {
 	var errHash Hashtohash
 	slice, err := ytfs.Get(key)
 	if err != nil {
-		fmt.Println("[verify]get slice fail, key=",base58.Encode(key[:]))
+		fmt.Println("[verify]get slice fail, key=", base58.Encode(key[:]))
 		errHash.DBhash = key[:]
 		errHash.Datahash = []byte(hash0Str)
-		return errHash ,err
+		return errHash, err
 	}
 
 	sha := crypto.MD5.New()
 	sha.Write(slice)
-	if ! bytes.Equal(sha.Sum(nil), key[:]) {
+	if !bytes.Equal(sha.Sum(nil), key[:]) {
 		err = fmt.Errorf("verify error")
-		errHash.DBhash=key[:]
+		errHash.DBhash = key[:]
 		errHash.Datahash = sha.Sum(nil)
 		return errHash, err
 	}
 	return errHash, nil
 }
 
-func (ytfs *YTFS) VerifySlice(startkey string, traveEntries uint64)([]Hashtohash,string, error){
+func (ytfs *YTFS) VerifySlice(startkey string, traveEntries uint64) ([]Hashtohash, string, error) {
 	//log.Println("[verify] VerifySlice start")
-	retSlice,beginkey,err:=ytfs.db.TravelDBforverify(ytfs.VerifySliceOne,startkey,traveEntries)
-    return retSlice,beginkey,err
+	retSlice, beginkey, err := ytfs.db.TravelDBforverify(ytfs.VerifySliceOne, startkey, traveEntries)
+	return retSlice, beginkey, err
 }
 
-func (ytfs *YTFS)VerifyHashSlice(key ydcommon.IndexTableKey,slice []byte) bool{
+func (ytfs *YTFS) VerifyHashSlice(key ydcommon.IndexTableKey, slice []byte) bool {
 	sha := crypto.MD5.New()
 	sha.Write(slice)
 	return bytes.Equal(sha.Sum(nil), key[:])
 }
 
-func (ytfs *YTFS)GetBitMapTab(num int)([]ydcommon.GcTableItem,error){
+func (ytfs *YTFS) GetBitMapTab(num int) ([]ydcommon.GcTableItem, error) {
 	return ytfs.db.GetBitMapTab(num)
 }
 
 func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 	var err error
-	fmt.Println("[gcdel] GcProcess A start collect space key=",base58.Encode(key[:]))
-	slice,err := ytfs.Get(key)
+	fmt.Println("[gcdel] GcProcess A start collect space key=", base58.Encode(key[:]))
+	slice, err := ytfs.Get(key)
 	if err != nil {
-		fmt.Println("[gcdel] get slice error:",err,"key=",base58.Encode(key[:]))
+		fmt.Println("[gcdel] get slice error:", err, "key=", base58.Encode(key[:]))
 		return err
 	}
-	fmt.Println("[gcdel] GcProcess B verify collect space key=",base58.Encode(key[:]))
-	if ! ytfs.VerifyHashSlice(key,slice){
+	fmt.Println("[gcdel] GcProcess B verify collect space key=", base58.Encode(key[:]))
+	if !ytfs.VerifyHashSlice(key, slice) {
 		err = fmt.Errorf("verify data error!")
 		slicehs := md5.Sum(slice)
-		fmt.Println("[gcdel] verify data error, hash:",base58.Encode(key[:]),"slice hash:",base58.Encode(slicehs[:]))
+		fmt.Println("[gcdel] verify data error, hash:", base58.Encode(key[:]), "slice hash:", base58.Encode(slicehs[:]))
 
 		err1 := ytfs.db.Delete(key)
-		if err1 != nil{
-			fmt.Println("[gcdel]  ytfs.db.Delete error:",err)
+		if err1 != nil {
+			fmt.Println("[gcdel]  ytfs.db.Delete error:", err)
 		}
 		return err
 	}
 
-	fmt.Println("[gcdel] GcProcess C renamekey collect space key=",base58.Encode(key[:]))
-	pos,_ := ytfs.db.Get(key)
-	if pos < 5{
+	fmt.Println("[gcdel] GcProcess C renamekey collect space key=", base58.Encode(key[:]))
+	pos, _ := ytfs.db.Get(key)
+	if pos < 5 {
 		err = fmt.Errorf("reserve data block, pos<5")
 		return err
 	}
 
 	val := make([]byte, 4)
-	binary.LittleEndian.PutUint32(val,uint32(pos))
+	binary.LittleEndian.PutUint32(val, uint32(pos))
 
 	gckey := []byte("del")
-	gckey = append(gckey,key[:]...)
-    err = ytfs.db.PutDb(gckey,val)
+	gckey = append(gckey, key[:]...)
+	err = ytfs.db.PutDb(gckey, val)
 	if err != nil {
-		fmt.Println("[gcdel] PutDB error:",err)
+		fmt.Println("[gcdel] PutDB error:", err)
 		return err
 	}
 
-	fmt.Println("[gcdel] GcProcess D deletekey collect space key=",base58.Encode(key[:]))
+	fmt.Println("[gcdel] GcProcess D deletekey collect space key=", base58.Encode(key[:]))
 	err = ytfs.db.Delete(key)
-    if err != nil{
-    	fmt.Println("[gcdel]  ytfs.db.Delete error:",err)
-    	return err
-    }
+	if err != nil {
+		fmt.Println("[gcdel]  ytfs.db.Delete error:", err)
+		return err
+	}
 
-	fmt.Println("[gcdel] GcProcess E get_old_gcspace collect space key=",base58.Encode(key[:]))
-    GcLock.Lock()
-    defer GcLock.Unlock()
+	fmt.Println("[gcdel] GcProcess E get_old_gcspace collect space key=", base58.Encode(key[:]))
+	GcLock.Lock()
+	defer GcLock.Unlock()
 	gccnt := uint32(0)
-    gcspace, err := ytfs.db.GetDb([]byte(gcspacecntkey))
-	if err != nil{
+	gcspace, err := ytfs.db.GetDb([]byte(gcspacecntkey))
+	if err != nil {
 		if gcspace != nil {
 			gccnt = binary.LittleEndian.Uint32(gcspace)
 		}
-		fmt.Println("[gcdel]  ytfs.db.GetDb gcspacecnt error:",err,"gcspacecnt",gccnt)
+		fmt.Println("[gcdel]  ytfs.db.GetDb gcspacecnt error:", err, "gcspacecnt", gccnt)
 		return err
 	}
 
-	fmt.Println("[gcdel] GcProcess F resize_gcspace collect space key=",base58.Encode(key[:]))
+	fmt.Println("[gcdel] GcProcess F resize_gcspace collect space key=", base58.Encode(key[:]))
 
 	if gcspace != nil {
-        gccnt = binary.LittleEndian.Uint32(gcspace)
-    }
-	fmt.Println("[gcdel] GcProcess G resize_gcspace collect space key=",base58.Encode(key[:]),"gcspacecnt",gccnt)
+		gccnt = binary.LittleEndian.Uint32(gcspace)
+	}
+	fmt.Println("[gcdel] GcProcess G resize_gcspace collect space key=", base58.Encode(key[:]), "gcspacecnt", gccnt)
 
 	gccnt++
-	binary.LittleEndian.PutUint32(val,gccnt)
-	err = ytfs.db.PutDb([]byte(gcspacecntkey),val)
-    if err != nil{
-	    fmt.Println("[gcdel]  ytfs.db.PutDb gcspacecnt error:",err)
-    }
-	fmt.Println("[gcdel] GcProcess H end collect space key=",base58.Encode(key[:]))
+	binary.LittleEndian.PutUint32(val, gccnt)
+	err = ytfs.db.PutDb([]byte(gcspacecntkey), val)
+	if err != nil {
+		fmt.Println("[gcdel]  ytfs.db.PutDb gcspacecnt error:", err)
+	}
+	fmt.Println("[gcdel] GcProcess H end collect space key=", base58.Encode(key[:]))
 
 	return err
 }
 
-func (ytfs *YTFS) PosIdx() uint64{
+func (ytfs *YTFS) PosIdx() uint64 {
 	return ytfs.db.PosPtr()
 }
