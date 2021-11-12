@@ -131,7 +131,7 @@ func OpenYottaDisk(yottaConfig *opt.StorageOptions, init bool) (*YottaDisk, erro
 	}
 
 	header, err := readHeader(storage)
-	if err != nil {
+	if err != nil || init{
 		if init {
 			header, err = initializeStorage(storage, yottaConfig)
 			if err != nil {
