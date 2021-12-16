@@ -886,3 +886,7 @@ func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 func (ytfs *YTFS) PosIdx() uint64 {
 	return ytfs.db.PosPtr()
 }
+
+func (ytfs *YTFS) ModifyPos(pos uint64) error {
+	return ytfs.db.ModifyMeta(pos)
+}

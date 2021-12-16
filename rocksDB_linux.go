@@ -371,35 +371,6 @@ INIT:
 	}
 }
 
-func (rd *KvDB) ChangeDataPos(pos ydcommon.IndexTableValue) error {
-	var PosRocksdb ydcommon.IndexTableValue
-
-	Nkey := []byte(ytPosKeyNew)
-	copy(rd.PosKey[:], Nkey)
-	NPosSlice, err := rd.Rdb.Get(rd.ro, Nkey)
-	if err != nil {
-		fmt.Println("[KvDB] ChangeDataPos Get pos error:", err.Error())
-		return err
-	}
-
-	if NPosSlice.Exists() {
-		PosRocksdb = ydcommon.IndexTableValue(binary.LittleEndian.Uint32(NPosSlice.Data()))
-		fmt.Println("[KvDB] ChangeDataPos current pos:", PosRocksdb)
-	}
-
-	buf := make([]byte, 4)
-	rd.PosIdx = ydcommon.IndexTableValue(uint32(pos))
-	binary.LittleEndian.PutUint32(buf, uint32(rd.PosIdx))
-	err = rd.Rdb.Put(rd.wo, rd.PosKey[:], buf)
-	if err != nil {
-		fmt.Printf("[KvDB] ChangeDataPos change err:%s\n", err.Error())
-	} else {
-		fmt.Printf("[KvDB] ChangeDataPos change after pos:%d\n", pos)
-	}
-
-	return nil
-}
-
 func (rd *KvDB) ChkBlkSizeKvDB() error {
 	if YtBlkSize != rd.Header.DataBlockSize {
 		err := fmt.Errorf("blksize of config error")
@@ -468,8 +439,21 @@ func (rd *KvDB) UpdateMeta(account uint64) error {
 	return err
 }
 
+func (rd *KvDB) ModifyMeta(account uint64) error {
+	buf := make([]byte, 4)
+	rd.PosIdx = ydcommon.IndexTableValue(uint32(account))
+	binary.LittleEndian.PutUint32(buf, uint32(rd.PosIdx))
+	err := rd.Rdb.Put(rd.wo, rd.PosKey[:], buf)
+	if err != nil {
+		fmt.Printf("[KvDB] ModifyMeta change err:%s\n", err.Error())
+	} else {
+		fmt.Printf("[KvDB] ModifyMeta change after pos:%d\n", account)
+	}
+
+	return nil
+}
+
 func (rd *KvDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableKey]byte, error) {
-	//	keyValue:=make(map[ydcommon.IndexTableKey]ydcommon.IndexTableValue,len(batch))
 	valbuf := make([]byte, 4)
 	for _, value := range kvPairs {
 		HKey := value.Hash[:]
@@ -482,7 +466,6 @@ func (rd *KvDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableK
 		}
 	}
 
-	//fmt.Printf("[noconflict] write success batch_write_time: %d ms, batch_len %d", time.Now().Sub(begin).Milliseconds(), bufCnt)
 	return nil, nil
 }
 
