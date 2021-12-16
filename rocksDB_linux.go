@@ -441,7 +441,7 @@ func (rd *KvDB) UpdateMeta(account uint64) error {
 
 func (rd *KvDB) ModifyMeta(account uint64) error {
 	buf := make([]byte, 4)
-	rd.PosIdx = ydcommon.IndexTableValue(uint32(account))
+	rd.PosIdx = ydcommon.IndexTableValue(account)
 	binary.LittleEndian.PutUint32(buf, uint32(rd.PosIdx))
 	err := rd.Rdb.Put(rd.wo, rd.PosKey[:], buf)
 	if err != nil {
