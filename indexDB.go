@@ -6,12 +6,11 @@ import (
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
 	"github.com/yottachain/YTFS/storage"
-    //"fmt"
+	//"fmt"
 	"path"
 	"sort"
 
 	"os"
-
 )
 
 // IndexDB key value db for hash <-> position.
@@ -31,15 +30,15 @@ func (db *IndexDB) PosPtr() uint64 {
 	return db.schema.DataEndPoint
 }
 
-func (db *IndexDB) BlockSize() uint32{
+func (db *IndexDB) BlockSize() uint32 {
 	return db.schema.DataBlockSize
 }
 
-func (db *IndexDB) TotalSize() uint64{
+func (db *IndexDB) TotalSize() uint64 {
 	return db.schema.YtfsSize
 }
 
-func (db *IndexDB) Meta() *ydcommon.Header{
+func (db *IndexDB) Meta() *ydcommon.Header {
 	return db.schema
 }
 
@@ -54,25 +53,25 @@ func PathExists(path string) bool {
 	return false
 }
 
-func CheckDbStatus(dir,file1,file2 string) bool {
+func CheckDbStatus(dir, file1, file2 string) bool {
 	fileName1 := path.Join(dir, "index.db")
 	fileName2 := path.Join(dir, "metadata.db")
 	var bl = false
-	if PathExists(fileName1) && PathExists(fileName2){
+	if PathExists(fileName1) && PathExists(fileName2) {
 		bl = true
 	}
-    return bl
+	return bl
 }
 
-func (db *IndexDB)SetDnIdToIdxDB(dnid uint32) error {
+func (db *IndexDB) SetDnIdToIdxDB(dnid uint32) error {
 	var err error
-	Bdn := make([]byte,4)
+	Bdn := make([]byte, 4)
 	binary.LittleEndian.PutUint32(Bdn, dnid)
 	err = db.indexFile.SetDnIdToIdxDB(Bdn)
 	return err
 }
 
-func (db *IndexDB)SetVersionToIdxDB(version string) error {
+func (db *IndexDB) SetVersionToIdxDB(version string) error {
 	var err error
 	vs := []byte(version)
 	//binary.LittleEndian.PutUint32(Bdn, dnid)
@@ -80,30 +79,30 @@ func (db *IndexDB)SetVersionToIdxDB(version string) error {
 	return err
 }
 
-func (db *IndexDB)GetDnIdFromIdxDB() uint32{
+func (db *IndexDB) GetDnIdFromIdxDB() uint32 {
 	return db.indexFile.GetDnIdFromIdxDB()
 }
 
-func (db *IndexDB)CheckDbDnId(dnid uint32) (bool, error){
-	fmt.Println("version=",string(db.schema.Version[:]))
+func (db *IndexDB) CheckDbDnId(dnid uint32) (bool, error) {
+	fmt.Println("version=", string(db.schema.Version[:]))
 	var err error
 	var dbDn uint32
 	if string(db.schema.Version[:]) == OldDbVersion {
 		err = db.SetDnIdToIdxDB(dnid)
-		if err != nil{
-			fmt.Println("SetDnIdToIdxDB error",err.Error())
+		if err != nil {
+			fmt.Println("SetDnIdToIdxDB error", err.Error())
 			return false, err
 		}
 		_ = db.SetVersionToIdxDB(DbVersion)
-	}else{
+	} else {
 		dbDn = db.GetDnIdFromIdxDB()
 		if dbDn != dnid {
-			fmt.Println("error: dnid not equal,db=",dbDn," cfg=",dnid)
+			fmt.Println("error: dnid not equal,db=", dbDn, " cfg=", dnid)
 			err = fmt.Errorf("dnid(db) not equal dnid(cfg)")
 			return false, err
 		}
 	}
-	fmt.Println("CheckDbDnId, db=",dbDn," cfg=",dnid)
+	fmt.Println("CheckDbDnId, db=", dbDn, " cfg=", dnid)
 	return true, nil
 }
 
@@ -139,12 +138,16 @@ func (db *IndexDB) Put(key ydcommon.IndexTableKey, value ydcommon.IndexTableValu
 		Hash:      key,
 		OffsetIdx: value}
 	//return db.indexFile.Put(key, value)
-	_,err:=db.indexFile.BatchPut(kvPairs)
+	_, err := db.indexFile.BatchPut(kvPairs)
 	return err
 }
 
-func (db *IndexDB)UpdateMeta(accout uint64) error{
+func (db *IndexDB) UpdateMeta(accout uint64) error {
 	return db.indexFile.UpdateMeta(accout)
+}
+
+func (db *IndexDB) ModifyMeta(accout uint64) error {
+	return db.indexFile.ModifyMeta(accout)
 }
 
 // BatchPut add a set of new key value pairs to db.
@@ -175,24 +178,24 @@ func (db *IndexDB) Reset() {
 	db.indexFile.Format()
 }
 
-func (db *IndexDB) TravelDB(fn func(key, val []byte) error) int64{
+func (db *IndexDB) TravelDB(fn func(key, val []byte) error) int64 {
 	//var DBIter storage.TableIterator
 	ytIndexFile := db.indexFile
 	options := db.indexFile.GetYTFSIndexFileOpts()
-	DBIter:= storage.GetIdxDbIter(ytIndexFile, options)
+	DBIter := storage.GetIdxDbIter(ytIndexFile, options)
 	succ := int64(0)
 
 	for {
-		tab,err:=DBIter.GetNoNilTableBytes()
+		tab, err := DBIter.GetNoNilTableBytes()
 		if err != nil {
-			fmt.Println("[indexdb] get table error :",err)
+			fmt.Println("[indexdb] get table error :", err)
 			continue
 		}
 
-		for key, val := range tab{
-			err := fn(key[:],val)
+		for key, val := range tab {
+			err := fn(key[:], val)
 			if err != nil {
-				fmt.Println("[indexdb] TravelDB error: ",err)
+				fmt.Println("[indexdb] TravelDB error: ", err)
 				continue
 			}
 			succ++
@@ -201,13 +204,12 @@ func (db *IndexDB) TravelDB(fn func(key, val []byte) error) int64{
 	return succ
 }
 
-
-func (db *IndexDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash,error), startkey string, traveEntries uint64) ([]Hashtohash, string, error){
+func (db *IndexDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash, error), startkey string, traveEntries uint64) ([]Hashtohash, string, error) {
 	//var DBIter storage.TableIterator
 	var err error
 	var retSlice []Hashtohash
 	var beginKey string
-	beginKey=""
+	beginKey = ""
 	//ytIndexFile := db.indexFile
 	//options := db.indexFile.GetYTFSIndexFileOpts()
 	//DBIter:= storage.GetIdxDbIter(ytIndexFile, options)
@@ -234,7 +236,7 @@ func (db *IndexDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashto
 	//		//succ++
 	//	}
 	//}
-	return retSlice,beginKey,err
+	return retSlice, beginKey, err
 }
 
 func validateDBSchema(meta *ydcommon.Header, opt *opt.Options) error {
@@ -257,7 +259,7 @@ func (db *IndexDB) ScanDB() {
 	//db.indexFile.Format()
 }
 
-func (db *IndexDB)Delete(key ydcommon.IndexTableKey) error{
+func (db *IndexDB) Delete(key ydcommon.IndexTableKey) error {
 	err := fmt.Errorf("not support!")
 	return err
 }
@@ -278,7 +280,7 @@ func (db *IndexDB) DeleteDb(key []byte) error {
 	return err
 }
 
-func (db *IndexDB)GetBitMapTab(num int) ([]ydcommon.GcTableItem,error){
+func (db *IndexDB) GetBitMapTab(num int) ([]ydcommon.GcTableItem, error) {
 	err := fmt.Errorf("not support!")
 	return nil, err
 }

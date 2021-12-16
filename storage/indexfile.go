@@ -368,7 +368,7 @@ func (indexFile *YTFSIndexFile) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydco
 	//}
 
 	//pos metadata has been updated before this func
-	return conflicts,nil
+	return conflicts, nil
 	//return conflicts, indexFile.updateMeta(dataWritten)
 }
 
@@ -376,8 +376,33 @@ func (indexFile *YTFSIndexFile) UpdateMeta(dataWritten uint64) error {
 	return indexFile.updateMeta(dataWritten)
 }
 
+func (indexFile *YTFSIndexFile) ModifyMeta(dataWritten uint64) error {
+	return indexFile.modfyMeta(dataWritten)
+}
+
 func (indexFile *YTFSIndexFile) updateMeta(dataWritten uint64) error {
 	indexFile.meta.DataEndPoint += dataWritten
+	valueBuf := make([]byte, 4)
+	writer, _ := indexFile.store.Writer()
+	binary.LittleEndian.PutUint32(valueBuf, uint32(indexFile.meta.DataEndPoint))
+	header := indexFile.meta
+	writer.Seek(int64(unsafe.Offsetof(header.DataEndPoint)), io.SeekStart)
+	_, err := writer.Write(valueBuf)
+	if err != nil {
+		return err
+	}
+
+	if (indexFile.stat.putCount & (indexFile.config.SyncPeriod - 1)) == 0 {
+		err = writer.Sync()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (indexFile *YTFSIndexFile) modfyMeta(dataWritten uint64) error {
+	indexFile.meta.DataEndPoint = dataWritten
 	valueBuf := make([]byte, 4)
 	writer, _ := indexFile.store.Writer()
 	binary.LittleEndian.PutUint32(valueBuf, uint32(indexFile.meta.DataEndPoint))
@@ -425,7 +450,7 @@ func (indexFile *YTFSIndexFile) getTableSize(tbIndex uint32) (*uint32, error) {
 	return &tableSize, nil
 }
 
-func (indexFile *YTFSIndexFile)SetDnIdToIdxDB(Bdn []byte) error{
+func (indexFile *YTFSIndexFile) SetDnIdToIdxDB(Bdn []byte) error {
 	writer, _ := indexFile.store.Writer()
 	header := indexFile.meta
 	writer.Seek(int64(unsafe.Offsetof(header.DataNodeId)), io.SeekStart)
@@ -433,7 +458,7 @@ func (indexFile *YTFSIndexFile)SetDnIdToIdxDB(Bdn []byte) error{
 	return err
 }
 
-func (indexFile *YTFSIndexFile)SetVersionToIdxDB(Bvs []byte) error{
+func (indexFile *YTFSIndexFile) SetVersionToIdxDB(Bvs []byte) error {
 	writer, _ := indexFile.store.Writer()
 	header := indexFile.meta
 	writer.Seek(int64(unsafe.Offsetof(header.Version)), io.SeekStart)
@@ -441,14 +466,14 @@ func (indexFile *YTFSIndexFile)SetVersionToIdxDB(Bvs []byte) error{
 	return err
 }
 
-func (indexFile *YTFSIndexFile)GetDnIdFromIdxDB() uint32 {
+func (indexFile *YTFSIndexFile) GetDnIdFromIdxDB() uint32 {
 	reader, _ := indexFile.store.Reader()
 	header := indexFile.meta
 	reader.Seek(int64(unsafe.Offsetof(header.DataNodeId)), io.SeekStart)
 	Bdn := make([]byte, 4)
 	_, err := reader.Read(Bdn)
-	if err != nil{
-		fmt.Println("GetDnIdFromIdxDB error:",err.Error())
+	if err != nil {
+		fmt.Println("GetDnIdFromIdxDB error:", err.Error())
 		return 0
 	}
 
@@ -549,11 +574,11 @@ func OpenYTFSIndexFile(path string, ytfsConfig *opt.Options, init bool) (*YTFSIn
 		if init {
 			header, err = initializeIndexStorage(storage, ytfsConfig)
 			if err != nil {
-				fmt.Println("initialize indexfile header err",err)
+				fmt.Println("initialize indexfile header err", err)
 				return nil, err
 			}
-		}else{
-			fmt.Println("read storage indexfile header err:",err)
+		} else {
+			fmt.Println("read storage indexfile header err:", err)
 			return nil, err
 		}
 	}
@@ -571,12 +596,12 @@ func OpenYTFSIndexFile(path string, ytfsConfig *opt.Options, init bool) (*YTFSIn
 	return yd, nil
 }
 
-func Check2Orders(num uint32) bool{
+func Check2Orders(num uint32) bool {
 	var ret = false
 	var order = uint32(1)
 	for {
 
-		if num == (1 << order){
+		if num == (1 << order) {
 			ret = true
 			break
 		}
@@ -607,14 +632,14 @@ func initializeIndexStorage(store Storage, config *opt.Options) (*ydcommon.Heade
 
 	//  M * expendRatioM  that is (2048 * 1.2) >= m >= (512 * 1.2)
 	if m > 2048 || m < 512 {
-		err := fmt.Errorf("IndexTableCols(M) not suitable,M=",m)
-		fmt.Println("[error] ",err.Error())
+		err := fmt.Errorf("IndexTableCols(M) not suitable,M=", m)
+		fmt.Println("[error] ", err.Error())
 		return nil, err
 	}
 
-	if !Check2Orders(n){
-		err := fmt.Errorf("IndexTableRows(N) not suitable,N=",n)
-		fmt.Println("[error] ",err.Error())
+	if !Check2Orders(n) {
+		err := fmt.Errorf("IndexTableRows(N) not suitable,N=", n)
+		fmt.Println("[error] ", err.Error())
 		return nil, err
 	}
 
@@ -657,8 +682,8 @@ func initializeIndexStorage(store Storage, config *opt.Options) (*ydcommon.Heade
 	// | TAG: eofPos  |
 	// +---+----------+
 	valueBuf := make([]byte, 4)
-	for i := int64(0); i < int64(n + 1) ; i++{
-		countPos := int64(m*20 + 4) * i + int64(h)
+	for i := int64(0); i < int64(n+1); i++ {
+		countPos := int64(m*20+4)*i + int64(h)
 		writer.Seek(countPos, io.SeekStart)
 		binary.LittleEndian.PutUint32(valueBuf, uint32(0))
 		_, err = writer.Write(valueBuf)
@@ -692,7 +717,7 @@ func openIndexStorage(path string, opt *opt.Options) (Storage, error) {
 
 	writer, err := fileStorage.Create(*fileStorage.fd)
 	if err != nil {
-		fmt.Println("open file for writer err: ",err)
+		fmt.Println("open file for writer err: ", err)
 		return nil, err
 	}
 	if !opt.ReadOnly {
@@ -703,7 +728,7 @@ func openIndexStorage(path string, opt *opt.Options) (Storage, error) {
 
 	reader, err := fileStorage.Open(*fileStorage.fd)
 	if err != nil {
-		fmt.Println("open file for reader err: ",err)
+		fmt.Println("open file for reader err: ", err)
 		return nil, err
 	}
 	fileStorage.reader = reader

@@ -86,6 +86,14 @@ func OpenInit(dir string, config *opt.Options) (ytfs *YTFS, err error) {
 	return openYTFS(dir, settings, true)
 }
 
+func OpenGet(dir string, config *opt.Options) (ytfs *YTFS, err error) {
+	settings, err := opt.FinalizeConfig(config)
+	if err != nil {
+		return nil, err
+	}
+	return openYTFS(dir, settings, false)
+}
+
 func Open(dir string, config *opt.Options, dnid uint32) (ytfs *YTFS, err error) {
 	settings, err := opt.FinalizeConfig(config)
 	if err != nil {
@@ -701,7 +709,6 @@ func (ytfs *YTFS) BlkSize() uint32 {
 }
 
 // Close closes the YTFS.
-//
 // It is valid to call Close multiple times. Other methods should not be
 // called after the DB has been closed.
 func (ytfs *YTFS) Close() {
