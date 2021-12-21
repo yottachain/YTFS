@@ -212,6 +212,10 @@ func (c *Context) RandCheckAvailablePos(data []byte, randTimes int, EndPos uint3
 
 	var startPos = sp.index + 1024
 	var scope = EndPos - startPos
+	if scope <= 0 {
+		return AvaliablePos
+	}
+
 	srcKey := md5.Sum(data)
 	for i := 0; i < randTimes; i++ {
 		randPos := rand.Int63n(int64(scope))
