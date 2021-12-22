@@ -103,8 +103,13 @@ func initStorages(config *opt.Options, init bool) ([]*storageContext, error) {
 		RealCap := uint64(0)
 		if runtime.GOOS == "linux" {
 			header := ydcommon.StorageHeader{}
-			RealCap = GetRealDiskCap(disk.GetStorage()) - (uint64)(unsafe.Sizeof(header))
-			RealCap = (RealCap / 16384)
+			size := GetRealDiskCap(disk.GetStorage())
+			if size == 0 {
+				RealCap = 0
+			} else {
+				RealCap = size - (uint64)(unsafe.Sizeof(header))
+				RealCap = RealCap / 16384
+			}
 		}
 
 		contexts = append(contexts, &storageContext{
