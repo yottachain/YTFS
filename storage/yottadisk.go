@@ -187,6 +187,16 @@ func openStorage(storageConfig *opt.StorageOptions) (Storage, error) {
 }
 
 func validateHeader(header *ydcommon.StorageHeader, yottaConfig *opt.StorageOptions) bool {
+	if header == nil {
+		fmt.Println("validateHeader header is nil")
+		return false
+	}
+
+	if yottaConfig == nil {
+		fmt.Println("validateHeader yottaConfig is nil")
+		return false
+	}
+
 	return header.DataBlockSize == yottaConfig.DataBlockSize && header.DiskCapacity == yottaConfig.StorageVolume
 }
 
