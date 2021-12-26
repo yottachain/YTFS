@@ -490,6 +490,13 @@ func (rd *KvDB) Len() uint64 {
 	gcspace, err := rd.Rdb.Get(rd.ro, []byte(gcspacecntkey))
 	if err == nil && gcspace.Data() != nil {
 		val := binary.LittleEndian.Uint32(gcspace.Data())
+		if uint64(rd.PosIdx) < uint64(val) {
+			//shouldn't happen
+			fmt.Printf("shouldn't happen, ytfs pos is less than gc count, pos is %d, gc count is %d\n",
+				rd.PosIdx, val)
+			return uint64(rd.PosIdx)
+		}
+
 		return uint64(rd.PosIdx) - uint64(val)
 	}
 	return uint64(rd.PosIdx)
