@@ -128,3 +128,8 @@ func (file *FileStorage) Create(fd FileDesc) (Writer, error) {
 	}
 	return fp, nil
 }
+
+// GetFd get fd
+func (file *FileStorage) GetFd() *FileDesc {
+	return file.fd
+}

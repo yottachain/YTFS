@@ -103,7 +103,13 @@ func initStorages(config *opt.Options, init bool) ([]*storageContext, error) {
 		RealCap := uint64(0)
 		if runtime.GOOS == "linux" {
 			header := ydcommon.StorageHeader{}
-			size := GetRealDiskCap(disk.GetStorage())
+			var size uint64
+			if disk.GetStorage().GetFd().Type == ydcommon.BlockStorageType {
+				size = GetRealDiskCap(disk.GetStorage())
+			} else {
+				size = disk.GetStorageHeader().DiskCapacity
+			}
+
 			if size == 0 {
 				RealCap = 0
 			} else {

@@ -62,4 +62,6 @@ type Storage interface {
 	// It is valid to call Close multiple times. Other methods should not be
 	// called after the storage has been closed.
 	Close() error
+
+	GetFd() *FileDesc
 }

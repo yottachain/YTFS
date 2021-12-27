@@ -123,3 +123,7 @@ func (file *BlockStorage) Create(fd FileDesc) (Writer, error) {
 	}
 	return fp, nil
 }
+
+func (file *BlockStorage) GetFd() *FileDesc {
+	return file.fd
+}
