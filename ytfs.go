@@ -570,10 +570,14 @@ func (ytfs *YTFS) BatchPutGcDo(bitmaptab []ydcommon.GcTableItem, num uint32) (in
 		return 2, err
 	}
 
-	for _, gctabItem := range bitmaptab {
+	for i, gctabItem := range bitmaptab {
+		if i >= int(num) {
+			break
+		}
 		err := ytfs.db.DeleteDb(gctabItem.Gckey[:])
 		if err != nil {
-			fmt.Println("[gcdel] delete Gckey:del-", base58.Encode(gctabItem.Gckey[3:]), "from db error:", err)
+			fmt.Println("[gcdel] delete Gckey:del-",
+				base58.Encode(gctabItem.Gckey[3:]), "from db error:", err)
 			return 3, err
 		}
 	}
@@ -584,8 +588,9 @@ func (ytfs *YTFS) BatchPutGc(batch map[ydcommon.IndexTableKey][]byte) (map[ydcom
 	lenbatch := len(batch)
 	GcLock.Lock()
 	defer GcLock.Unlock()
+	//GcWrtOverNum much use
 	bitmaptab, err := ytfs.db.GetBitMapTab(lenbatch + GcWrtOverNum)
-	//fmt.Println("[gcdel]  batchputGC ytfs.db.GetBitMapTab len(bitmaptab)=",len(bitmaptab),"len(batch)=",len(batch))
+
 	if err != nil || len(bitmaptab) < lenbatch {
 		fmt.Println("[gcdel] get del bitmaptab error:", err)
 		return ytfs.BatchPutNormal(batch)
@@ -605,7 +610,6 @@ func (ytfs *YTFS) BatchPutGc(batch map[ydcommon.IndexTableKey][]byte) (map[ydcom
 			return nil, err
 		}
 		i++
-		//ytfs.Put(batch[0])
 	}
 
 	errcode, err := ytfs.BatchPutGcDo(bitmaptab, uint32(i))
@@ -665,8 +669,6 @@ func (ytfs *YTFS) BatchPutNormal(batch map[ydcommon.IndexTableKey][]byte) (map[y
 
 	if err != nil {
 		fmt.Println("update K-V to DB error:", err)
-		//ytfs.restoreIndex(conflicts, batchIndexes, uint32(bufCnt))
-		//ytfs.restoreYTFS()
 		return conflicts, err
 	}
 
@@ -813,6 +815,19 @@ func (ytfs *YTFS) VerifyHashSlice(key ydcommon.IndexTableKey, slice []byte) bool
 
 func (ytfs *YTFS) GetBitMapTab(num int) ([]ydcommon.GcTableItem, error) {
 	return ytfs.db.GetBitMapTab(num)
+}
+
+func (ytfs *YTFS) GcDelBitMap(bitMapTable []ydcommon.GcTableItem) (succs, fails uint32) {
+	for _, v := range bitMapTable {
+		err := ytfs.db.DeleteDb(v.Gckey[:])
+		if err != nil {
+			fails++
+		} else {
+			succs++
+		}
+	}
+
+	return
 }
 
 func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
