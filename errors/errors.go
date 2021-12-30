@@ -20,6 +20,7 @@ var (
 	ErrRangeFull        = errors.New("YTFS: Range is full")
 	ErrReadOnly         = errors.New("YTFS: read-only mode")
 	ErrClosed           = errors.New("YTFS: closed")
+	ErrDataIllegal      = errors.New("YTFS: write data illegal")
 )
 
 // New returns an error that formats as the given text.

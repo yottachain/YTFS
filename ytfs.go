@@ -500,9 +500,15 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 	if ytfs.config.UseKvDb {
 		gcspace, err := ytfs.db.GetDb([]byte(gcspacecntkey))
 
-		fmt.Println("[gcdel]  batchput get gcspacecnt len(gcspace)=", len(gcspace))
+		if gcspace != nil {
+			fmt.Println("[gcdel]  batchput get gcspacecnt len(gcspace)=", len(gcspace))
+		}
+
 		if err != nil || gcspace == nil {
-			fmt.Println("[gcdel]  batchput ytfs.db.GetDb gcspacecnt error:", err)
+			if err != nil {
+				fmt.Println("[gcdel]  batchput ytfs.db.GetDb gcspacecnt error:", err)
+			}
+
 			return ytfs.BatchPutNormal(batch)
 		}
 
