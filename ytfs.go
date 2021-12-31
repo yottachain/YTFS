@@ -929,6 +929,18 @@ func (ytfs *YTFS) GetGcNums() uint32 {
 	return gccnt
 }
 
+func (ytfs *YTFS) PutGcNums(nums uint32) error {
+	space := make([]byte, 4)
+	binary.LittleEndian.PutUint32(space, nums)
+	err := ytfs.db.PutDb([]byte(gcspacecntkey), space)
+	if err != nil {
+		fmt.Println("ytfs.db.PutDb gcspacecnt error:", err)
+		return err
+	}
+
+	return nil
+}
+
 func (ytfs *YTFS) PosIdx() uint64 {
 	return ytfs.db.PosPtr()
 }
