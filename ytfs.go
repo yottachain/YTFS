@@ -6,6 +6,8 @@ import (
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/binary"
+	"log"
+
 	//	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -907,10 +909,53 @@ func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 	return err
 }
 
+func (ytfs *YTFS) GetGcNums() uint32 {
+	GcLock.Lock()
+	defer GcLock.Unlock()
+	gccnt := uint32(0)
+	gcspace, err := ytfs.db.GetDb([]byte(gcspacecntkey))
+	if err != nil {
+		if gcspace != nil {
+			gccnt = binary.LittleEndian.Uint32(gcspace)
+		}
+		fmt.Println("[gcdel]  ytfs.db.GetDb gcspacecnt error:", err, "gcspacecnt", gccnt)
+		return 0
+	}
+
+	if gcspace != nil {
+		gccnt = binary.LittleEndian.Uint32(gcspace)
+	}
+
+	return gccnt
+}
+
 func (ytfs *YTFS) PosIdx() uint64 {
 	return ytfs.db.PosPtr()
 }
 
 func (ytfs *YTFS) ModifyPos(pos uint64) error {
 	return ytfs.db.ModifyMeta(pos)
+}
+
+func (ytfs *YTFS) magrateData(key, value []byte) error {
+	dataPos := binary.LittleEndian.Uint32(value)
+	if uint64(dataPos) > ytfs.PosIdx() {
+		Hkey := ydcommon.IndexTableKey(ydcommon.BytesToHash(key))
+		shard, err := ytfs.Get(Hkey)
+		if err != nil {
+			log.Printf("[magrate] get hash err:%s, key:%s\n",
+				err.Error(), base58.Encode(key))
+			return err
+		}
+
+		err = ytfs.Put(Hkey, shard)
+		if err != nil {
+			hash := md5.Sum(shard)
+			log.Printf("[magrate] put hash err:%s, key:%s, shard:%s\n",
+				err.Error(), base58.Encode(key), base58.Encode(hash[:]))
+			return err
+		}
+	}
+
+	return nil
 }
