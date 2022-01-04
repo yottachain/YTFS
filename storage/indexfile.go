@@ -581,6 +581,14 @@ func OpenYTFSIndexFile(path string, ytfsConfig *opt.Options, init bool) (*YTFSIn
 			fmt.Println("read storage indexfile header err:", err)
 			return nil, err
 		}
+	} else {
+		if init {
+			header, err = initializeIndexStorage(storage, ytfsConfig)
+			if err != nil {
+				fmt.Println("initialize indexfile header err", err)
+				return nil, err
+			}
+		}
 	}
 
 	yd := &YTFSIndexFile{
