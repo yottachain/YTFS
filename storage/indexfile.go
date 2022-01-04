@@ -630,12 +630,12 @@ func initializeIndexStorage(store Storage, config *opt.Options) (*ydcommon.Heade
 		ytfsSize += storageOption.StorageVolume
 	}
 
-	//  M * expendRatioM  that is (2048 * 1.2) >= m >= (512 * 1.2)
-	if m > 2048 || m < 512 {
-		err := fmt.Errorf("IndexTableCols(M) not suitable,M=", m)
-		fmt.Println("[error] ", err.Error())
-		return nil, err
-	}
+	////  M * expendRatioM  that is (2048 * 1.2) >= m >= (512 * 1.2)
+	//if m > 2048 || m < 512 {
+	//	err := fmt.Errorf("IndexTableCols(M) not suitable,M=", m)
+	//	fmt.Println("[error] ", err.Error())
+	//	return nil, err
+	//}
 
 	if !Check2Orders(n) {
 		err := fmt.Errorf("IndexTableRows(N) not suitable,N=", n)
