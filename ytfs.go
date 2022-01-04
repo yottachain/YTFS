@@ -431,6 +431,10 @@ func (ytfs *YTFS) PutDataAt(buf []byte, globalID uint32) error {
 	return nil
 }
 
+func (ytfs *YTFS) SetStoragePointer(globalID uint32) error {
+	return ytfs.context.SetStoragePointer(globalID)
+}
+
 /*
  * Batch mode func list
  */
