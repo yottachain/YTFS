@@ -419,6 +419,18 @@ func (ytfs *YTFS) Put(key ydcommon.IndexTableKey, buf []byte) error {
 	return ytfs.db.Put(key, ydcommon.IndexTableValue(pos))
 }
 
+func (ytfs *YTFS) PutDataAt(buf []byte, globalID uint32) error {
+	ytfs.mutex.Lock()
+	defer ytfs.mutex.Unlock()
+
+	_, err := ytfs.context.PutAt(buf, globalID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 /*
  * Batch mode func list
  */
