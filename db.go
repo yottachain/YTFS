@@ -24,5 +24,7 @@ type DB interface {
 	Close()
 	Reset()
 	ScanDB()
+	GetReserved() uint32
+	SetReserved(reserved uint32) error
 	//GcProcess(fn func(key ydcommon.IndexTableKey) (Hashtohash,error)) error
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/tecbot/gorocksdb"
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
+	"log"
 	"os"
 	"path"
 	"sort"
@@ -252,6 +253,16 @@ func startYTFSK(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 	fmt.Println("Open YTFS success @" + dir)
 	return ytfs, nil
 
+}
+
+func (rd *KvDB) GetReserved() uint32 {
+	log.Println("not support")
+	return 0
+}
+
+func (rd *KvDB) SetReserved(reserved uint32) error {
+	err := fmt.Errorf("not support")
+	return err
 }
 
 func (rd *KvDB) SetDnIdToKvDB(dnid uint32) error {
