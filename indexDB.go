@@ -63,6 +63,17 @@ func CheckDbStatus(dir, file1, file2 string) bool {
 	return bl
 }
 
+func (db *IndexDB) GetReserved() uint32 {
+	return db.indexFile.GetReversed()
+}
+
+func (db *IndexDB) SetReserved(reserved uint32) error {
+	valueBuf := make([]byte, 4)
+	binary.LittleEndian.PutUint32(valueBuf, reserved)
+	err := db.indexFile.SetReversed(valueBuf)
+	return err
+}
+
 func (db *IndexDB) SetDnIdToIdxDB(dnid uint32) error {
 	var err error
 	Bdn := make([]byte, 4)
