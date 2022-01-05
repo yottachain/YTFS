@@ -3,8 +3,6 @@ package common
 
 import (
 	"errors"
-
-	//"github.com/ethereum/go-ethereum/common"
 )
 
 // StorageType represent a file type.
@@ -20,8 +18,8 @@ const (
 )
 
 const (
-    HashLength = 16
-	GcHashLen  = 19
+	HashLength       = 16
+	GcHashLen        = 19
 	RocksConstKeyLen = 23
 )
 
@@ -53,9 +51,9 @@ type IndexItem struct {
 
 type GcTableKey [GcHashLen]byte
 type GcTableValue uint32
-type GcTableItem struct{
-	Gckey  GcTableKey
-	Gcval  GcTableValue
+type GcTableItem struct {
+	Gckey GcTableKey
+	Gcval GcTableValue
 }
 
 type RocksConstKey [RocksConstKeyLen]byte
