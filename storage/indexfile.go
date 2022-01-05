@@ -450,6 +450,26 @@ func (indexFile *YTFSIndexFile) getTableSize(tbIndex uint32) (*uint32, error) {
 	return &tableSize, nil
 }
 
+func (indexFile *YTFSIndexFile) GetReversed() uint32 {
+	return indexFile.meta.Reserved
+}
+
+func (indexFile *YTFSIndexFile) SetReversed(reserved uint32) error {
+	indexFile.Lock()
+	defer indexFile.Unlock()
+
+	writer, _ := indexFile.store.Writer()
+	indexFile.meta.Reserved = reserved
+	header := indexFile.meta
+	writer.Seek(int64(unsafe.Offsetof(header.Reserved)), io.SeekStart)
+	valueBuf := make([]byte, 4)
+	binary.LittleEndian.PutUint32(valueBuf, reserved)
+	_, err := writer.Write(valueBuf)
+	writer.Sync()
+
+	return err
+}
+
 func (indexFile *YTFSIndexFile) SetDnIdToIdxDB(Bdn []byte) error {
 	writer, _ := indexFile.store.Writer()
 	header := indexFile.meta
