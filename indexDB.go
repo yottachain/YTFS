@@ -196,11 +196,17 @@ func (db *IndexDB) TravelDB(fn func(key, val []byte) error) int64 {
 	DBIter := storage.GetIdxDbIter(ytIndexFile, options)
 	succ := int64(0)
 
+	exitStatus := false
+
 	for {
 		tab, err := DBIter.GetNoNilTableBytes()
 		if err != nil {
 			fmt.Println("[indexdb] get table error :", err)
-			continue
+			if err.Error() != "table_end" {
+				continue
+			} else {
+				exitStatus = true
+			}
 		}
 
 		for key, val := range tab {
@@ -210,6 +216,10 @@ func (db *IndexDB) TravelDB(fn func(key, val []byte) error) int64 {
 				continue
 			}
 			succ++
+		}
+
+		if exitStatus {
+			break
 		}
 	}
 	return succ
