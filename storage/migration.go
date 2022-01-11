@@ -21,7 +21,7 @@ type TableIterator struct {
 	options       *opt.Options
 }
 
-func (ti *TableIterator) GetTableIndex() uint32{
+func (ti *TableIterator) GetTableIndex() uint32 {
 	return ti.tableIndex
 }
 
@@ -43,7 +43,7 @@ func RebuildIdxHeader(ytfsIndexFile *YTFSIndexFile, mpath string) error {
 // GetTableIterator 返回Table遍历器
 func GetTableIterator(indexpath string, opts *opt.Options) (*TableIterator, error) {
 	var ti TableIterator
-	ytfsIndexFile, err := OpenYTFSIndexFile(indexpath, opts,false)
+	ytfsIndexFile, err := OpenYTFSIndexFile(indexpath, opts, false)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func GetTableIterator(indexpath string, opts *opt.Options) (*TableIterator, erro
 	return &ti, nil
 }
 
-func GetIdxDbIter(ytfsIndexFile *YTFSIndexFile, opts *opt.Options)(*TableIterator){
+func GetIdxDbIter(ytfsIndexFile *YTFSIndexFile, opts *opt.Options) *TableIterator {
 	var ti TableIterator
 	//var err error
 	ti.ytfsIndexFile = ytfsIndexFile
@@ -112,6 +112,10 @@ func (ti *TableIterator) LoadTable(tbindex uint32) (bytesTable, error) {
 	sizeBuf := make([]byte, 4)
 	reader.Read(sizeBuf)
 	tableSize := binary.LittleEndian.Uint32(sizeBuf)
+	if tableSize > ti.options.IndexTableCols {
+		fmt.Printf("should not happened, read table size is %d\n", tableSize)
+		tableSize = ti.options.IndexTableCols
+	}
 	if debugPrint {
 		fmt.Println("read table size :=", tableSize, "from", int64(ti.ytfsIndexFile.meta.HashOffset)+int64(tbindex)*int64(tableAllocationSize))
 	}
@@ -120,7 +124,7 @@ func (ti *TableIterator) LoadTable(tbindex uint32) (bytesTable, error) {
 	tableBuf := make([]byte, tableSize*itemSize, tableSize*itemSize)
 	_, err := reader.Read(tableBuf)
 	if err != nil {
-		fmt.Println("tableSize=",tableSize," tableindex=",tbindex)
+		fmt.Println("tableSize=", tableSize, " tableindex=", tbindex)
 		return nil, err
 	}
 
