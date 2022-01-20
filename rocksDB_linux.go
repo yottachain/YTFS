@@ -371,7 +371,7 @@ func (rd *KvDB) ChkDataPos(dir string, config *opt.Options, init bool) error {
 
 	rd.PosIdx = PosRocksdb
 	fmt.Println("[rocksdb] OpenYTFSK Current start posidx=", rd.PosIdx)
-	return nil
+	//return nil
 
 INIT:
 	if init {
