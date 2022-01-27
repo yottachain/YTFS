@@ -716,6 +716,35 @@ func (ytfs *YTFS) GetCapProofSpace() uint32 {
 	return ytfs.context.RandCheckAvailablePos(buf, 10, useAbleCap) + 1
 }
 
+func (ytfs *YTFS) TruncatStorageFile() {
+	ytfs.mutex.Lock()
+	defer ytfs.mutex.Unlock()
+
+	storageContexts := ytfs.context.GetStorageContext()
+	for _, storage := range storageContexts {
+		if storage.Disk.GetStorage().GetFd().Type == ydcommon.FileStorageType {
+			st, err := os.Stat(storage.Name)
+			if err != nil {
+				fmt.Printf("ytfs truncat %s get stat err %s\n", storage.Name, err.Error())
+				continue
+			}
+			statSize := st.Size()
+			configSize := int64(storage.Disk.Capability())
+			if statSize > configSize {
+				err = os.Truncate(storage.Name, int64(storage.Disk.Capability()))
+				if err != nil {
+					fmt.Printf("ytfs truncat %s err %s\n", storage.Name, err.Error())
+				} else {
+					fmt.Printf("ytfs truncat %s cursize %d, after truncat size %d\n",
+						storage.Name, statSize, configSize)
+				}
+			}
+		}
+	}
+
+	return
+}
+
 // Meta reports current meta information.
 func (ytfs *YTFS) Meta() *ydcommon.Header {
 	//	return ytfs.db.(*IndexDB).schema
