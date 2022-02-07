@@ -738,6 +738,9 @@ func (ytfs *YTFS) TruncatStorageFile() {
 					fmt.Printf("ytfs truncat %s cursize %d, after truncat size %d\n",
 						storage.Name, statSize, configSize)
 				}
+			} else {
+				fmt.Printf("ytfs storage %s don't need truncat, file size %d, config size %d\n",
+					storage.Name, statSize, configSize)
 			}
 		}
 	}
