@@ -197,8 +197,8 @@ func (c *Context) GetAvailablePos(data []byte, writeEndPos uint32) uint32 {
 			break
 		} else {
 			lastFailPos = writeAblePos
-			fmt.Printf("[cap proof] error, data write error, cur data pos %d, write err pos %d\n",
-				sp.index, writeAblePos)
+			fmt.Printf("[cap proof] error:%s, data write error, cur data pos %d, write err pos %d\n",
+				err.Error(), sp.index, writeAblePos)
 		}
 	con:
 		writeAblePos = startPos + (writeAblePos-startPos)/2
