@@ -729,9 +729,10 @@ func (ytfs *YTFS) TruncatStorageFile() {
 				continue
 			}
 			statSize := st.Size()
-			configSize := int64(storage.Disk.Capability())
-			if statSize > configSize {
-				err = os.Truncate(storage.Name, int64(storage.Disk.Capability()))
+			configSize := storage.Disk.GetStorageHeader().DiskCapacity
+			//configSize := int64(storage.Disk.Capability())
+			if uint64(statSize) > configSize {
+				err = os.Truncate(storage.Name, int64(configSize))
 				if err != nil {
 					fmt.Printf("ytfs truncat %s err %s\n", storage.Name, err.Error())
 				} else {
