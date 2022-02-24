@@ -359,8 +359,10 @@ func (c *Context) setEOF() {
 
 // Get gets the value from offset of the correct device
 func (c *Context) Get(globalIdx ydcommon.IndexTableValue) (value []byte, err error) {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
+	//todo Whether can be unlocked?
+	//c.lock.RLock()
+	//defer c.lock.RUnlock()
+
 	sp, err := c.locate(uint32(globalIdx))
 	if err != nil {
 		return nil, err

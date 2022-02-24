@@ -9,10 +9,17 @@ import (
 	"github.com/yottachain/YTFS/opt"
 )
 
+type Read struct {
+	Reader
+	sync.Mutex
+}
+
 // BlockStorage is a file-system backed storage.
 type BlockStorage struct {
 	readOnly bool
 	mu       sync.RWMutex
+	rLock    sync.Mutex
+	wLock    sync.Mutex
 	fd       *FileDesc
 	reader   Reader
 	writer   Writer
@@ -71,6 +78,16 @@ func (file *BlockStorage) Lock() (Locker, error) {
 	// TODO: use RW-lock.
 	file.mu.Lock()
 	return &file.mu, nil
+}
+
+func (file *BlockStorage) RLock() (Locker, error) {
+	file.rLock.Lock()
+	return &file.rLock, nil
+}
+
+func (file *BlockStorage) WLock() (Locker, error) {
+	file.wLock.Lock()
+	return &file.wLock, nil
 }
 
 // Close closes the storage.

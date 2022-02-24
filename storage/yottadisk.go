@@ -58,14 +58,17 @@ func (disk *YottaDisk) Sync() error {
 
 // Close closes the YottaDisk.
 func (disk *YottaDisk) Close() error {
-	disk.Sync()
-	disk.store.Close()
+	_ = disk.Sync()
+	_ = disk.store.Close()
 	return nil
 }
 
 // ReadData reads data from low level storage
 func (disk *YottaDisk) ReadData(dataIndex ydcommon.IndexTableValue) ([]byte, error) {
-	locker, _ := disk.store.Lock()
+	//todo use read lock
+	//locker, _ := disk.store.Lock()
+	//	//defer locker.Unlock()
+	locker, _ := disk.store.RLock()
 	defer locker.Unlock()
 
 	reader, err := disk.store.Reader()
@@ -86,7 +89,10 @@ func (disk *YottaDisk) WriteData(dataOffsetIndex ydcommon.IndexTableValue, data 
 		return errors.ErrDataOverflow
 	}
 
-	locker, _ := disk.store.Lock()
+	//todo use write lock
+	//locker, _ := disk.store.RLock()
+	//defer locker.Unlock()
+	locker, _ := disk.store.WLock()
 	defer locker.Unlock()
 
 	writer, err := disk.store.Writer()

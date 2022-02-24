@@ -48,6 +48,10 @@ type Storage interface {
 	// Caller should call Unlock method after use.
 	Lock() (Locker, error)
 
+	RLock() (Locker, error)
+
+	WLock() (Locker, error)
+
 	// Open opens file with the given 'file descriptor' read-only.
 	// Returns os.ErrNotExist error if the file does not exist.
 	// Returns ErrClosed if the underlying storage is closed.

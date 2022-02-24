@@ -12,6 +12,8 @@ import (
 type FileStorage struct {
 	readOnly bool
 	mu       sync.RWMutex
+	rLock    sync.Mutex
+	wLock    sync.Mutex
 	fd       *FileDesc
 	reader   Reader
 	writer   Writer
@@ -72,6 +74,16 @@ func (file *FileStorage) Lock() (Locker, error) {
 	// TODO: use RW-lock.
 	file.mu.Lock()
 	return &file.mu, nil
+}
+
+func (file *FileStorage) RLock() (Locker, error) {
+	file.rLock.Lock()
+	return &file.rLock, nil
+}
+
+func (file *FileStorage) WLock() (Locker, error) {
+	file.wLock.Lock()
+	return &file.wLock, nil
 }
 
 // Close closes the storage.
