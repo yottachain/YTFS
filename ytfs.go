@@ -2,7 +2,6 @@ package ytfs
 
 import (
 	"bytes"
-	"crypto"
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/binary"
@@ -366,6 +365,7 @@ func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
 	data, err := ytfs.context.Get(pos)
 	if err != nil {
 		fmt.Println("[verify] get data error:", err, " key:", base58.Encode(key[:]), " pos:", pos)
+		return nil, err
 	}
 
 	return data, nil
@@ -836,7 +836,7 @@ func (ytfs *YTFS) VerifySliceOne(key ydcommon.IndexTableKey) (Hashtohash, error)
 		return errHash, err
 	}
 
-	sha := crypto.MD5.New()
+	sha := md5.New()
 	sha.Write(slice)
 	if !bytes.Equal(sha.Sum(nil), key[:]) {
 		err = fmt.Errorf("verify error")
@@ -856,7 +856,7 @@ func (ytfs *YTFS) VerifySlice(startkey string, traveEntries uint64) ([]Hashtohas
 }
 
 func (ytfs *YTFS) VerifyHashSlice(key ydcommon.IndexTableKey, slice []byte) bool {
-	sha := crypto.MD5.New()
+	sha := md5.New()
 	sha.Write(slice)
 	return bytes.Equal(sha.Sum(nil), key[:])
 }

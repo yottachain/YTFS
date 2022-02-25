@@ -2,7 +2,7 @@ package storage
 
 import (
 	"bytes"
-	"crypto"
+	"crypto/md5"
 	"encoding/binary"
 	"fmt"
 	"github.com/mr-tron/base58/base58"
@@ -56,7 +56,7 @@ func (indexFile *YTFSIndexFile) GetYTFSIndexFileOpts() *opt.Options {
 }
 
 func (indexFile *YTFSIndexFile) VerifyVHF(data []byte, vhf []byte) bool {
-	sha := crypto.MD5.New()
+	sha := md5.New()
 	sha.Write(data)
 	return bytes.Equal(sha.Sum(nil), vhf)
 }
