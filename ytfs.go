@@ -822,7 +822,7 @@ var hash0Str = "0000000000000000"
 type Hashtohash struct {
 	DBhash   []byte
 	Datahash []byte
-	pos      uint32
+	Pos      uint32
 }
 
 func (ytfs *YTFS) VerifySliceOne(key ydcommon.IndexTableKey) (Hashtohash, error) {
@@ -842,7 +842,7 @@ func (ytfs *YTFS) VerifySliceOne(key ydcommon.IndexTableKey) (Hashtohash, error)
 		err = fmt.Errorf("verify error")
 		errHash.DBhash = key[:]
 		errHash.Datahash = sha.Sum(nil)
-		errHash.pos = uint32(pos)
+		errHash.Pos = uint32(pos)
 
 		return errHash, err
 	}
