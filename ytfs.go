@@ -822,10 +822,12 @@ var hash0Str = "0000000000000000"
 type Hashtohash struct {
 	DBhash   []byte
 	Datahash []byte
+	pos      uint32
 }
 
 func (ytfs *YTFS) VerifySliceOne(key ydcommon.IndexTableKey) (Hashtohash, error) {
 	var errHash Hashtohash
+	pos, err := ytfs.db.Get(key)
 	slice, err := ytfs.Get(key)
 	if err != nil {
 		fmt.Println("[verify]get slice fail, key=", base58.Encode(key[:]))
@@ -840,6 +842,8 @@ func (ytfs *YTFS) VerifySliceOne(key ydcommon.IndexTableKey) (Hashtohash, error)
 		err = fmt.Errorf("verify error")
 		errHash.DBhash = key[:]
 		errHash.Datahash = sha.Sum(nil)
+		errHash.pos = uint32(pos)
+
 		return errHash, err
 	}
 	return errHash, nil
