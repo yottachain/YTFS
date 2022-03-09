@@ -143,7 +143,7 @@ func FinalizeConfig(config *Options) (*Options, error) {
 	config.DataBlockSize = 16384 //this value is consistent, should not varied
 
 	// check C in range
-	maxDiskCapability := uint64(1) << ((uint32)(bits.Len32(config.DataBlockSize)) + (uint32)(32))
+	maxDiskCapability := uint64(1) << ((uint32)(bits.Len32(config.DataBlockSize)-1) + (uint32)(32))
 	sumT := uint64(0)
 	for _, ti := range config.Storages {
 		sumT += ti.StorageVolume
