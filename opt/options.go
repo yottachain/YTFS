@@ -41,7 +41,7 @@ type Options struct {
 	IndexTableRows uint32           `json:"N"`
 	DataBlockSize  uint32           `json:"D"`
 	TotalVolumn    uint64           `json:"C"`
-	UseKvDb  	   bool             `json:"UseKvDb"`
+	UseKvDb        bool             `json:"UseKvDb"`
 }
 
 // Equal compares 2 Options to tell if it is equal
@@ -140,6 +140,8 @@ func SaveConfig(config *Options, fileName string) error {
 // 1. Do a few calculation according to config setting.
 // 2. Check if config setting is valid.
 func FinalizeConfig(config *Options) (*Options, error) {
+	config.DataBlockSize = 16384 //this value is consistent, should not varied
+
 	// check C in range
 	maxDiskCapability := uint64(1) << ((uint32)(bits.Len32(config.DataBlockSize)) + (uint32)(32))
 	sumT := uint64(0)
@@ -150,8 +152,6 @@ func FinalizeConfig(config *Options) (*Options, error) {
 	if config.TotalVolumn > maxDiskCapability || config.TotalVolumn < sumT {
 		return nil, ErrConfigC
 	}
-
-	config.DataBlockSize = 16384       //this value is consistent, should not varied
 
 	// calc M, N, D
 	c, d, n, m := config.TotalVolumn, (uint64)(config.DataBlockSize), (uint64)(config.IndexTableRows), (uint64)(config.IndexTableCols)
