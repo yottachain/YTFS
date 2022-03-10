@@ -24,7 +24,10 @@ type DiskStatus struct {
 //	return diskAllCap
 //}
 func GetDiskCap(stor storage.Storage) uint64 {
-	read, _ := stor.Reader()
+	index := stor.ReaderIndex()
+	defer stor.Reader(index)
+
+	read, _ := stor.Reader(index)
 	size, _ := read.Seek(0, io.SeekEnd)
 	return uint64(size)
 }
