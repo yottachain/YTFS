@@ -148,7 +148,10 @@ func (indexFile *YTFSIndexFile) GetTableFromStorage(tbIndex uint32) (map[ydcommo
 }
 
 func (indexFile *YTFSIndexFile) loadTableFromStorage(tbIndex uint32) (map[ydcommon.IndexTableKey]ydcommon.IndexTableValue, error) {
-	reader, _ := indexFile.store.Reader()
+	index := indexFile.store.ReaderIndex()
+	defer indexFile.store.ReaderIndexClose(index)
+
+	reader, _ := indexFile.store.Reader(index)
 	itemSize := uint32(unsafe.Sizeof(ydcommon.IndexTableKey{}) + unsafe.Sizeof(ydcommon.IndexTableValue(0)))
 	tableAllocationSize := indexFile.meta.RangeCoverage*itemSize + 4
 	reader.Seek(int64(indexFile.meta.HashOffset)+int64(tbIndex)*int64(tableAllocationSize), io.SeekStart)
@@ -187,7 +190,10 @@ func (indexFile *YTFSIndexFile) ClearItemFromTable(tbidx uint32, hashKey ydcommo
 	//Sync file to stable storage
 	writer.Sync()
 
-	reader, err := indexFile.store.Reader()
+	index := indexFile.store.ReaderIndex()
+	defer indexFile.store.ReaderIndexClose(index)
+
+	reader, _ := indexFile.store.Reader(index)
 	if err != nil {
 		fmt.Println("[ClearItemFromTable] get reader error!")
 		return err
@@ -224,7 +230,11 @@ func (indexFile *YTFSIndexFile) ClearItemFromTable(tbidx uint32, hashKey ydcommo
 func (indexFile *YTFSIndexFile) ResetTableSize(tbItemMap map[uint32]uint32) error {
 	var err error
 	writer, _ := indexFile.store.Writer()
-	reader, _ := indexFile.store.Reader()
+
+	index := indexFile.store.ReaderIndex()
+	defer indexFile.store.ReaderIndexClose(index)
+
+	reader, _ := indexFile.store.Reader(index)
 	itemSize := uint32(unsafe.Sizeof(ydcommon.IndexTableKey{}) + unsafe.Sizeof(ydcommon.IndexTableValue(0)))
 	tableAllocationSize := indexFile.meta.RangeCoverage*itemSize + 4
 	sizeBuf := make([]byte, 4)
@@ -423,7 +433,10 @@ func (indexFile *YTFSIndexFile) modfyMeta(dataWritten uint64) error {
 }
 
 func (indexFile *YTFSIndexFile) getTableSize(tbIndex uint32) (*uint32, error) {
-	reader, err := indexFile.store.Reader()
+	index := indexFile.store.ReaderIndex()
+	defer indexFile.store.ReaderIndexClose(index)
+
+	reader, err := indexFile.store.Reader(index)
 	if err != nil {
 		fmt.Println("get indexFile reader error:", err)
 		return nil, err
@@ -484,7 +497,10 @@ func (indexFile *YTFSIndexFile) SetVersionToIdxDB(Bvs []byte) error {
 }
 
 func (indexFile *YTFSIndexFile) GetDnIdFromIdxDB() uint32 {
-	reader, _ := indexFile.store.Reader()
+	index := indexFile.store.ReaderIndex()
+	defer indexFile.store.ReaderIndexClose(index)
+
+	reader, _ := indexFile.store.Reader(index)
 	header := indexFile.meta
 	reader.Seek(int64(unsafe.Offsetof(header.DataNodeId)), io.SeekStart)
 	Bdn := make([]byte, 4)
@@ -751,18 +767,26 @@ func openIndexStorage(path string, opt *opt.Options) (Storage, error) {
 		writer.Close()
 	}
 
-	reader, err := fileStorage.Open(*fileStorage.fd)
-	if err != nil {
-		fmt.Println("open file for reader err: ", err)
-		return nil, err
+	fileStorage.readCh = make(chan int, MaxReadFd)
+
+	for i := 0; i < MaxReadFd; i++ {
+		reader, err := fileStorage.Open(*fileStorage.fd)
+		if err != nil {
+			fmt.Println("open file for reader err: ", err)
+			return nil, err
+		}
+		fileStorage.reader = append(fileStorage.reader, reader)
+		fileStorage.readCh <- i
 	}
-	fileStorage.reader = reader
 
 	return &fileStorage, nil
 }
 
 func readIndexHeader(store Storage) (*ydcommon.Header, error) {
-	reader, err := store.Reader()
+	index := store.ReaderIndex()
+	defer store.ReaderIndexClose(index)
+
+	reader, err := store.Reader(index)
 	if err != nil {
 		return nil, err
 	}
