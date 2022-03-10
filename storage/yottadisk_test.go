@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	types "github.com/yottachain/YTFS/common"
-	"github.com/yottachain/YTFS/opt"
 	"github.com/yottachain/YTFS/errors"
+	"github.com/yottachain/YTFS/opt"
 )
 
 func testOptions() *opt.StorageOptions {
@@ -31,7 +31,7 @@ func TestCreateYottaDiskWithFileStorage(t *testing.T) {
 	config := testOptions()
 	defer os.Remove(config.StorageName)
 
-	yd, err := OpenYottaDisk(config)
+	yd, err := OpenYottaDisk(config, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func TestValidateYottaDiskWithFileStorage(t *testing.T) {
 	config := testOptions()
 	defer os.Remove(config.StorageName)
 
-	yd, err := OpenYottaDisk(config)
+	yd, err := OpenYottaDisk(config, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +51,7 @@ func TestValidateYottaDiskWithFileStorage(t *testing.T) {
 	yd.WriteData(1, []byte{1})
 
 	// header not sync
-	ydRef1, err := OpenYottaDisk(config)
+	ydRef1, err := OpenYottaDisk(config, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestValidateYottaDiskWithFileStorage(t *testing.T) {
 
 	yd.Close()
 	// header synx
-	ydRef2, err := OpenYottaDisk(config)
+	ydRef2, err := OpenYottaDisk(config, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func TestOpenYottaDiskWithAnotherConfig(t *testing.T) {
 	config := testOptions()
 	defer os.Remove(config.StorageName)
 
-	yd, err := OpenYottaDisk(config)
+	yd, err := OpenYottaDisk(config, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestOpenYottaDiskWithAnotherConfig(t *testing.T) {
 
 	config.StorageVolume /= 2
 	opt.IgnoreStorageHeaderErr = true
-	ydNew, err := OpenYottaDisk(config)
+	ydNew, err := OpenYottaDisk(config, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +94,7 @@ func TestOpenYottaDiskWithAnotherConfig(t *testing.T) {
 
 	config.StorageVolume /= 2
 	opt.IgnoreStorageHeaderErr = false
-	_, err = OpenYottaDisk(config)
+	_, err = OpenYottaDisk(config, false)
 	if err != errors.ErrStorageHeader {
 		t.Fatal(err)
 	}

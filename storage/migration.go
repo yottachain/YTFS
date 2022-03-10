@@ -103,7 +103,10 @@ func (ti *TableIterator) BlockSize() uint32 {
 }
 
 func (ti *TableIterator) LoadTable(tbindex uint32) (bytesTable, error) {
-	reader, _ := ti.ytfsIndexFile.store.Reader()
+	index := ti.ytfsIndexFile.store.ReaderIndex()
+	defer ti.ytfsIndexFile.store.ReaderIndexClose(index)
+
+	reader, _ := ti.ytfsIndexFile.store.Reader(index)
 	itemSize := uint32(unsafe.Sizeof(common.IndexTableKey{}) + unsafe.Sizeof(common.IndexTableValue(0)))
 	tableAllocationSize := ti.ytfsIndexFile.meta.RangeCoverage*itemSize + 4
 	reader.Seek(int64(ti.ytfsIndexFile.meta.HashOffset)+int64(tbindex)*int64(tableAllocationSize), io.SeekStart)
