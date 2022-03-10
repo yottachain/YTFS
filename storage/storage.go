@@ -7,6 +7,8 @@ import (
 	types "github.com/yottachain/YTFS/common"
 )
 
+const MaxReadFd = 10
+
 // Locker is the interface that wraps Unlock method.
 type Locker interface {
 	Unlock()
@@ -55,7 +57,16 @@ type Storage interface {
 	// Open opens file with the given 'file descriptor' read-only.
 	// Returns os.ErrNotExist error if the file does not exist.
 	// Returns ErrClosed if the underlying storage is closed.
-	Reader() (Reader, error)
+	//Reader() (Reader, error)
+
+	// Open opens file with the given 'file descriptor' read-only.
+	// Returns os.ErrNotExist error if the file does not exist.
+	// Returns ErrClosed if the underlying storage is closed.
+	Reader(int) (Reader, error)
+
+	ReaderIndex() int
+
+	ReaderIndexClose(index int)
 
 	// Create creates file with the given 'file descriptor', truncate if already
 	// exist and opens write-only.

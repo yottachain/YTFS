@@ -21,7 +21,8 @@ type BlockStorage struct {
 	rLock    sync.Mutex
 	wLock    sync.Mutex
 	fd       *FileDesc
-	reader   Reader
+	reader   []Reader
+	readCh   chan int
 	writer   Writer
 }
 
@@ -41,11 +42,16 @@ func OpenBlockStorage(opt *opt.StorageOptions) (Storage, error) {
 		},
 	}
 
-	reader, err := blkStorage.Open(*blkStorage.fd)
-	if err != nil {
-		return nil, err
+	blkStorage.readCh = make(chan int, MaxReadFd)
+
+	for i := 0; i < MaxReadFd; i++ {
+		reader, err := blkStorage.Open(*blkStorage.fd)
+		if err != nil {
+			return nil, err
+		}
+		blkStorage.reader = append(blkStorage.reader, reader)
+		blkStorage.readCh <- i
 	}
-	blkStorage.reader = reader
 
 	if !opt.ReadOnly {
 		writer, err := blkStorage.Create(*blkStorage.fd)
@@ -55,7 +61,7 @@ func OpenBlockStorage(opt *opt.StorageOptions) (Storage, error) {
 		blkStorage.writer = writer
 	}
 
-	err = blkStorage.validateStorageParam(opt)
+	err := blkStorage.validateStorageParam(opt)
 	if err != nil {
 		return nil, err
 	}
@@ -63,8 +69,16 @@ func OpenBlockStorage(opt *opt.StorageOptions) (Storage, error) {
 	return &blkStorage, nil
 }
 
-func (file *BlockStorage) Reader() (Reader, error) {
-	return file.reader, nil
+func (file *BlockStorage) Reader(index int) (Reader, error) {
+	return file.reader[index], nil
+}
+
+func (file *BlockStorage) ReaderIndex() int {
+	return <-file.readCh
+}
+
+func (file *BlockStorage) ReaderIndexClose(index int) {
+	file.readCh <- index
 }
 
 func (file *BlockStorage) Writer() (Writer, error) {
@@ -94,10 +108,13 @@ func (file *BlockStorage) WLock() (Locker, error) {
 // It is valid to call Close multiple times. Other methods should not be
 // called after the storage has been closed.
 func (file *BlockStorage) Close() error {
-	file.reader.Close()
+	for i := 0; i < MaxReadFd; i++ {
+		_ = file.reader[i].Close()
+	}
+
 	if !file.readOnly {
-		file.writer.Sync()
-		file.writer.Close()
+		_ = file.writer.Sync()
+		_ = file.writer.Close()
 	}
 	return nil
 }

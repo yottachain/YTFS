@@ -15,7 +15,8 @@ type FileStorage struct {
 	rLock    sync.Mutex
 	wLock    sync.Mutex
 	fd       *FileDesc
-	reader   Reader
+	reader   []Reader
+	readCh   chan int
 	writer   Writer
 }
 
@@ -42,14 +43,19 @@ func OpenFileStorage(opt *opt.StorageOptions) (Storage, error) {
 	if !opt.ReadOnly {
 		fileStorage.writer = writer
 	} else {
-		writer.Close()
+		_ = writer.Close()
 	}
 
-	reader, err := fileStorage.Open(*fileStorage.fd)
-	if err != nil {
-		return nil, err
+	fileStorage.readCh = make(chan int, MaxReadFd)
+
+	for i := 0; i < MaxReadFd; i++ {
+		reader, err := fileStorage.Open(*fileStorage.fd)
+		if err != nil {
+			return nil, err
+		}
+		fileStorage.reader = append(fileStorage.reader, reader)
+		fileStorage.readCh <- i
 	}
-	fileStorage.reader = reader
 
 	err = fileStorage.validateStorageParam(opt)
 	if err != nil {
@@ -59,8 +65,16 @@ func OpenFileStorage(opt *opt.StorageOptions) (Storage, error) {
 	return &fileStorage, nil
 }
 
-func (file *FileStorage) Reader() (Reader, error) {
-	return file.reader, nil
+func (file *FileStorage) Reader(index int) (Reader, error) {
+	return file.reader[index], nil
+}
+
+func (file *FileStorage) ReaderIndex() int {
+	return <-file.readCh
+}
+
+func (file *FileStorage) ReaderIndexClose(index int) {
+	file.readCh <- index
 }
 
 func (file *FileStorage) Writer() (Writer, error) {
@@ -90,10 +104,13 @@ func (file *FileStorage) WLock() (Locker, error) {
 // It is valid to call Close multiple times. Other methods should not be
 // called after the storage has been closed.
 func (file *FileStorage) Close() error {
-	file.reader.Close()
+	for i := 0; i < MaxReadFd; i++ {
+		_ = file.reader[i].Close()
+	}
+
 	if !file.readOnly {
-		file.writer.Sync()
-		file.writer.Close()
+		_ = file.writer.Sync()
+		_ = file.writer.Close()
 	}
 	return nil
 }

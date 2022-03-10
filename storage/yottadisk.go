@@ -68,10 +68,15 @@ func (disk *YottaDisk) ReadData(dataIndex ydcommon.IndexTableValue) ([]byte, err
 	//todo use read lock
 	//locker, _ := disk.store.Lock()
 	//	//defer locker.Unlock()
-	locker, _ := disk.store.RLock()
-	defer locker.Unlock()
 
-	reader, err := disk.store.Reader()
+	//this lock shouldn't need
+	//locker, _ := disk.store.RLock()
+	//defer locker.Unlock()
+
+	index := disk.store.ReaderIndex()
+	defer disk.store.ReaderIndexClose(index)
+
+	reader, err := disk.store.Reader(index)
 	dataBlock := make([]byte, disk.meta.DataBlockSize, disk.meta.DataBlockSize)
 	reader.Seek(int64(disk.meta.DataOffset)+int64(disk.meta.DataBlockSize)*int64(dataIndex), io.SeekStart)
 	err = binary.Read(reader, binary.LittleEndian, dataBlock)
@@ -245,7 +250,10 @@ func initializeStorage(store Storage, config *opt.StorageOptions) (*ydcommon.Sto
 }
 
 func readHeader(store Storage) (*ydcommon.StorageHeader, error) {
-	reader, err := store.Reader()
+	index := store.ReaderIndex()
+	defer store.ReaderIndexClose(index)
+
+	reader, err := store.Reader(index)
 	if err != nil {
 		return nil, err
 	}
@@ -296,7 +304,10 @@ func (disk *YottaDisk) SetVersionToStore(Bvs []byte) error {
 }
 
 func (disk *YottaDisk) GetDnIdFromStore() uint32 {
-	reader, _ := disk.store.Reader()
+	index := disk.store.ReaderIndex()
+	defer disk.store.ReaderIndexClose(index)
+
+	reader, _ := disk.store.Reader(index)
 	header := disk.meta
 	reader.Seek(int64(unsafe.Offsetof(header.DataNodeId)), io.SeekStart)
 	Bdn := make([]byte, 4)

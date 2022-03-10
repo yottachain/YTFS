@@ -18,7 +18,7 @@ func TestFileStorageRW(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	reader, _ := fs.Reader()
+	reader, _ := fs.Reader(0)
 	defer reader.Close()
 	writer, _ := fs.Writer()
 	defer writer.Close()
