@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"fmt"
 	"os"
 	"sync"
 	// "syscall"
@@ -52,6 +53,9 @@ func OpenBlockStorage(opt *opt.StorageOptions) (Storage, error) {
 		blkStorage.reader = append(blkStorage.reader, reader)
 		blkStorage.readCh <- i
 	}
+
+	fmt.Printf("[ytfs] storage %s max read cc is %d\n",
+		blkStorage.GetFd().Path, len(blkStorage.readCh))
 
 	if !opt.ReadOnly {
 		writer, err := blkStorage.Create(*blkStorage.fd)

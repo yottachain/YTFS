@@ -70,8 +70,8 @@ func (disk *YottaDisk) ReadData(dataIndex ydcommon.IndexTableValue) ([]byte, err
 	//	//defer locker.Unlock()
 
 	//this lock shouldn't need
-	//locker, _ := disk.store.RLock()
-	//defer locker.Unlock()
+	locker, _ := disk.store.RLock()
+	defer locker.Unlock()
 
 	index := disk.store.ReaderIndex()
 	defer disk.store.ReaderIndexClose(index)
