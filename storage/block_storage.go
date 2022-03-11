@@ -77,6 +77,10 @@ func (file *BlockStorage) ReaderIndex() int {
 	return <-file.readCh
 }
 
+func (file *BlockStorage) Readercc() int {
+	return MaxReadFd - len(file.readCh)
+}
+
 func (file *BlockStorage) ReaderIndexClose(index int) {
 	file.readCh <- index
 }

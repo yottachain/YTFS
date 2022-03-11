@@ -77,6 +77,10 @@ func (file *FileStorage) ReaderIndexClose(index int) {
 	file.readCh <- index
 }
 
+func (file *FileStorage) Readercc() int {
+	return MaxReadFd - len(file.readCh)
+}
+
 func (file *FileStorage) Writer() (Writer, error) {
 	return file.writer, nil
 }
