@@ -68,6 +68,8 @@ type Storage interface {
 
 	ReaderIndexClose(index int)
 
+	Readercc() int
+
 	// Create creates file with the given 'file descriptor', truncate if already
 	// exist and opens write-only.
 	// Returns ErrClosed if the underlying storage is closed.
