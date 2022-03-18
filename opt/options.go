@@ -4,15 +4,10 @@ package opt
 import (
 	"encoding/json"
 	"errors"
+	ytfs "github.com/yottachain/YTFS/common"
 	"io/ioutil"
 	"math"
 	"math/bits"
-
-	// "unsafe"
-
-	// "github.com/ethereum/go-ethereum/common"
-
-	ytfs "github.com/yottachain/YTFS/common"
 )
 
 // common size limitations
