@@ -310,7 +310,9 @@ func (rd *KvDB) CheckDbDnId(dnid uint32) (bool, error) {
 
 func (rd *KvDB) GetOldDataPos() (ydcommon.IndexTableValue, error) {
 	HKey := ydcommon.BytesToHash([]byte(ytPosKey))
-	PosRocksdb, err := rd.Get(ydcommon.IndexTableKey(HKey))
+	hash := ydcommon.IndexTableKey{HKey, 0}
+	PosRocksdb, err := rd.Get(hash)
+	//PosRocksdb, err := rd.Get(ydcommon.IndexTableKey(HKey))
 	if err != nil {
 		return 0, err
 	}
@@ -395,18 +397,19 @@ func (rd *KvDB) ChkBlkSizeKvDB() error {
 
 func (rd *KvDB) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error) {
 	var retval uint32
-	val, err := rd.Rdb.Get(rd.ro, key[:])
+	val, err := rd.Rdb.Get(rd.ro, key.Hsh[:])
 	if err != nil {
 		fmt.Println("[rocksdb] get pos error:", err)
 		return 0, err
 	}
 
 	if !val.Exists() {
-		err = fmt.Errorf("key:", base58.Encode(key[:]), " not exist")
+		err = fmt.Errorf("key:", base58.Encode(key.Hsh[:]), " not exist")
 		return 0, err
 	}
 
-	retval = binary.LittleEndian.Uint32(val.Data())
+	//the first four bytes are pos
+	retval = binary.LittleEndian.Uint32(val.Data()[:4])
 
 	return ydcommon.IndexTableValue(retval), nil
 }
@@ -466,10 +469,15 @@ func (rd *KvDB) ModifyMeta(account uint64) error {
 
 func (rd *KvDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableKey]byte, error) {
 	valbuf := make([]byte, 4)
+	hidBuf := make([]byte, 8)
 	for _, value := range kvPairs {
-		HKey := value.Hash[:]
+		HKey := value.Hash.Hsh[:]
+		HId := value.Hash.Id
 		HPos := value.OffsetIdx
 		binary.LittleEndian.PutUint32(valbuf, uint32(HPos))
+		binary.LittleEndian.PutUint64(hidBuf, uint64(HId))
+		valbuf = append(valbuf, hidBuf...)
+
 		err := rd.Rdb.Put(rd.wo, HKey, valbuf)
 		if err != nil {
 			fmt.Println("[rocksdb]put dnhash to rocksdb error:", err)
@@ -484,7 +492,7 @@ func (rd *KvDB) BatchWriteKV(batch map[ydcommon.IndexTableKey][]byte) error {
 	var err error
 	Wbatch := new(gorocksdb.WriteBatch)
 	for key, val := range batch {
-		Wbatch.Put(key[:], val)
+		Wbatch.Put(key.Hsh[:], val)
 	}
 	err = rd.Rdb.Write(rd.wo, Wbatch)
 	return err
@@ -492,7 +500,7 @@ func (rd *KvDB) BatchWriteKV(batch map[ydcommon.IndexTableKey][]byte) error {
 
 func (rd *KvDB) resetKV(batchIndexes []ydcommon.IndexItem, resetCnt uint32) {
 	for j := uint32(0); j < resetCnt; j++ {
-		hashKey := batchIndexes[j].Hash[:]
+		hashKey := batchIndexes[j].Hash.Hsh[:]
 		rd.Rdb.Delete(rd.wo, hashKey[:])
 	}
 }
@@ -532,12 +540,17 @@ func (rd *KvDB) Meta() *ydcommon.Header {
 func (rd *KvDB) Put(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) error {
 	valbuf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(valbuf, uint32(value))
-	return rd.Rdb.Put(rd.wo, key[:], valbuf)
+
+	hidBuf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(hidBuf, uint64(key.Id))
+	valbuf = append(valbuf, hidBuf...)
+
+	return rd.Rdb.Put(rd.wo, key.Hsh[:], valbuf)
 	//return nil
 }
 
 func (rd *KvDB) Delete(key ydcommon.IndexTableKey) error {
-	return rd.Rdb.Delete(rd.wo, key[:])
+	return rd.Rdb.Delete(rd.wo, key.Hsh[:])
 }
 
 func (rd *KvDB) PutDb(key, value []byte) error {
@@ -653,7 +666,7 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 		}
 
 		var verifyItem ydcommon.IndexItem
-		copy(verifyItem.Hash[:], iter.Key().Data())
+		copy(verifyItem.Hash.Hsh[:], iter.Key().Data())
 		verifyItem.OffsetIdx = ydcommon.IndexTableValue(binary.LittleEndian.Uint32(iter.Value().Data()))
 		verifyTab = append(verifyTab, verifyItem)
 	}
@@ -678,7 +691,7 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 		ret, err := fn(v.Hash)
 		//pos := binary.LittleEndian.Uint32(v.OffsetIdx)
 		if err != nil {
-			fmt.Println("[verify][travelDB] verify error:", err, "key=", base58.Encode(v.Hash[:]), "value=", v.OffsetIdx)
+			fmt.Println("[verify][travelDB] verify error:", err, "key=", base58.Encode(v.Hash.Hsh[:]), "value=", v.OffsetIdx)
 			hashTab = append(hashTab, ret)
 			continue
 		}
