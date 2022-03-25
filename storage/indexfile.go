@@ -104,20 +104,20 @@ func (indexFile *YTFSIndexFile) GetTableEntryIndex(key ydcommon.IndexTableKey) u
 }
 
 // Get gets IndexTableValue from index table file
-func (indexFile *YTFSIndexFile) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error) {
+func (indexFile *YTFSIndexFile) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, ydcommon.HashId, error) {
 	locker, _ := indexFile.store.Lock()
 	defer locker.Unlock()
 	idx := indexFile.getTableEntryIndex(key)
 	table, err := indexFile.loadTableFromStorage(idx)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
 	if value, ok := table[key]; ok {
 		if debugPrint {
 			fmt.Printf("IndexDB get %x:%x\n", key, value)
 		}
-		return value, nil
+		return value, 0, nil
 	}
 
 	// check overflow region if current region is full

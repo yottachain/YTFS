@@ -311,7 +311,7 @@ func (rd *KvDB) CheckDbDnId(dnid uint32) (bool, error) {
 func (rd *KvDB) GetOldDataPos() (ydcommon.IndexTableValue, error) {
 	HKey := ydcommon.BytesToHash([]byte(ytPosKey))
 	hash := ydcommon.IndexTableKey{HKey, 0}
-	PosRocksdb, err := rd.Get(hash)
+	PosRocksdb, _, err := rd.Get(hash)
 	//PosRocksdb, err := rd.Get(ydcommon.IndexTableKey(HKey))
 	if err != nil {
 		return 0, err
@@ -395,23 +395,23 @@ func (rd *KvDB) ChkBlkSizeKvDB() error {
 	return nil
 }
 
-func (rd *KvDB) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error) {
-	var retval uint32
+func (rd *KvDB) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, ydcommon.HashId, error) {
 	val, err := rd.Rdb.Get(rd.ro, key.Hsh[:])
 	if err != nil {
 		fmt.Println("[rocksdb] get pos error:", err)
-		return 0, err
+		return 0, 0, err
 	}
 
 	if !val.Exists() {
 		err = fmt.Errorf("key:", base58.Encode(key.Hsh[:]), " not exist")
-		return 0, err
+		return 0, 0, err
 	}
 
 	//the first four bytes are pos
-	retval = binary.LittleEndian.Uint32(val.Data()[:4])
+	pos := binary.LittleEndian.Uint32(val.Data()[:4])
+	hid := binary.LittleEndian.Uint32(val.Data()[4:12])
 
-	return ydcommon.IndexTableValue(retval), nil
+	return ydcommon.IndexTableValue(pos), ydcommon.HashId(hid), nil
 }
 
 func initializeHeader(config *opt.Options) (*ydcommon.Header, error) {
@@ -647,7 +647,8 @@ func (rd *KvDB) GetSettedIter(startkey string) *gorocksdb.Iterator {
 	return iter
 }
 
-func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash, error), startkey string, traveEntries uint64) ([]Hashtohash, string, error) {
+func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash, error),
+	startkey string, traveEntries uint64) ([]Hashtohash, string, error) {
 	var hashTab []Hashtohash
 
 	var err error
@@ -667,7 +668,8 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 
 		var verifyItem ydcommon.IndexItem
 		copy(verifyItem.Hash.Hsh[:], iter.Key().Data())
-		verifyItem.OffsetIdx = ydcommon.IndexTableValue(binary.LittleEndian.Uint32(iter.Value().Data()))
+		verifyItem.OffsetIdx = ydcommon.IndexTableValue(binary.LittleEndian.Uint32(iter.Value().Data()[0:4]))
+		verifyItem.Hash.Id = ydcommon.HashId(binary.LittleEndian.Uint64(iter.Value().Data()[4:12]))
 		verifyTab = append(verifyTab, verifyItem)
 	}
 
