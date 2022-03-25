@@ -356,7 +356,7 @@ func validateYTFSSchema(meta *ydcommon.Header, opt *opt.Options) (*ydcommon.Head
 // It is safe to modify the contents of the argument after Get returns.
 
 func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
-	pos, err := ytfs.db.Get(key)
+	pos, _, err := ytfs.db.Get(key)
 	if err != nil {
 		fmt.Println("[db] db get pos error:", err)
 		return nil, err
@@ -382,7 +382,7 @@ func (ytfs *YTFS) GetData(pos uint32) ([]byte, error) {
 }
 
 func (ytfs *YTFS) GetPosIdx(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error) {
-	pos, err := ytfs.db.Get(key)
+	pos, _, err := ytfs.db.Get(key)
 	if err != nil {
 		fmt.Println("[db] db get pos error:", err)
 		return 0, err
@@ -904,7 +904,7 @@ func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 	}
 
 	fmt.Println("[gcdel] GcProcess C renamekey collect space key=", base58.Encode(key.Hsh[:]))
-	pos, _ := ytfs.db.Get(key)
+	pos, _, _ := ytfs.db.Get(key)
 	if pos < 5 {
 		err = fmt.Errorf("reserve data block, pos<5")
 		return err
