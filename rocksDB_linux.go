@@ -676,8 +676,15 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 
 		var verifyItem ydcommon.IndexItem
 		copy(verifyItem.Hash.Hsh[:], iter.Key().Data())
-		verifyItem.OffsetIdx = ydcommon.IndexTableValue(binary.LittleEndian.Uint32(iter.Value().Data()[0:4]))
-		verifyItem.Hash.Id = ydcommon.HashId(binary.LittleEndian.Uint64(iter.Value().Data()[4:12]))
+		data := iter.Value().Data()
+		if len(data) > 4 {
+			verifyItem.OffsetIdx = ydcommon.IndexTableValue(binary.LittleEndian.Uint32(data[0:4]))
+			verifyItem.Hash.Id = ydcommon.HashId(binary.LittleEndian.Uint64(data[4:12]))
+		} else {
+			verifyItem.OffsetIdx = ydcommon.IndexTableValue(binary.LittleEndian.Uint32(data[0:4]))
+			verifyItem.Hash.Id = 0
+		}
+
 		verifyTab = append(verifyTab, verifyItem)
 	}
 
