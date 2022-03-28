@@ -408,8 +408,15 @@ func (rd *KvDB) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, ydcom
 	}
 
 	//the first four bytes are pos
-	pos := binary.LittleEndian.Uint32(val.Data()[:4])
-	hid := binary.LittleEndian.Uint32(val.Data()[4:12])
+	var data = val.Data()
+	var pos, hid uint32
+	if len(data) > 4 {
+		pos = binary.LittleEndian.Uint32(data[:4])
+		hid = binary.LittleEndian.Uint32(val.Data()[4:12])
+	} else {
+		pos = binary.LittleEndian.Uint32(data[:4])
+		hid = 0
+	}
 
 	return ydcommon.IndexTableValue(pos), ydcommon.HashId(hid), nil
 }
