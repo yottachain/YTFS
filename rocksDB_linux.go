@@ -476,15 +476,18 @@ func (rd *KvDB) ModifyMeta(account uint64) error {
 }
 
 func (rd *KvDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableKey]byte, error) {
-	valbuf := make([]byte, 4)
-	hidBuf := make([]byte, 8)
 	for _, value := range kvPairs {
+		valbuf := make([]byte, 4)
+		hidBuf := make([]byte, 8)
+
 		HKey := value.Hash.Hsh[:]
 		HId := value.Hash.Id
 		HPos := value.OffsetIdx
 		binary.LittleEndian.PutUint32(valbuf, uint32(HPos))
 		binary.LittleEndian.PutUint64(hidBuf, uint64(HId))
 		valbuf = append(valbuf, hidBuf...)
+		fmt.Printf("BatchPut dbputkey hash=%s hid=%d\n",
+			base58.Encode(HKey), int64(HId))
 
 		err := rd.Rdb.Put(rd.wo, HKey, valbuf)
 		if err != nil {
@@ -552,6 +555,8 @@ func (rd *KvDB) Put(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) 
 	hidBuf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(hidBuf, uint64(key.Id))
 	valbuf = append(valbuf, hidBuf...)
+	fmt.Printf("Put dbputkey hash=%s hid=%d\n",
+		base58.Encode(key.Hsh[:]), int64(key.Id))
 
 	return rd.Rdb.Put(rd.wo, key.Hsh[:], valbuf)
 	//return nil

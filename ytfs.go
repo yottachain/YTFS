@@ -846,7 +846,8 @@ func (ytfs *YTFS) VerifySliceOne(key ydcommon.IndexTableKey) (Hashtohash, error)
 		errHash.Datahash = sha.Sum(nil)
 		errHash.Pos = uint32(pos)
 		errHash.Hid = int64(hid)
-		fmt.Printf("VerifySliceOne pos %d,  key=%s\n", pos, base58.Encode(key.Hsh[:]))
+		fmt.Printf("VerifySliceOne pos %d,  key=%s Hid=%d\n",
+			pos, base58.Encode(key.Hsh[:]), hid)
 
 		return errHash, err
 	}
