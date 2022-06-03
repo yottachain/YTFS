@@ -7,6 +7,7 @@ import (
 	"github.com/tecbot/gorocksdb"
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
+	"github.com/yottachain/YTFS/util"
 	"log"
 	"os"
 	"path"
@@ -102,7 +103,7 @@ func openYTFSK(dir string, config *opt.Options, init bool) (*YTFS, error) {
 
 	mDB, err := openKVDB(mainDBPath)
 	if err != nil {
-		fmt.Println("[KvDB]open main kv-DB for save hash error:", err)
+		fmt.Printf("[KvDB] path:%s, open main kv-DB error:%s\n", mainDBPath, err.Error())
 		return nil, err
 	}
 
@@ -186,6 +187,11 @@ func startYTFSK(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 	mainDBPath := path.Join(dir, mdbFileName)
 	fmt.Println("dir:", dir, "mdbFileName", mdbFileName, "mainDBPath:", mainDBPath)
 
+	if init {
+		//clean db directory
+		util.DelPath(mainDBPath)
+	}
+
 	mDB, err := openKVDB(mainDBPath)
 	if err != nil {
 		fmt.Println("[KvDB]open main kv-DB for save hash error:", err)
@@ -193,7 +199,7 @@ func startYTFSK(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 	}
 
 	ret, err := mDB.CheckDbDnId(dnid)
-	if !ret {
+	if err != nil {
 		fmt.Println("CheckDbDnId error:", err)
 		return nil, err
 	}
@@ -322,8 +328,6 @@ func (rd *KvDB) GetOldDataPos() (ydcommon.IndexTableValue, error) {
 
 func (rd *KvDB) ChkDataPos(dir string, config *opt.Options, init bool) error {
 	var PosRocksdb ydcommon.IndexTableValue
-	//var BPos  []byte
-	//var Hkey  ydcommon.Hash
 	var fileIdxdb string
 
 	Nkey := []byte(ytPosKeyNew)
@@ -373,7 +377,6 @@ func (rd *KvDB) ChkDataPos(dir string, config *opt.Options, init bool) error {
 
 	rd.PosIdx = PosRocksdb
 	fmt.Println("[rocksdb] OpenYTFSK Current start posidx=", rd.PosIdx)
-	//return nil
 
 INIT:
 	if init {

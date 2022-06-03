@@ -78,7 +78,8 @@ func NewContext(dir string, config *opt.Options, dataCount uint64, init bool) (*
 		return context, nil
 	}
 
-	fmt.Println("[error]Create new YTFS content error:", err, "current sp = ", context.sp)
+	fmt.Println("[error] Create new YTFS content error:", err, "current sp = ", context.sp)
+
 	//maybe err happens, here we still need start storage for read
 	err = nil
 	return context, err
