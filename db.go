@@ -4,7 +4,7 @@ import ydcommon "github.com/yottachain/YTFS/common"
 
 type DB interface {
 	//Type() string
-	Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error)
+	Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, ydcommon.HashId, error)
 	Put(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) error
 	PutDb(key, value []byte) error
 	GetDb(key []byte) ([]byte, error)

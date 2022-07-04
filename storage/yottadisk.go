@@ -76,7 +76,7 @@ func (disk *YottaDisk) ReadData(dataIndex ydcommon.IndexTableValue) ([]byte, err
 	index := disk.store.ReaderIndex()
 	defer disk.store.ReaderIndexClose(index)
 
-	fmt.Printf("[ytfs] storage %s current cc is %d\n", disk.store.GetFd().Path, disk.store.Readercc())
+	//fmt.Printf("[ytfs] storage %s current cc is %d\n", disk.store.GetFd().Path, disk.store.Readercc())
 
 	reader, err := disk.store.Reader(index)
 	dataBlock := make([]byte, disk.meta.DataBlockSize, disk.meta.DataBlockSize)

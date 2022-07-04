@@ -95,29 +95,29 @@ func (indexFile *YTFSIndexFile) Format() error {
 }
 
 func (indexFile *YTFSIndexFile) getTableEntryIndex(key ydcommon.IndexTableKey) uint32 {
-	msb := (uint32)(big.NewInt(0).SetBytes(key[ydcommon.HashLength-4:]).Uint64())
+	msb := (uint32)(big.NewInt(0).SetBytes(key.Hsh[ydcommon.HashLength-4:]).Uint64())
 	return msb & (indexFile.meta.RangeCapacity - 1)
 }
 func (indexFile *YTFSIndexFile) GetTableEntryIndex(key ydcommon.IndexTableKey) uint32 {
-	msb := (uint32)(big.NewInt(0).SetBytes(key[ydcommon.HashLength-4:]).Uint64())
+	msb := (uint32)(big.NewInt(0).SetBytes(key.Hsh[ydcommon.HashLength-4:]).Uint64())
 	return msb & (indexFile.meta.RangeCapacity - 1)
 }
 
 // Get gets IndexTableValue from index table file
-func (indexFile *YTFSIndexFile) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error) {
+func (indexFile *YTFSIndexFile) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, ydcommon.HashId, error) {
 	locker, _ := indexFile.store.Lock()
 	defer locker.Unlock()
 	idx := indexFile.getTableEntryIndex(key)
 	table, err := indexFile.loadTableFromStorage(idx)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
 	if value, ok := table[key]; ok {
 		if debugPrint {
 			fmt.Printf("IndexDB get %x:%x\n", key, value)
 		}
-		return value, nil
+		return value, 0, nil
 	}
 
 	// check overflow region if current region is full
@@ -125,21 +125,21 @@ func (indexFile *YTFSIndexFile) Get(key ydcommon.IndexTableKey) (ydcommon.IndexT
 		idx := indexFile.meta.RangeCapacity
 		table, err = indexFile.loadTableFromStorage(idx)
 		if err != nil {
-			return 0, err
+			return 0, 0, err
 		}
 
 		if value, ok := table[key]; ok {
 			if debugPrint {
 				fmt.Printf("IndexDB get %x:%x @overflow table\n", key, value)
 			}
-			return value, nil
+			return value, key.Id, nil
 		}
 	}
 
 	if debugPrint {
 		fmt.Printf("IndexDB get %x failed, from %d-size table\n", key, len(table))
 	}
-	return 0, errors.ErrDataNotFound
+	return 0, 0, errors.ErrDataNotFound
 }
 
 func (indexFile *YTFSIndexFile) GetTableFromStorage(tbIndex uint32) (map[ydcommon.IndexTableKey]ydcommon.IndexTableValue, error) {
@@ -175,7 +175,7 @@ func (indexFile *YTFSIndexFile) loadTableFromStorage(tbIndex uint32) (map[ydcomm
 	for i := uint32(0); i < tableSize; i++ {
 		key := ydcommon.BytesToHash(tableBuf[i*itemSize : i*itemSize+16])
 		value := binary.LittleEndian.Uint32(tableBuf[i*itemSize+16 : i*itemSize+20][:])
-		table[ydcommon.IndexTableKey(key)] = ydcommon.IndexTableValue(value)
+		table[ydcommon.IndexTableKey{Hsh: key, Id: 0}] = ydcommon.IndexTableValue(value)
 	}
 	return table, nil
 }
@@ -215,7 +215,8 @@ func (indexFile *YTFSIndexFile) ClearItemFromTable(tbidx uint32, hashKey ydcommo
 		reader.Seek(itemOffset, io.SeekStart)
 		reader.Read(itemBuf)
 		key := ydcommon.BytesToHash(itemBuf[0:16])
-		if ydcommon.IndexTableKey(key) == hashKey {
+		tKey := ydcommon.IndexTableKey{Hsh: key, Id: 0}
+		if tKey == hashKey {
 			fmt.Printf("[restoreIndex] [ClearItemFromTable] tableindex:%v, reset key %v to zero \n", tbidx, base58.Encode(key[:]))
 			writer.Seek(itemOffset, io.SeekStart)
 			//clear the item in index.db
@@ -323,7 +324,7 @@ func (indexFile *YTFSIndexFile) Put(key ydcommon.IndexTableKey, value ydcommon.I
 	// write new item
 	tableItemPos := tableBeginPos + 4 + int64(len(table))*int64(itemSize)
 	writer.Seek(tableItemPos, io.SeekStart)
-	_, err = writer.Write(key[:])
+	_, err = writer.Write(key.Hsh[:])
 	if err != nil {
 		return err
 	}
@@ -566,7 +567,7 @@ func (indexFile *YTFSIndexFile) updateTable(key ydcommon.IndexTableKey, value yd
 	// write new item
 	tableItemPos := tableBeginPos + 4 + int64(rowCount)*int64(itemSize)
 	writer.Seek(tableItemPos, io.SeekStart)
-	_, err = writer.Write(key[:])
+	_, err = writer.Write(key.Hsh[:])
 	if err != nil {
 		fmt.Println("[memtrace] writer.Write tableItemPos error:", err)
 		return err

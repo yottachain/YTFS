@@ -135,7 +135,8 @@ func (ti *TableIterator) LoadTable(tbindex uint32) (bytesTable, error) {
 	for i := uint32(0); i < tableSize; i++ {
 		key := common.BytesToHash(tableBuf[i*itemSize : i*itemSize+16])
 		value := tableBuf[i*itemSize+16 : i*itemSize+20][:]
-		table[common.IndexTableKey(key)] = value
+		tKey := common.IndexTableKey{Hsh: key, Id: 0}
+		table[tKey] = value
 	}
 	return table, nil
 }

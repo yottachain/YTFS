@@ -356,7 +356,7 @@ func validateYTFSSchema(meta *ydcommon.Header, opt *opt.Options) (*ydcommon.Head
 // It is safe to modify the contents of the argument after Get returns.
 
 func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
-	pos, err := ytfs.db.Get(key)
+	pos, _, err := ytfs.db.Get(key)
 	if err != nil {
 		fmt.Println("[db] db get pos error:", err)
 		return nil, err
@@ -364,7 +364,7 @@ func (ytfs *YTFS) Get(key ydcommon.IndexTableKey) ([]byte, error) {
 
 	data, err := ytfs.context.Get(pos)
 	if err != nil {
-		fmt.Println("[verify] get data error:", err, " key:", base58.Encode(key[:]), " pos:", pos)
+		fmt.Println("[verify] get data error:", err, " key:", base58.Encode(key.Hsh[:]), " pos:", pos)
 		return nil, err
 	}
 
@@ -382,7 +382,7 @@ func (ytfs *YTFS) GetData(pos uint32) ([]byte, error) {
 }
 
 func (ytfs *YTFS) GetPosIdx(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error) {
-	pos, err := ytfs.db.Get(key)
+	pos, _, err := ytfs.db.Get(key)
 	if err != nil {
 		fmt.Println("[db] db get pos error:", err)
 		return 0, err
@@ -446,7 +446,7 @@ func (ytfs *YTFS) restoreIndex(conflict map[ydcommon.IndexTableKey]byte, batchin
 	for _, kvPairs := range batchindex {
 		hashkey := kvPairs.Hash
 		if _, ok := conflict[hashkey]; ok {
-			fmt.Println("[restoreIndex] hashkey conflict:", base58.Encode(hashkey[:]))
+			fmt.Println("[restoreIndex] hashkey conflict:", base58.Encode(hashkey.Hsh[:]))
 			continue
 		}
 		idx := ytfs.db.(*IndexDB).indexFile.GetTableEntryIndex(hashkey)
@@ -617,7 +617,7 @@ func (ytfs *YTFS) BatchPutGc(batch map[ydcommon.IndexTableKey][]byte) (map[ydcom
 		}
 		err = ytfs.db.Put(key, ydcommon.IndexTableValue(pos))
 		if err != nil {
-			fmt.Println("[gcdel] put indexkey:", base58.Encode(key[:]), "to db error", err)
+			fmt.Println("[gcdel] put indexkey:", base58.Encode(key.Hsh[:]), "to db error", err)
 			return nil, err
 		}
 		i++
@@ -823,27 +823,31 @@ type Hashtohash struct {
 	DBhash   []byte
 	Datahash []byte
 	Pos      uint32
+	Hid      int64
 }
 
 func (ytfs *YTFS) VerifySliceOne(key ydcommon.IndexTableKey) (Hashtohash, error) {
 	var errHash Hashtohash
-	pos, err := ytfs.db.Get(key)
+	pos, hid, err := ytfs.db.Get(key)
 	slice, err := ytfs.Get(key)
 	if err != nil {
-		fmt.Println("[verify]get slice fail, key=", base58.Encode(key[:]))
-		errHash.DBhash = key[:]
+		fmt.Println("[verify]get slice fail, key=", base58.Encode(key.Hsh[:]))
+		errHash.DBhash = key.Hsh[:]
 		errHash.Datahash = []byte(hash0Str)
+		errHash.Hid = int64(hid)
 		return errHash, err
 	}
 
 	sha := md5.New()
 	sha.Write(slice)
-	if !bytes.Equal(sha.Sum(nil), key[:]) {
+	if !bytes.Equal(sha.Sum(nil), key.Hsh[:]) {
 		err = fmt.Errorf("verify error")
-		errHash.DBhash = key[:]
+		errHash.DBhash = key.Hsh[:]
 		errHash.Datahash = sha.Sum(nil)
 		errHash.Pos = uint32(pos)
-		fmt.Printf("VerifySliceOne pos %d,  key=%s\n", pos, base58.Encode(key[:]))
+		errHash.Hid = int64(hid)
+		fmt.Printf("VerifySliceOne pos %d,  key=%s Hid=%d\n",
+			pos, base58.Encode(key.Hsh[:]), hid)
 
 		return errHash, err
 	}
@@ -859,7 +863,7 @@ func (ytfs *YTFS) VerifySlice(startkey string, traveEntries uint64) ([]Hashtohas
 func (ytfs *YTFS) VerifyHashSlice(key ydcommon.IndexTableKey, slice []byte) bool {
 	sha := md5.New()
 	sha.Write(slice)
-	return bytes.Equal(sha.Sum(nil), key[:])
+	return bytes.Equal(sha.Sum(nil), key.Hsh[:])
 }
 
 func (ytfs *YTFS) GetBitMapTab(num int) ([]ydcommon.GcTableItem, error) {
@@ -881,17 +885,17 @@ func (ytfs *YTFS) GcDelBitMap(bitMapTable []ydcommon.GcTableItem) (succs, fails 
 
 func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 	var err error
-	fmt.Println("[gcdel] GcProcess A start collect space key=", base58.Encode(key[:]))
+	fmt.Println("[gcdel] GcProcess A start collect space key=", base58.Encode(key.Hsh[:]))
 	slice, err := ytfs.Get(key)
 	if err != nil {
-		fmt.Println("[gcdel] get slice error:", err, "key=", base58.Encode(key[:]))
+		fmt.Println("[gcdel] get slice error:", err, "key=", base58.Encode(key.Hsh[:]))
 		return err
 	}
-	fmt.Println("[gcdel] GcProcess B verify collect space key=", base58.Encode(key[:]))
+	fmt.Println("[gcdel] GcProcess B verify collect space key=", base58.Encode(key.Hsh[:]))
 	if !ytfs.VerifyHashSlice(key, slice) {
 		err = fmt.Errorf("verify data error!")
 		slicehs := md5.Sum(slice)
-		fmt.Println("[gcdel] verify data error, hash:", base58.Encode(key[:]), "slice hash:", base58.Encode(slicehs[:]))
+		fmt.Println("[gcdel] verify data error, hash:", base58.Encode(key.Hsh[:]), "slice hash:", base58.Encode(slicehs[:]))
 
 		err1 := ytfs.db.Delete(key)
 		if err1 != nil {
@@ -900,8 +904,8 @@ func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 		return err
 	}
 
-	fmt.Println("[gcdel] GcProcess C renamekey collect space key=", base58.Encode(key[:]))
-	pos, _ := ytfs.db.Get(key)
+	fmt.Println("[gcdel] GcProcess C renamekey collect space key=", base58.Encode(key.Hsh[:]))
+	pos, _, _ := ytfs.db.Get(key)
 	if pos < 5 {
 		err = fmt.Errorf("reserve data block, pos<5")
 		return err
@@ -911,21 +915,21 @@ func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 	binary.LittleEndian.PutUint32(val, uint32(pos))
 
 	gckey := []byte("del")
-	gckey = append(gckey, key[:]...)
+	gckey = append(gckey, key.Hsh[:]...)
 	err = ytfs.db.PutDb(gckey, val)
 	if err != nil {
 		fmt.Println("[gcdel] PutDB error:", err)
 		return err
 	}
 
-	fmt.Println("[gcdel] GcProcess D deletekey collect space key=", base58.Encode(key[:]))
+	fmt.Println("[gcdel] GcProcess D deletekey collect space key=", base58.Encode(key.Hsh[:]))
 	err = ytfs.db.Delete(key)
 	if err != nil {
 		fmt.Println("[gcdel]  ytfs.db.Delete error:", err)
 		return err
 	}
 
-	fmt.Println("[gcdel] GcProcess E get_old_gcspace collect space key=", base58.Encode(key[:]))
+	fmt.Println("[gcdel] GcProcess E get_old_gcspace collect space key=", base58.Encode(key.Hsh[:]))
 	GcLock.Lock()
 	defer GcLock.Unlock()
 	gccnt := uint32(0)
@@ -938,12 +942,12 @@ func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 		return err
 	}
 
-	fmt.Println("[gcdel] GcProcess F resize_gcspace collect space key=", base58.Encode(key[:]))
+	fmt.Println("[gcdel] GcProcess F resize_gcspace collect space key=", base58.Encode(key.Hsh[:]))
 
 	if gcspace != nil {
 		gccnt = binary.LittleEndian.Uint32(gcspace)
 	}
-	fmt.Println("[gcdel] GcProcess G resize_gcspace collect space key=", base58.Encode(key[:]), "gcspacecnt", gccnt)
+	fmt.Println("[gcdel] GcProcess G resize_gcspace collect space key=", base58.Encode(key.Hsh[:]), "gcspacecnt", gccnt)
 
 	gccnt++
 	binary.LittleEndian.PutUint32(val, gccnt)
@@ -951,7 +955,7 @@ func (ytfs *YTFS) GcProcess(key ydcommon.IndexTableKey) error {
 	if err != nil {
 		fmt.Println("[gcdel]  ytfs.db.PutDb gcspacecnt error:", err)
 	}
-	fmt.Println("[gcdel] GcProcess H end collect space key=", base58.Encode(key[:]))
+	fmt.Println("[gcdel] GcProcess H end collect space key=", base58.Encode(key.Hsh[:]))
 
 	return err
 }
@@ -999,7 +1003,7 @@ func (ytfs *YTFS) ModifyPos(pos uint64) error {
 func (ytfs *YTFS) magrateData(key, value []byte) error {
 	dataPos := binary.LittleEndian.Uint32(value)
 	if uint64(dataPos) > ytfs.PosIdx() {
-		Hkey := ydcommon.IndexTableKey(ydcommon.BytesToHash(key))
+		Hkey := ydcommon.IndexTableKey{Hsh: ydcommon.BytesToHash(key), Id: 0}
 		shard, err := ytfs.Get(Hkey)
 		if err != nil {
 			log.Printf("[magrate] get hash err:%s, key:%s\n",

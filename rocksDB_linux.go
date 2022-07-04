@@ -7,6 +7,7 @@ import (
 	"github.com/tecbot/gorocksdb"
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
+	"github.com/yottachain/YTFS/util"
 	"log"
 	"os"
 	"path"
@@ -102,7 +103,7 @@ func openYTFSK(dir string, config *opt.Options, init bool) (*YTFS, error) {
 
 	mDB, err := openKVDB(mainDBPath)
 	if err != nil {
-		fmt.Println("[KvDB]open main kv-DB for save hash error:", err)
+		fmt.Printf("[KvDB] path:%s, open main kv-DB error:%s\n", mainDBPath, err.Error())
 		return nil, err
 	}
 
@@ -186,6 +187,11 @@ func startYTFSK(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 	mainDBPath := path.Join(dir, mdbFileName)
 	fmt.Println("dir:", dir, "mdbFileName", mdbFileName, "mainDBPath:", mainDBPath)
 
+	if init {
+		//clean db directory
+		util.DelPath(mainDBPath)
+	}
+
 	mDB, err := openKVDB(mainDBPath)
 	if err != nil {
 		fmt.Println("[KvDB]open main kv-DB for save hash error:", err)
@@ -193,7 +199,7 @@ func startYTFSK(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 	}
 
 	ret, err := mDB.CheckDbDnId(dnid)
-	if !ret {
+	if err != nil {
 		fmt.Println("CheckDbDnId error:", err)
 		return nil, err
 	}
@@ -310,7 +316,9 @@ func (rd *KvDB) CheckDbDnId(dnid uint32) (bool, error) {
 
 func (rd *KvDB) GetOldDataPos() (ydcommon.IndexTableValue, error) {
 	HKey := ydcommon.BytesToHash([]byte(ytPosKey))
-	PosRocksdb, err := rd.Get(ydcommon.IndexTableKey(HKey))
+	hash := ydcommon.IndexTableKey{HKey, 0}
+	PosRocksdb, _, err := rd.Get(hash)
+	//PosRocksdb, err := rd.Get(ydcommon.IndexTableKey(HKey))
 	if err != nil {
 		return 0, err
 	}
@@ -320,8 +328,6 @@ func (rd *KvDB) GetOldDataPos() (ydcommon.IndexTableValue, error) {
 
 func (rd *KvDB) ChkDataPos(dir string, config *opt.Options, init bool) error {
 	var PosRocksdb ydcommon.IndexTableValue
-	//var BPos  []byte
-	//var Hkey  ydcommon.Hash
 	var fileIdxdb string
 
 	Nkey := []byte(ytPosKeyNew)
@@ -371,7 +377,6 @@ func (rd *KvDB) ChkDataPos(dir string, config *opt.Options, init bool) error {
 
 	rd.PosIdx = PosRocksdb
 	fmt.Println("[rocksdb] OpenYTFSK Current start posidx=", rd.PosIdx)
-	//return nil
 
 INIT:
 	if init {
@@ -393,22 +398,31 @@ func (rd *KvDB) ChkBlkSizeKvDB() error {
 	return nil
 }
 
-func (rd *KvDB) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error) {
-	var retval uint32
-	val, err := rd.Rdb.Get(rd.ro, key[:])
+func (rd *KvDB) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, ydcommon.HashId, error) {
+	val, err := rd.Rdb.Get(rd.ro, key.Hsh[:])
 	if err != nil {
 		fmt.Println("[rocksdb] get pos error:", err)
-		return 0, err
+		return 0, 0, err
 	}
 
 	if !val.Exists() {
-		err = fmt.Errorf("key:", base58.Encode(key[:]), " not exist")
-		return 0, err
+		err = fmt.Errorf("key:", base58.Encode(key.Hsh[:]), " not exist")
+		return 0, 0, err
 	}
 
-	retval = binary.LittleEndian.Uint32(val.Data())
+	//the first four bytes are pos
+	var data = val.Data()
+	var pos uint32
+	var hid uint64
+	if len(data) > 4 {
+		pos = binary.LittleEndian.Uint32(data[:4])
+		hid = binary.LittleEndian.Uint64(data[4:12])
+	} else {
+		pos = binary.LittleEndian.Uint32(data[:4])
+		hid = 0
+	}
 
-	return ydcommon.IndexTableValue(retval), nil
+	return ydcommon.IndexTableValue(pos), ydcommon.HashId(hid), nil
 }
 
 func initializeHeader(config *opt.Options) (*ydcommon.Header, error) {
@@ -465,11 +479,19 @@ func (rd *KvDB) ModifyMeta(account uint64) error {
 }
 
 func (rd *KvDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableKey]byte, error) {
-	valbuf := make([]byte, 4)
 	for _, value := range kvPairs {
-		HKey := value.Hash[:]
+		valbuf := make([]byte, 4)
+		hidBuf := make([]byte, 8)
+
+		HKey := value.Hash.Hsh[:]
+		HId := value.Hash.Id
 		HPos := value.OffsetIdx
 		binary.LittleEndian.PutUint32(valbuf, uint32(HPos))
+		binary.LittleEndian.PutUint64(hidBuf, uint64(HId))
+		valbuf = append(valbuf, hidBuf...)
+		fmt.Printf("BatchPut dbputkey hash=%s hid=%d\n",
+			base58.Encode(HKey), int64(HId))
+
 		err := rd.Rdb.Put(rd.wo, HKey, valbuf)
 		if err != nil {
 			fmt.Println("[rocksdb]put dnhash to rocksdb error:", err)
@@ -484,7 +506,7 @@ func (rd *KvDB) BatchWriteKV(batch map[ydcommon.IndexTableKey][]byte) error {
 	var err error
 	Wbatch := new(gorocksdb.WriteBatch)
 	for key, val := range batch {
-		Wbatch.Put(key[:], val)
+		Wbatch.Put(key.Hsh[:], val)
 	}
 	err = rd.Rdb.Write(rd.wo, Wbatch)
 	return err
@@ -492,7 +514,7 @@ func (rd *KvDB) BatchWriteKV(batch map[ydcommon.IndexTableKey][]byte) error {
 
 func (rd *KvDB) resetKV(batchIndexes []ydcommon.IndexItem, resetCnt uint32) {
 	for j := uint32(0); j < resetCnt; j++ {
-		hashKey := batchIndexes[j].Hash[:]
+		hashKey := batchIndexes[j].Hash.Hsh[:]
 		rd.Rdb.Delete(rd.wo, hashKey[:])
 	}
 }
@@ -532,12 +554,19 @@ func (rd *KvDB) Meta() *ydcommon.Header {
 func (rd *KvDB) Put(key ydcommon.IndexTableKey, value ydcommon.IndexTableValue) error {
 	valbuf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(valbuf, uint32(value))
-	return rd.Rdb.Put(rd.wo, key[:], valbuf)
+
+	hidBuf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(hidBuf, uint64(key.Id))
+	valbuf = append(valbuf, hidBuf...)
+	fmt.Printf("Put dbputkey hash=%s hid=%d\n",
+		base58.Encode(key.Hsh[:]), int64(key.Id))
+
+	return rd.Rdb.Put(rd.wo, key.Hsh[:], valbuf)
 	//return nil
 }
 
 func (rd *KvDB) Delete(key ydcommon.IndexTableKey) error {
-	return rd.Rdb.Delete(rd.wo, key[:])
+	return rd.Rdb.Delete(rd.wo, key.Hsh[:])
 }
 
 func (rd *KvDB) PutDb(key, value []byte) error {
@@ -634,7 +663,8 @@ func (rd *KvDB) GetSettedIter(startkey string) *gorocksdb.Iterator {
 	return iter
 }
 
-func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash, error), startkey string, traveEntries uint64) ([]Hashtohash, string, error) {
+func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash, error),
+	startkey string, traveEntries uint64) ([]Hashtohash, string, error) {
 	var hashTab []Hashtohash
 
 	var err error
@@ -653,8 +683,16 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 		}
 
 		var verifyItem ydcommon.IndexItem
-		copy(verifyItem.Hash[:], iter.Key().Data())
-		verifyItem.OffsetIdx = ydcommon.IndexTableValue(binary.LittleEndian.Uint32(iter.Value().Data()))
+		copy(verifyItem.Hash.Hsh[:], iter.Key().Data())
+		data := iter.Value().Data()
+		if len(data) > 4 {
+			verifyItem.OffsetIdx = ydcommon.IndexTableValue(binary.LittleEndian.Uint32(data[0:4]))
+			verifyItem.Hash.Id = ydcommon.HashId(binary.LittleEndian.Uint64(data[4:12]))
+		} else {
+			verifyItem.OffsetIdx = ydcommon.IndexTableValue(binary.LittleEndian.Uint32(data[0:4]))
+			verifyItem.Hash.Id = 0
+		}
+
 		verifyTab = append(verifyTab, verifyItem)
 	}
 
@@ -678,7 +716,7 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 		ret, err := fn(v.Hash)
 		//pos := binary.LittleEndian.Uint32(v.OffsetIdx)
 		if err != nil {
-			fmt.Println("[verify][travelDB] verify error:", err, "key=", base58.Encode(v.Hash[:]), "value=", v.OffsetIdx)
+			fmt.Println("[verify][travelDB] verify error:", err, "key=", base58.Encode(v.Hash.Hsh[:]), "value=", v.OffsetIdx)
 			hashTab = append(hashTab, ret)
 			continue
 		}

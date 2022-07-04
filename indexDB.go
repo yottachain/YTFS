@@ -138,7 +138,7 @@ func NewIndexDB(dir string, config *opt.Options, init bool) (*IndexDB, error) {
 }
 
 // Get queries value corresponding to the input key.
-func (db *IndexDB) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, error) {
+func (db *IndexDB) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, ydcommon.HashId, error) {
 	return db.indexFile.Get(key)
 }
 
@@ -210,7 +210,7 @@ func (db *IndexDB) TravelDB(fn func(key, val []byte) error) int64 {
 		}
 
 		for key, val := range tab {
-			err := fn(key[:], val)
+			err := fn(key.Hsh[:], val)
 			if err != nil {
 				fmt.Println("[indexdb] TravelDB error: ", err)
 				continue

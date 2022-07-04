@@ -24,6 +24,7 @@ const (
 )
 
 type Hash [HashLength]byte
+type HashId int64
 
 func BytesToHash(b []byte) Hash {
 	var h Hash
@@ -41,7 +42,12 @@ func (h *Hash) SetBytes(b []byte) {
 
 func HexToHash(s string) Hash { return BytesToHash(FromHex(s)) }
 
-type IndexTableKey Hash
+type HashAndId struct {
+	Hsh Hash
+	Id  HashId
+}
+
+type IndexTableKey HashAndId
 type IndexTableValue uint32
 type IndexTable map[IndexTableKey]IndexTableValue
 type IndexItem struct {
