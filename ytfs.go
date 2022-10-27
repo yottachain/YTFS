@@ -7,14 +7,15 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/mr-tron/base58/base58"
-	ydcommon "github.com/yottachain/YTFS/common"
-	"github.com/yottachain/YTFS/opt"
 	"log"
 	_ "net/http/pprof"
 	"os"
 	"path"
 	"sync"
+
+	"github.com/mr-tron/base58/base58"
+	ydcommon "github.com/yottachain/YTFS/common"
+	"github.com/yottachain/YTFS/opt"
 )
 
 type ytfsStatus struct {
@@ -508,6 +509,7 @@ func (ytfs *YTFS) saveCurrentYTFS() {
 // before.
 
 func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
+	fmt.Println("[YTFSPERF]  enter YTFS::BatchPut")
 	if ytfs.config.UseKvDb {
 		gcspace, err := ytfs.db.GetDb([]byte(gcspacecntkey))
 
