@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"sync"
+	"time"
 
 	"github.com/mr-tron/base58/base58"
 	ydcommon "github.com/yottachain/YTFS/common"
@@ -509,9 +510,17 @@ func (ytfs *YTFS) saveCurrentYTFS() {
 // before.
 
 func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
-	fmt.Println("[YTFSPERF]  enter YTFS::BatchPut")
+
+	var firstShardHash []byte
+	for key, _ := range batch {
+		firstShardHash = key.Hsh[:]
+	}
+	fmt.Println("[YTFSPERF]  enter YTFS::BatchPut first_shard_hash : ", base58.Encode(firstShardHash), " ,  batch len : ", len(batch))
+	startTime := time.Now()
+	
 	if ytfs.config.UseKvDb {
 		gcspace, err := ytfs.db.GetDb([]byte(gcspacecntkey))
+		fmt.Printf("[YTFSPERF] first_shard_hash %s , batch len: %d, ytfs.db.GetDb use [%f]\n", base58.Encode(firstShardHash), len(batch), time.Now().Sub(startTime).Seconds())
 
 		if gcspace != nil {
 			fmt.Println("[gcdel]  batchput get gcspacecnt len(gcspace)=", len(gcspace))
@@ -598,16 +607,31 @@ func (ytfs *YTFS) BatchPutGcDo(bitmaptab []ydcommon.GcTableItem, num uint32) (in
 }
 
 func (ytfs *YTFS) BatchPutGc(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
+	var firstShardHash []byte
+	for key, _ := range batch {
+		firstShardHash = key.Hsh[:]
+	}
+	fmt.Println("[YTFSPERF]  enter YTFS::BatchPutGc first_shard_hash : ", base58.Encode(firstShardHash), " ,  batch len : ", len(batch))
+	startTime := time.Now()
+
 	lenbatch := len(batch)
 	GcLock.Lock()
 	defer GcLock.Unlock()
+
+	fmt.Printf("[YTFSPERF] first_shard_hash %s , batch len: %d, BatchPutGc get lock use [%f]\n", base58.Encode(firstShardHash), len(batch), time.Now().Sub(startTime).Seconds())
+
+	startTime = time.Now()
 	//GcWrtOverNum much use
 	bitmaptab, err := ytfs.db.GetBitMapTab(lenbatch + GcWrtOverNum)
+	fmt.Printf("[YTFSPERF] first_shard_hash %s , batch len: %d, BatchPutGc-db.GetBitMapTab use [%f]\n", base58.Encode(firstShardHash), len(batch), time.Now().Sub(startTime).Seconds())
 
 	if err != nil || len(bitmaptab) < lenbatch {
 		fmt.Println("[gcdel] get del bitmaptab error:", err)
 		return ytfs.BatchPutNormal(batch)
 	}
+
+	startTime = time.Now()
+
 	i := 0
 	for key, val := range batch {
 		gctabItem := bitmaptab[i]
@@ -625,17 +649,34 @@ func (ytfs *YTFS) BatchPutGc(batch map[ydcommon.IndexTableKey][]byte) (map[ydcom
 		i++
 	}
 
+	fmt.Printf("[YTFSPERF] first_shard_hash %s , batch len: %d, BatchPutGc-db.WriteIndex use [%f]\n", base58.Encode(firstShardHash), len(batch), time.Now().Sub(startTime).Seconds())
+
+	startTime = time.Now()
 	errcode, err := ytfs.BatchPutGcDo(bitmaptab, uint32(i))
+	fmt.Printf("[YTFSPERF] first_shard_hash %s , batch len: %d, BatchPutGc-BatchPutGcDo use [%f]\n", base58.Encode(firstShardHash), len(batch), time.Now().Sub(startTime).Seconds())
+
 	if err != nil {
+		startTime = time.Now()
 		ytfs.BatchPutGcUnDo(bitmaptab, uint32(i), errcode)
+		fmt.Printf("[YTFSPERF] first_shard_hash %s , batch len: %d, BatchPutGc-BatchPutGcUnDo use [%f]\n", base58.Encode(firstShardHash), len(batch), time.Now().Sub(startTime).Seconds())
 	}
 
 	return nil, err
 }
 
 func (ytfs *YTFS) BatchPutNormal(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommon.IndexTableKey]byte, error) {
+	var firstShardHash []byte
+	for key, _ := range batch {
+		firstShardHash = key.Hsh[:]
+	}
+	fmt.Println("[YTFSPERF]  enter YTFS::BatchPutNormal first_shard_hash : ", base58.Encode(firstShardHash), " ,  batch len : ", len(batch))
+	startTime := time.Now()
+
 	ytfs.mutex.Lock()
 	defer ytfs.mutex.Unlock()
+
+	fmt.Printf("[YTFSPERF] first_shard_hash %s , batch len: %d, BatchPutNormal get lock use [%f]\n", base58.Encode(firstShardHash), len(batch), time.Now().Sub(startTime).Seconds())
+
 
 	if len(batch) > 1000 {
 		return nil, fmt.Errorf("Batch Size is too big")
@@ -643,7 +684,10 @@ func (ytfs *YTFS) BatchPutNormal(batch map[ydcommon.IndexTableKey][]byte) (map[y
 	fmt.Println("BatchPut len(batch)=", len(batch))
 
 	// NO get check, but retore all status if error
+	startTime = time.Now()
 	ytfs.saveCurrentYTFS()
+	fmt.Printf("[YTFSPERF] first_shard_hash %s , batch len: %d, BatchPutNormal-saveCurrentYTFS use [%f]\n", base58.Encode(firstShardHash), len(batch), time.Now().Sub(startTime).Seconds())
+
 	batchIndexes := make([]ydcommon.IndexItem, len(batch))
 	batchBuffer := []byte{}
 	bufCnt := len(batch)
@@ -656,7 +700,10 @@ func (ytfs *YTFS) BatchPutNormal(batch map[ydcommon.IndexTableKey][]byte) (map[y
 		i++
 	}
 
+	startTime = time.Now()
 	startPos, err := ytfs.context.BatchPut(bufCnt, batchBuffer)
+	fmt.Printf("[YTFSPERF] first_shard_hash %s , batch len: %d, BatchPutNormal-context.BatchPut use [%f]\n", base58.Encode(firstShardHash), len(batch), time.Now().Sub(startTime).Seconds())
+
 
 	if err != nil {
 		fmt.Println("[indexdb] ytfs.context.BatchPut error")
@@ -665,7 +712,9 @@ func (ytfs *YTFS) BatchPutNormal(batch map[ydcommon.IndexTableKey][]byte) (map[y
 	}
 
 	//update the write position to db
+	startTime = time.Now()
 	err = ytfs.db.UpdateMeta(uint64(bufCnt))
+	fmt.Printf("[YTFSPERF] first_shard_hash %s , batch len: %d, BatchPutNormal-db.UpdateMeta use [%f]\n", base58.Encode(firstShardHash), len(batch), time.Now().Sub(startTime).Seconds())
 	if err != nil {
 		fmt.Println("update position error:", err)
 		return nil, err
@@ -677,8 +726,9 @@ func (ytfs *YTFS) BatchPutNormal(batch map[ydcommon.IndexTableKey][]byte) (map[y
 			OffsetIdx: ydcommon.IndexTableValue(startPos + i)}
 
 	}
-
+	startTime = time.Now()
 	conflicts, err := ytfs.db.BatchPut(batchIndexes)
+	fmt.Printf("[YTFSPERF] first_shard_hash %s , batch len: %d, BatchPutNormal-db.BatchPut use [%f]\n", base58.Encode(firstShardHash), len(batch), time.Now().Sub(startTime).Seconds())
 
 	if err != nil {
 		fmt.Println("update K-V to DB error:", err)
