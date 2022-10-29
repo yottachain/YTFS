@@ -10,12 +10,13 @@ import (
 	"runtime"
 	"sync"
 
+	"unsafe"
+
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/errors"
 	"github.com/yottachain/YTFS/getresource"
 	"github.com/yottachain/YTFS/opt"
 	"github.com/yottachain/YTFS/storage"
-	"unsafe"
 )
 
 var (
@@ -115,7 +116,7 @@ func initStorages(config *opt.Options, init bool) ([]*storageContext, error) {
 				RealCap = 0
 			} else {
 				RealCap = size - (uint64)(unsafe.Sizeof(header))
-				RealCap = RealCap / 16384
+				RealCap = RealCap / uint64(config.DataBlockSize)
 			}
 		}
 

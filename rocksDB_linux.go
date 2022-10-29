@@ -17,7 +17,6 @@ import (
 )
 
 //should not modify
-const YtBlkSize = 16384
 const mdbFileName = "/maindb"
 const ytPosKey = "yt_rocks_pos_key"
 const ytPosKeyNew = "yt_rocks_pos_key_newpos"
@@ -120,7 +119,7 @@ func openYTFSK(dir string, config *opt.Options, init bool) (*YTFS, error) {
 		return nil, err
 	}
 
-	err = mDB.ChkBlkSizeKvDB()
+	err = mDB.ChkBlkSizeKvDB(config)
 	if err != nil {
 		fmt.Println("[KvDB] CheckBlkSize Error:", err)
 		return nil, err
@@ -217,7 +216,7 @@ func startYTFSK(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 		return nil, err
 	}
 
-	err = mDB.ChkBlkSizeKvDB()
+	err = mDB.ChkBlkSizeKvDB(config)
 	if err != nil {
 		fmt.Println("[KvDB] CheckBlkSize Error:", err)
 		return nil, err
@@ -387,7 +386,7 @@ INIT:
 	}
 }
 
-func (rd *KvDB) ChkBlkSizeKvDB() error {
+func (rd *KvDB) ChkBlkSizeKvDB(config *opt.Options) error {
 	if YtBlkSize != rd.Header.DataBlockSize {
 		err := fmt.Errorf("blksize of config error")
 		return err

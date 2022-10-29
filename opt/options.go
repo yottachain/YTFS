@@ -4,10 +4,11 @@ package opt
 import (
 	"encoding/json"
 	"errors"
-	ytfs "github.com/yottachain/YTFS/common"
 	"io/ioutil"
 	"math"
 	"math/bits"
+
+	ytfs "github.com/yottachain/YTFS/common"
 )
 
 // common size limitations
@@ -135,7 +136,6 @@ func SaveConfig(config *Options, fileName string) error {
 // 1. Do a few calculation according to config setting.
 // 2. Check if config setting is valid.
 func FinalizeConfig(config *Options) (*Options, error) {
-	config.DataBlockSize = 16384 //this value is consistent, should not varied
 
 	// check C in range
 	maxDiskCapability := uint64(1) << ((uint32)(bits.Len32(config.DataBlockSize)-1) + (uint32)(32))

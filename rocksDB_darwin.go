@@ -3,18 +3,18 @@ package ytfs
 import (
 	"encoding/binary"
 	"fmt"
+	"os"
+	"path"
+	"sort"
+	"sync"
+	"unsafe"
+
 	"github.com/mr-tron/base58/base58"
 	"github.com/tecbot/gorocksdb"
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
-	"sort"
-	"os"
-	"path"
-	"sync"
-	"unsafe"
 )
 
-const YtBlkSize = 16384
 var mdbFileName = "/maindb"
 const ytPosKey    = "yt_rocks_pos_key"
 const ytPosKeyNew    = "yt_rocks_pos_key_newpos"
@@ -114,7 +114,7 @@ func openYTFSK(dir string, config *opt.Options) (*YTFS, error) {
     	return nil, err
     }
 
-    err = mDB.ChkBlkSizeKvDB()
+    err = mDB.ChkBlkSizeKvDB(config)
     if err != nil {
     	fmt.Println("[KvDB] CheckBlkSize Error:",err)
     	return nil, err
@@ -205,8 +205,8 @@ func (rd *KvDB) ChkDataPos(dir string, config *opt.Options) error{
 	return nil
 }
 
-func (rd *KvDB) ChkBlkSizeKvDB() error {
-	if YtBlkSize != rd.Header.DataBlockSize {
+func (rd *KvDB) ChkBlkSizeKvDB(config *opt.Options) error {
+	if config.DataBlockSize != rd.Header.DataBlockSize {
 			err :=fmt.Errorf("blksize of config error")
 			return  err
 	}
