@@ -387,7 +387,7 @@ INIT:
 }
 
 func (rd *KvDB) ChkBlkSizeKvDB(config *opt.Options) error {
-	if YtBlkSize != rd.Header.DataBlockSize {
+	if config.DataBlockSize != rd.Header.DataBlockSize {
 		err := fmt.Errorf("blksize of config error")
 		return err
 	}
