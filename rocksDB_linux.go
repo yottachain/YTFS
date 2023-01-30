@@ -16,7 +16,7 @@ import (
 	"unsafe"
 )
 
-//should not modify
+// should not modify
 const mdbFileName = "/maindb"
 const ytPosKey = "yt_rocks_pos_key"
 const ytPosKeyNew = "yt_rocks_pos_key_newpos"
@@ -67,7 +67,7 @@ func openKVDB(DBPath string) (kvdb *KvDB, err error) {
 	}, err
 }
 
-//used for init ytfs
+// used for init ytfs
 func openYTFSK(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	//TODO: file lock to avoid re-open.
 	//1. open system dir for YTFS
@@ -156,7 +156,7 @@ func openYTFSK(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	return ytfs, nil
 }
 
-//used for start ytfs
+// used for start ytfs
 func startYTFSK(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS, error) {
 	if fi, err := os.Stat(dir); err == nil {
 		// dir/file exists, check if it can be reloaded.
@@ -386,7 +386,6 @@ INIT:
 	}
 }
 
-
 func (rd *KvDB) ChkBlkSizeKvDB(config *opt.Options) error {
 	if config.DataBlockSize != rd.Header.DataBlockSize {
 		err := fmt.Errorf("blksize of config error")
@@ -479,7 +478,7 @@ func (rd *KvDB) ModifyMeta(account uint64) error {
 }
 
 func (rd *KvDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableKey]byte, error) {
-	for _, value := range kvPairs {
+	for i, value := range kvPairs {
 		valbuf := make([]byte, 4)
 		hidBuf := make([]byte, 8)
 
@@ -489,8 +488,8 @@ func (rd *KvDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableK
 		binary.LittleEndian.PutUint32(valbuf, uint32(HPos))
 		binary.LittleEndian.PutUint64(hidBuf, uint64(HId))
 		valbuf = append(valbuf, hidBuf...)
-		fmt.Printf("BatchPut dbputkey hash=%s hid=%d\n",
-			base58.Encode(HKey), int64(HId))
+		fmt.Printf("BatchPut dbputkey index=%d hash=%s hid=%d\n",
+			i, base58.Encode(HKey), int64(HId))
 
 		err := rd.Rdb.Put(rd.wo, HKey, valbuf)
 		if err != nil {
