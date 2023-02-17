@@ -170,3 +170,11 @@ func (ti *TableIterator) GetNoNilTableBytes() (bytesTable, error) {
 		}
 	}
 }
+
+func (ti *TableIterator) GetTableVersion() []byte {
+	return ti.ytfsIndexFile.MetaData().Version[:]
+}
+
+func (ti *TableIterator) GetDnIdFromTab() uint32 {
+	return ti.ytfsIndexFile.MetaData().DataNodeId
+}
