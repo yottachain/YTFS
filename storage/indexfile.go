@@ -152,7 +152,9 @@ func (indexFile *YTFSIndexFile) loadTableFromStorage(tbIndex uint32) (map[ydcomm
 	defer indexFile.store.ReaderIndexClose(index)
 
 	reader, _ := indexFile.store.Reader(index)
-	itemSize := uint32(unsafe.Sizeof(ydcommon.IndexTableKey{}) + unsafe.Sizeof(ydcommon.IndexTableValue(0)))
+	keySize := uint32(unsafe.Sizeof(ydcommon.IndexTableKey{}))
+	valueSize := uint32(unsafe.Sizeof(ydcommon.IndexTableValue(0)))
+	itemSize := keySize + valueSize
 	tableAllocationSize := indexFile.meta.RangeCoverage*itemSize + 4
 	reader.Seek(int64(indexFile.meta.HashOffset)+int64(tbIndex)*int64(tableAllocationSize), io.SeekStart)
 
@@ -166,15 +168,17 @@ func (indexFile *YTFSIndexFile) loadTableFromStorage(tbIndex uint32) (map[ydcomm
 
 	// read table contents
 	tableBuf := make([]byte, tableSize*itemSize, tableSize*itemSize)
-	_, err := reader.Read(tableBuf)
+	n, err := reader.Read(tableBuf)
 	if err != nil {
 		return nil, err
 	}
 
+	realSize := uint32(n) / itemSize
+
 	table := map[ydcommon.IndexTableKey]ydcommon.IndexTableValue{}
-	for i := uint32(0); i < tableSize; i++ {
-		key := ydcommon.BytesToHash(tableBuf[i*itemSize : i*itemSize+16])
-		value := binary.LittleEndian.Uint32(tableBuf[i*itemSize+16 : i*itemSize+20][:])
+	for i := uint32(0); i < realSize; i++ {
+		key := ydcommon.BytesToHash(tableBuf[i*itemSize : i*itemSize+keySize])
+		value := binary.LittleEndian.Uint32(tableBuf[i*itemSize+keySize : i*itemSize+valueSize][:])
 		table[ydcommon.IndexTableKey{Hsh: key, Id: 0}] = ydcommon.IndexTableValue(value)
 	}
 	return table, nil
@@ -595,7 +599,6 @@ func (indexFile *YTFSIndexFile) updateTable(key ydcommon.IndexTableKey, value yd
 //
 // The returned YTFSIndexFile instance is safe for concurrent use.
 // The YTFSIndexFile must be closed after use, by calling Close method.
-//
 func OpenYTFSIndexFile(path string, ytfsConfig *opt.Options, init bool) (*YTFSIndexFile, error) {
 	storage, err := openIndexStorage(path, ytfsConfig)
 	if err != nil {
