@@ -73,20 +73,20 @@ const GcWrtOverNum = 3
 //		panic(err)
 //	}
 //	...
-func OpenInit(dir string, config *opt.Options) (ytfs *YTFS, err error) {
+func OpenInit(dir string, config *opt.Options, dnId uint32) (ytfs *YTFS, err error) {
 	settings, err := opt.FinalizeConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	return openYTFS(dir, settings, true)
+	return openYTFS(dir, settings, true, dnId)
 }
 
-func OpenGet(dir string, config *opt.Options) (ytfs *YTFS, err error) {
+func OpenGet(dir string, config *opt.Options, dnId uint32) (ytfs *YTFS, err error) {
 	settings, err := opt.FinalizeConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	return openYTFS(dir, settings, false)
+	return openYTFS(dir, settings, false, dnId)
 }
 
 func Open(dir string, config *opt.Options, dnid uint32) (ytfs *YTFS, err error) {
@@ -98,13 +98,13 @@ func Open(dir string, config *opt.Options, dnid uint32) (ytfs *YTFS, err error) 
 }
 
 // NewYTFS create a YTFS by config
-func NewYTFS(dir string, config *opt.Options, init bool) (*YTFS, error) {
+func NewYTFS(dir string, config *opt.Options, init bool, dnId uint32) (*YTFS, error) {
 	ytfs := new(YTFS)
 	indexDB, err := NewIndexDB(dir, config, init)
 	if err != nil {
 		return nil, err
 	}
-	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint, init)
+	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint, init, dnId)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +184,7 @@ func startYTFSI(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 	//}
 
 	//3. open storages
-	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint, init)
+	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint, init, dnid)
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +212,7 @@ func startYTFSI(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 }
 
 // used for init ytfs-node
-func openYTFSI(dir string, config *opt.Options, init bool) (*YTFS, error) {
+func openYTFSI(dir string, config *opt.Options, init bool, dnId uint32) (*YTFS, error) {
 	//TODO: file lock to avoid re-open.
 
 	fileName := path.Join(dir, "dbsafe")
@@ -269,7 +269,7 @@ func openYTFSI(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	//}
 
 	//3. open storages
-	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint, init)
+	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint, init, dnId)
 	if err != nil {
 		return nil, err
 	}

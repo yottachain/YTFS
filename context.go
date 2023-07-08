@@ -539,8 +539,9 @@ func (c *Context) CheckStorageDnid(dnid uint32) (bool, error) {
 	header := c.GetStorageHeader()
 	version := header.Version
 	fmt.Println("version=", string(version[:]))
-	OldVersion := [4]byte{0x0, '.', 0x0, 0x1}
-	if version == OldVersion || string(version[:]) == StoreVersion001 {
+	OldVersion001 := [4]byte{0x0, '.', 0x0, 0x1}
+	OldVersion002 := [4]byte{0x0, '.', 0x0, 0x2}
+	if version == OldVersion001 || string(version[:]) == StoreVersion001 {
 		err = c.SetDnIdToStor(dnid)
 		if err != nil {
 			fmt.Println("SetDnIdToIdxDB error:", err.Error())
@@ -548,7 +549,14 @@ func (c *Context) CheckStorageDnid(dnid uint32) (bool, error) {
 		}
 		_ = c.SetVersionToStor(StoreVersion003)
 	} else {
-		if version == StoreVersion003 {
+		if version == OldVersion002 || string(version[:]) == StoreVersion002 {
+			StorDn = c.GetDnIdFromStor()
+			if StorDn != dnid {
+				fmt.Println("error: dnid not equal,stor=", StorDn, " cfg=", dnid)
+				err = fmt.Errorf("dnid not equal,stor=", StorDn, " cfg=", dnid)
+				return false, err
+			}
+		} else {
 			for idx, storage := range c.GetStorageContext() {
 				StorDn = storage.Disk.GetDnIdFromStore()
 				if StorDn != dnid {
@@ -558,13 +566,6 @@ func (c *Context) CheckStorageDnid(dnid uint32) (bool, error) {
 						idx, storage.Name, StorDn, dnid)
 					return false, err
 				}
-			}
-		} else {
-			StorDn = c.GetDnIdFromStor()
-			if StorDn != dnid {
-				fmt.Println("error: dnid not equal,stor=", StorDn, " cfg=", dnid)
-				err = fmt.Errorf("dnid not equal,stor=", StorDn, " cfg=", dnid)
-				return false, err
 			}
 		}
 	}

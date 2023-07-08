@@ -11,7 +11,7 @@ func openYTFS(dir string, config *opt.Options, init bool, dnId uint32) (*YTFS, e
 		return openYTFSK(dir, config, init, dnId)
 	}
 	fmt.Println("use indexdb")
-	return openYTFSI(dir, config, init)
+	return openYTFSI(dir, config, init, dnId)
 }
 
 func startYTFS(dir string, config *opt.Options, dnid uint32) (*YTFS, error) {
