@@ -25,6 +25,7 @@ type StorageHeader struct {
 	DataBlockSize uint32  `json:"dataBlkSize"`
 	DataOffset    uint32  `json:"dataOffset"`
 	DataCapacity  uint32  `json:"DataCapacity"`
-	Reserved      uint32  `json:"reserved"`
+	DiskIdx       uint16  `json:"diskIdx"`
+	Reserved      uint16  `json:"reserved"`
 	DataNodeId    uint32  `json:"DataNodeId"`
 }

@@ -51,8 +51,8 @@ type Context struct {
 }
 
 // NewContext creates a new YTFS context
-func NewContext(dir string, config *opt.Options, dataCount uint64, init bool) (*Context, error) {
-	storages, err := initStorages(config, init)
+func NewContext(dir string, config *opt.Options, dataCount uint64, init bool, dnId uint32) (*Context, error) {
+	storages, err := initStorages(config, init, dnId)
 	if err != nil {
 		return nil, err
 	}
@@ -85,17 +85,19 @@ func NewContext(dir string, config *opt.Options, dataCount uint64, init bool) (*
 	return context, err
 }
 
-//func GetRealDiskCap(path string) uint64 {
-//	return getresource.GetDiskCap(path)
-//}
+//	func GetRealDiskCap(path string) uint64 {
+//		return getresource.GetDiskCap(path)
+//	}
 func GetRealDiskCap(stor storage.Storage) uint64 {
 	return getresource.GetDiskCap(stor)
 }
 
-func initStorages(config *opt.Options, init bool) ([]*storageContext, error) {
-	contexts := []*storageContext{}
-	for _, storageOpt := range config.Storages {
-		disk, err := storage.OpenYottaDisk(&storageOpt, init)
+func initStorages(config *opt.Options, init bool, dnId uint32) ([]*storageContext, error) {
+	diskCount := len(config.Storages)
+	contexts := make([]*storageContext, diskCount, diskCount)
+	for idx, storageOpt := range config.Storages {
+		fmt.Printf("storage index %d, storage name %s\n", idx, storageOpt.StorageName)
+		disk, err := storage.OpenYottaDisk(&storageOpt, init, idx, dnId)
 		if err != nil {
 			// TODO: handle error if necessary, like keep using successed storages.
 			return nil, err
@@ -119,13 +121,38 @@ func initStorages(config *opt.Options, init bool) ([]*storageContext, error) {
 			}
 		}
 
-		contexts = append(contexts, &storageContext{
-			Name:        storageOpt.StorageName,
-			Cap:         disk.Capability(),
-			Len:         0,
-			Disk:        disk,
-			RealDiskCap: uint32(RealCap),
-		})
+		version := disk.GetStorageHeader().Version
+		Version001 := [4]byte{0x0, '.', 0x0, 0x1}
+		Version002 := [4]byte{0x0, '.', 0x0, 0x2}
+		if version == Version001 ||
+			string(version[:]) == StoreVersion001 ||
+			version == Version002 ||
+			string(version[:]) == StoreVersion002 {
+			contexts = append(contexts, &storageContext{
+				Name:        storageOpt.StorageName,
+				Cap:         disk.Capability(),
+				Len:         0,
+				Disk:        disk,
+				RealDiskCap: uint32(RealCap),
+			})
+		} else {
+			realIdx := disk.Index() & storage.DiskIdxMax
+			if (disk.Index()&storage.DiskIdxPre == storage.DiskIdxPre) &&
+				(realIdx < uint16(diskCount)) {
+				contexts[realIdx] = &storageContext{
+					Name:        storageOpt.StorageName,
+					Cap:         disk.Capability(),
+					Len:         0,
+					Disk:        disk,
+					RealDiskCap: uint32(RealCap),
+				}
+				fmt.Printf("storage origin index %d, storage name %s\n", idx, storageOpt.StorageName)
+			} else {
+				return nil, fmt.Errorf("stroage %s, %s",
+					storageOpt.StorageName, errors.ErrStorageSerialNumber.Error())
+			}
+
+		}
 	}
 
 	return contexts, nil
@@ -496,11 +523,9 @@ func (c *Context) SetDnIdToStor(dnid uint32) error {
 	return err
 }
 
-func (c *Context) SetVersionToStor(version string) error {
+func (c *Context) SetVersionToStor(vs [4]byte) error {
 	var err error
-	vs := []byte(version)
-	//binary.LittleEndian.PutUint32(Bdn, dnid)
-	err = c.storages[0].Disk.SetVersionToStore(vs[0:4])
+	err = c.storages[0].Disk.SetVersionToStore(vs[:])
 	return err
 }
 
@@ -515,19 +540,32 @@ func (c *Context) CheckStorageDnid(dnid uint32) (bool, error) {
 	version := header.Version
 	fmt.Println("version=", string(version[:]))
 	OldVersion := [4]byte{0x0, '.', 0x0, 0x1}
-	if version == OldVersion || string(version[:]) == OldStoreVersion {
+	if version == OldVersion || string(version[:]) == StoreVersion001 {
 		err = c.SetDnIdToStor(dnid)
 		if err != nil {
 			fmt.Println("SetDnIdToIdxDB error:", err.Error())
 			return false, err
 		}
-		_ = c.SetVersionToStor(StoreVersion)
+		_ = c.SetVersionToStor(StoreVersion003)
 	} else {
-		StorDn = c.GetDnIdFromStor()
-		if StorDn != dnid {
-			fmt.Println("error: dnid not equal,stor=", StorDn, " cfg=", dnid)
-			err = fmt.Errorf("dnid not equal,stor=", StorDn, " cfg=", dnid)
-			return false, err
+		if version == StoreVersion003 {
+			for idx, storage := range c.GetStorageContext() {
+				StorDn = storage.Disk.GetDnIdFromStore()
+				if StorDn != dnid {
+					fmt.Printf("error: dnid not equal,storage idx %d storage name %s storage dnid %d, cfg dnid %d\n",
+						idx, storage.Name, StorDn, dnid)
+					err = fmt.Errorf("error: dnid not equal,storage idx %d storage name %s storage dnid %d, cfg dnid %d\n",
+						idx, storage.Name, StorDn, dnid)
+					return false, err
+				}
+			}
+		} else {
+			StorDn = c.GetDnIdFromStor()
+			if StorDn != dnid {
+				fmt.Println("error: dnid not equal,stor=", StorDn, " cfg=", dnid)
+				err = fmt.Errorf("dnid not equal,stor=", StorDn, " cfg=", dnid)
+				return false, err
+			}
 		}
 	}
 	fmt.Println("CheckStorageDnid, stor=", StorDn, " cfg=", dnid)

@@ -16,7 +16,7 @@ import (
 	"unsafe"
 )
 
-//should not modify
+// should not modify
 const YtBlkSize = 16384
 const mdbFileName = "/maindb"
 const ytPosKey = "yt_rocks_pos_key"
@@ -68,8 +68,8 @@ func openKVDB(DBPath string) (kvdb *KvDB, err error) {
 	}, err
 }
 
-//used for init ytfs
-func openYTFSK(dir string, config *opt.Options, init bool) (*YTFS, error) {
+// used for init ytfs
+func openYTFSK(dir string, config *opt.Options, init bool, dnId uint32) (*YTFS, error) {
 	//TODO: file lock to avoid re-open.
 	//1. open system dir for YTFS
 
@@ -107,7 +107,7 @@ func openYTFSK(dir string, config *opt.Options, init bool) (*YTFS, error) {
 		return nil, err
 	}
 
-	Header, err := initializeHeader(config)
+	Header, err := initializeHeader(config, dnId)
 	if err != nil {
 		fmt.Println("[KvDB]initialize Header error")
 		return nil, err
@@ -127,7 +127,7 @@ func openYTFSK(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	}
 
 	//3. open storages
-	context, err := NewContext(dir, config, uint64(mDB.PosIdx), init)
+	context, err := NewContext(dir, config, uint64(mDB.PosIdx), init, dnId)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +157,7 @@ func openYTFSK(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	return ytfs, nil
 }
 
-//used for start ytfs
+// used for start ytfs
 func startYTFSK(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS, error) {
 	if fi, err := os.Stat(dir); err == nil {
 		// dir/file exists, check if it can be reloaded.
@@ -204,7 +204,7 @@ func startYTFSK(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 		return nil, err
 	}
 
-	Header, err := initializeHeader(config)
+	Header, err := initializeHeader(config, dnid)
 	if err != nil {
 		fmt.Println("[KvDB]initialize Header error")
 		return nil, err
@@ -224,7 +224,7 @@ func startYTFSK(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 	}
 
 	//3. open storages
-	context, err := NewContext(dir, config, uint64(mDB.PosIdx), init)
+	context, err := NewContext(dir, config, uint64(mDB.PosIdx), init, dnid)
 	if err != nil {
 		return nil, err
 	}
@@ -425,7 +425,7 @@ func (rd *KvDB) Get(key ydcommon.IndexTableKey) (ydcommon.IndexTableValue, ydcom
 	return ydcommon.IndexTableValue(pos), ydcommon.HashId(hid), nil
 }
 
-func initializeHeader(config *opt.Options) (*ydcommon.Header, error) {
+func initializeHeader(config *opt.Options, dnId uint32) (*ydcommon.Header, error) {
 	m, n := config.IndexTableCols, config.IndexTableRows
 	t, d, h := config.TotalVolumn, config.DataBlockSize, uint32(unsafe.Sizeof(ydcommon.Header{}))
 
@@ -446,8 +446,9 @@ func initializeHeader(config *opt.Options) (*ydcommon.Header, error) {
 		HashOffset:     h,
 		DataEndPoint:   0,
 		RecycleOffset:  uint64(h) + (uint64(n)+1)*(uint64(m)*36+4),
-		DataNodeId:     0xFFFFFFFF,
-		Reserved:       0xCDCDCDCD,
+		//DataNodeId:     0xFFFFFFFF,
+		DataNodeId: dnId,
+		Reserved:   0xCDCDCDCD,
 	}
 	return &header, nil
 }
