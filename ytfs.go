@@ -56,38 +56,39 @@ const GcWrtOverNum = 3
 // The returned YTFS instance is safe for concurrent use.
 // The YTFS must be closed after use, by calling Close method.
 // Usage Sample, ref to playground.go:
-//		...
-//		config := opt.DefaultOptions()
 //
-//		ytfs, err := ytfs.Open(path, config)
-//		if err != nil {
-//			panic(err)
-//		}
-//		defer ytfs.Close()
-//		err = ytfs.Put(ydcommon.IndexTableKey, ydcommon.IndexTableValue)
-//		if err != nil {
-//			panic(err)
-//		}
+//	...
+//	config := opt.DefaultOptions()
 //
-//		ydcommon.IndexTableValue, err = ytfs.Gut(ydcommon.IndexTableKey)
-//		if err != nil {
-//			panic(err)
-//		}
-//		...
-func OpenInit(dir string, config *opt.Options) (ytfs *YTFS, err error) {
+//	ytfs, err := ytfs.Open(path, config)
+//	if err != nil {
+//		panic(err)
+//	}
+//	defer ytfs.Close()
+//	err = ytfs.Put(ydcommon.IndexTableKey, ydcommon.IndexTableValue)
+//	if err != nil {
+//		panic(err)
+//	}
+//
+//	ydcommon.IndexTableValue, err = ytfs.Gut(ydcommon.IndexTableKey)
+//	if err != nil {
+//		panic(err)
+//	}
+//	...
+func OpenInit(dir string, config *opt.Options, dnId uint32) (ytfs *YTFS, err error) {
 	settings, err := opt.FinalizeConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	return openYTFS(dir, settings, true)
+	return openYTFS(dir, settings, true, dnId)
 }
 
-func OpenGet(dir string, config *opt.Options) (ytfs *YTFS, err error) {
+func OpenGet(dir string, config *opt.Options, dnId uint32) (ytfs *YTFS, err error) {
 	settings, err := opt.FinalizeConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	return openYTFS(dir, settings, false)
+	return openYTFS(dir, settings, false, dnId)
 }
 
 func Open(dir string, config *opt.Options, dnid uint32) (ytfs *YTFS, err error) {
@@ -99,13 +100,13 @@ func Open(dir string, config *opt.Options, dnid uint32) (ytfs *YTFS, err error) 
 }
 
 // NewYTFS create a YTFS by config
-func NewYTFS(dir string, config *opt.Options, init bool) (*YTFS, error) {
+func NewYTFS(dir string, config *opt.Options, init bool, dnId uint32) (*YTFS, error) {
 	ytfs := new(YTFS)
 	indexDB, err := NewIndexDB(dir, config, init)
 	if err != nil {
 		return nil, err
 	}
-	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint, init)
+	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint, init, dnId)
 	if err != nil {
 		return nil, err
 	}
@@ -116,11 +117,13 @@ func NewYTFS(dir string, config *opt.Options, init bool) (*YTFS, error) {
 }
 
 const DbVersion = "0.04"
-const StoreVersion = "0.02"
 const OldDbVersion = "0.03"
-const OldStoreVersion = "0.01"
+const StoreVersion002 = "0.02"
+const StoreVersion001 = "0.01"
 
-//used for start ytfs-node
+var StoreVersion003 = [4]byte{0x0, '.', 0x0, 0x3}
+
+// used for start ytfs-node
 func startYTFSI(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS, error) {
 	//TODO: file lock to avoid re-open.
 
@@ -183,7 +186,7 @@ func startYTFSI(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 	//}
 
 	//3. open storages
-	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint, init)
+	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint, init, dnid)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +214,7 @@ func startYTFSI(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 }
 
 // used for init ytfs-node
-func openYTFSI(dir string, config *opt.Options, init bool) (*YTFS, error) {
+func openYTFSI(dir string, config *opt.Options, init bool, dnId uint32) (*YTFS, error) {
 	//TODO: file lock to avoid re-open.
 
 	fileName := path.Join(dir, "dbsafe")
@@ -268,7 +271,7 @@ func openYTFSI(dir string, config *opt.Options, init bool) (*YTFS, error) {
 	//}
 
 	//3. open storages
-	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint, init)
+	context, err := NewContext(dir, config, indexDB.schema.DataEndPoint, init, dnId)
 	if err != nil {
 		return nil, err
 	}

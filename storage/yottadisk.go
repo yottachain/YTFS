@@ -16,6 +16,9 @@ import (
 	"github.com/yottachain/YTFS/opt"
 )
 
+const DiskIdxPre = 0xFF00
+const DiskIdxMax = 0x00FF
+
 // YottaDisk main entry of YTFS storage
 type YottaDisk struct {
 	config *opt.StorageOptions
@@ -61,6 +64,11 @@ func (disk *YottaDisk) Close() error {
 	_ = disk.Sync()
 	_ = disk.store.Close()
 	return nil
+}
+
+// Index disk serial number
+func (disk *YottaDisk) Index() uint16 {
+	return disk.meta.DiskIdx
 }
 
 // ReadData reads data from low level storage
@@ -141,8 +149,7 @@ func (disk *YottaDisk) WriteData(dataOffsetIndex ydcommon.IndexTableValue, data 
 //
 // The returned YottaDisk instance is safe for concurrent use.
 // The YottaDisk must be closed after use, by calling Close method.
-//
-func OpenYottaDisk(yottaConfig *opt.StorageOptions, init bool) (*YottaDisk, error) {
+func OpenYottaDisk(yottaConfig *opt.StorageOptions, init bool, idx int, dnId uint32) (*YottaDisk, error) {
 	storage, err := openStorage(yottaConfig)
 	if err != nil {
 		return nil, err
@@ -151,7 +158,7 @@ func OpenYottaDisk(yottaConfig *opt.StorageOptions, init bool) (*YottaDisk, erro
 	header, err := readHeader(storage)
 	if err != nil || init {
 		if init || opt.IgnoreStorageHeaderErr {
-			header, err = initializeStorage(storage, yottaConfig)
+			header, err = initializeStorage(storage, yottaConfig, idx, dnId)
 			if err != nil {
 				fmt.Println("initialize storage header err", err.Error())
 				return nil, err
@@ -164,7 +171,7 @@ func OpenYottaDisk(yottaConfig *opt.StorageOptions, init bool) (*YottaDisk, erro
 
 	if !validateHeader(header, yottaConfig) {
 		if opt.IgnoreStorageHeaderErr {
-			header, err = initializeStorage(storage, yottaConfig)
+			header, err = initializeStorage(storage, yottaConfig, idx, dnId)
 			if err != nil {
 				return nil, err
 			}
@@ -215,10 +222,12 @@ func validateHeader(header *ydcommon.StorageHeader, yottaConfig *opt.StorageOpti
 		return false
 	}
 
-	return header.DataBlockSize == yottaConfig.DataBlockSize && header.DiskCapacity == yottaConfig.StorageVolume
+	//磁盘乱序的话，容量可能不一致，不判断容量
+	//return header.DataBlockSize == yottaConfig.DataBlockSize && header.DiskCapacity == yottaConfig.StorageVolume
+	return header.DataBlockSize == yottaConfig.DataBlockSize
 }
 
-func initializeStorage(store Storage, config *opt.StorageOptions) (*ydcommon.StorageHeader, error) {
+func initializeStorage(store Storage, config *opt.StorageOptions, idx int, dnId uint32) (*ydcommon.StorageHeader, error) {
 	writer, err := store.Writer()
 	if err != nil {
 		return nil, err
@@ -232,13 +241,15 @@ func initializeStorage(store Storage, config *opt.StorageOptions) (*ydcommon.Sto
 	dataOffset := uint32(h)
 	header := ydcommon.StorageHeader{
 		Tag:           [4]byte{'S', 'T', 'O', 'R'},
-		Version:       [4]byte{0x0, '.', 0x0, 0x1},
+		Version:       [4]byte{0x0, '.', 0x0, 0x3},
 		DiskCapacity:  t,
 		DataBlockSize: uint32(d),
 		DataOffset:    dataOffset,
 		DataCapacity:  uint32((t - h) / d),
-		Reserved:      uint32((t - h) % d), // left-overs
-		DataNodeId:    0xFFFFFFFF,
+		DiskIdx:       DiskIdxPre + uint16(idx),
+		Reserved:      uint16((t - h) % d), // left-overs
+		//DataNodeId:    0xFFFFFFFF,
+		DataNodeId: dnId,
 	}
 
 	writer.Seek(0, io.SeekStart)
