@@ -520,7 +520,7 @@ func (ytfs *YTFS) BatchPut(batch map[ydcommon.IndexTableKey][]byte) (map[ydcommo
 	}
 	fmt.Println("[YTFSPERF]  enter YTFS::BatchPut first_shard_hash : ", base58.Encode(firstShardHash), " ,  batch len : ", len(batch))
 	startTime := time.Now()
-	
+
 	if ytfs.config.UseKvDb {
 		gcspace, err := ytfs.db.GetDb([]byte(gcspacecntkey))
 		fmt.Printf("[YTFSPERF] first_shard_hash %s , batch len: %d, ytfs.db.GetDb use [%f]\n", base58.Encode(firstShardHash), len(batch), time.Now().Sub(startTime).Seconds())
@@ -680,7 +680,6 @@ func (ytfs *YTFS) BatchPutNormal(batch map[ydcommon.IndexTableKey][]byte) (map[y
 
 	fmt.Printf("[YTFSPERF] first_shard_hash %s , batch len: %d, BatchPutNormal get lock use [%f]\n", base58.Encode(firstShardHash), len(batch), time.Now().Sub(startTime).Seconds())
 
-
 	if len(batch) > 1000 {
 		return nil, fmt.Errorf("Batch Size is too big")
 	}
@@ -706,7 +705,6 @@ func (ytfs *YTFS) BatchPutNormal(batch map[ydcommon.IndexTableKey][]byte) (map[y
 	startTime = time.Now()
 	startPos, err := ytfs.context.BatchPut(bufCnt, batchBuffer)
 	fmt.Printf("[YTFSPERF] first_shard_hash %s , batch len: %d, BatchPutNormal-context.BatchPut use [%f]\n", base58.Encode(firstShardHash), len(batch), time.Now().Sub(startTime).Seconds())
-
 
 	if err != nil {
 		fmt.Println("[indexdb] ytfs.context.BatchPut error")
@@ -744,7 +742,7 @@ func (ytfs *YTFS) BatchPutNormal(batch map[ydcommon.IndexTableKey][]byte) (map[y
 func (ytfs *YTFS) GetCapProofSpace() uint32 {
 	ytfs.mutex.Lock()
 	defer ytfs.mutex.Unlock()
-	buf := make([]byte, 16*1024)
+	buf := make([]byte, ytfs.config.DataBlockSize)
 
 	storageContexts := ytfs.context.GetStorageContext()
 	var useCap uint32
