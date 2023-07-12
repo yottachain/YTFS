@@ -722,6 +722,8 @@ func (ytfs *YTFS) BatchPutNormal(batch map[ydcommon.IndexTableKey][]byte) (map[y
 	}
 
 	for i := uint32(0); i < uint32(bufCnt); i++ {
+		fmt.Printf("[BatchPutNormal] shard_hash:%s, hash_id:%d\n",
+			base58.Encode(batchIndexes[i].Hash.Hsh[:]), int64(batchIndexes[i].Hash.Id))
 		batchIndexes[i] = ydcommon.IndexItem{
 			Hash:      batchIndexes[i].Hash,
 			OffsetIdx: ydcommon.IndexTableValue(startPos + i)}
