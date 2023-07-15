@@ -353,6 +353,10 @@ func validateYTFSSchema(meta *ydcommon.Header, opt *opt.Options) (*ydcommon.Head
 	return meta, opt, nil
 }
 
+func InitYTFSStorageHeader(config *opt.Options, dnId uint32) error {
+	return InitStoragesHeader(config, dnId)
+}
+
 // Get gets the value for the given key. It returns ErrNotFound if the
 // DB does not contains the key.
 //

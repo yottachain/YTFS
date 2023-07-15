@@ -93,6 +93,19 @@ func GetRealDiskCap(stor storage.Storage) uint64 {
 	return getresource.GetDiskCap(stor)
 }
 
+func InitStoragesHeader(config *opt.Options, dnId uint32) error {
+	for idx, storageOpt := range config.Storages {
+		fmt.Printf("init storage index %d, storage name %s\n", idx, storageOpt.StorageName)
+		_, err := storage.OpenYottaDisk(&storageOpt, true, idx, dnId)
+		if err != nil {
+			// TODO: handle error if necessary, like keep using successed storages.
+			return err
+		}
+	}
+
+	return nil
+}
+
 func initStorages(config *opt.Options, init bool, dnId uint32) ([]*storageContext, error) {
 	diskCount := len(config.Storages)
 	contexts := make([]*storageContext, diskCount, diskCount)
