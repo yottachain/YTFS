@@ -1081,3 +1081,7 @@ func (ytfs *YTFS) magrateData(key, value []byte) error {
 
 	return nil
 }
+
+func (ytfs *YTFS) InitStoragesHeader(dnId uint32) error {
+	return InitStoragesHeader(ytfs.context.config, dnId)
+}
