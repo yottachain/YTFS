@@ -19,7 +19,7 @@ import (
 // should not modify
 const YtBlkSize = 16384
 
-const mdbFileName = "/maindb"
+const MdbFileName = "/maindb"
 const ytPosKey = "yt_rocks_pos_key"
 const ytPosKeyNew = "yt_rocks_pos_key_newpos"
 const ytBlkSzKey = "yt_blk_size_key"
@@ -99,8 +99,8 @@ func openYTFSK(dir string, config *opt.Options, init bool, dnId uint32) (*YTFS, 
 	}
 
 	//open main kv-db
-	mainDBPath := path.Join(dir, mdbFileName)
-	fmt.Println("dir:", dir, "mdbFileName", mdbFileName, "mainDBPath:", mainDBPath)
+	mainDBPath := path.Join(dir, MdbFileName)
+	fmt.Println("dir:", dir, "MdbFileName", MdbFileName, "mainDBPath:", mainDBPath)
 
 	mDB, err := openKVDB(mainDBPath)
 	if err != nil {
@@ -185,8 +185,8 @@ func startYTFSK(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 	}
 
 	//open main kv-db
-	mainDBPath := path.Join(dir, mdbFileName)
-	fmt.Println("dir:", dir, "mdbFileName", mdbFileName, "mainDBPath:", mainDBPath)
+	mainDBPath := path.Join(dir, MdbFileName)
+	fmt.Println("dir:", dir, "MdbFileName", MdbFileName, "mainDBPath:", mainDBPath)
 
 	if init {
 		//clean db directory
