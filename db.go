@@ -27,5 +27,6 @@ type DB interface {
 	GetReserved() uint32
 	SetReserved(reserved uint32) error
 	CheckDbDnId(uint32) (bool, error)
+	GetDBKeysNum() uint64
 	//GcProcess(fn func(key ydcommon.IndexTableKey) (Hashtohash,error)) error
 }
