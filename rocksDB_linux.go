@@ -730,3 +730,17 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 
 func (rd *KvDB) ScanDB() {
 }
+
+func (rd *KvDB) GetDBKeysNum() uint64 {
+	ro := gorocksdb.NewDefaultReadOptions()
+	ro.SetFillCache(false)
+	iter := rd.Rdb.NewIterator(ro)
+	var count uint64 = 0
+	for iter.SeekToFirst(); iter.Valid(); iter.Next() {
+		if iter.Key().Size() != ydcommon.HashLength {
+			continue
+		}
+		count++
+	}
+	return count
+}
