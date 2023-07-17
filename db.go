@@ -15,7 +15,7 @@ type DB interface {
 	UpdateMeta(account uint64) error
 	ModifyMeta(account uint64) error
 	TravelDB(fn func(key, value []byte) error) int64
-	TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash, error), startkey string, traveEntries uint64) ([]Hashtohash, string, error)
+	TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash, error), startkey string, traveEntries uint64) ([]Hashtohash, string, int, error)
 	Len() uint64
 	PosPtr() uint64
 	TotalSize() uint64

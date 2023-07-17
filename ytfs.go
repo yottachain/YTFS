@@ -913,10 +913,10 @@ func (ytfs *YTFS) VerifySliceOne(key ydcommon.IndexTableKey) (Hashtohash, error)
 	return errHash, nil
 }
 
-func (ytfs *YTFS) VerifySlice(startkey string, traveEntries uint64) ([]Hashtohash, string, error) {
+func (ytfs *YTFS) VerifySlice(startkey string, traveEntries uint64) ([]Hashtohash, string, int, error) {
 	//log.Println("[verify] VerifySlice start")
-	retSlice, beginkey, err := ytfs.db.TravelDBforverify(ytfs.VerifySliceOne, startkey, traveEntries)
-	return retSlice, beginkey, err
+	retSlice, beginkey, n, err := ytfs.db.TravelDBforverify(ytfs.VerifySliceOne, startkey, traveEntries)
+	return retSlice, beginkey, n, err
 }
 
 func (ytfs *YTFS) VerifyHashSlice(key ydcommon.IndexTableKey, slice []byte) bool {

@@ -225,7 +225,7 @@ func (db *IndexDB) TravelDB(fn func(key, val []byte) error) int64 {
 	return succ
 }
 
-func (db *IndexDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash, error), startkey string, traveEntries uint64) ([]Hashtohash, string, error) {
+func (db *IndexDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash, error), startkey string, traveEntries uint64) ([]Hashtohash, string, int, error) {
 	//var DBIter storage.TableIterator
 	var err error
 	var retSlice []Hashtohash
@@ -257,7 +257,7 @@ func (db *IndexDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashto
 	//		//succ++
 	//	}
 	//}
-	return retSlice, beginKey, err
+	return retSlice, beginKey, 0, err
 }
 
 func validateDBSchema(meta *ydcommon.Header, opt *opt.Options) error {

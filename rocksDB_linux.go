@@ -666,7 +666,7 @@ func (rd *KvDB) GetSettedIter(startkey string) *gorocksdb.Iterator {
 }
 
 func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohash, error),
-	startkey string, traveEntries uint64) ([]Hashtohash, string, error) {
+	startkey string, traveEntries uint64) ([]Hashtohash, string, int, error) {
 	var hashTab []Hashtohash
 
 	var err error
@@ -707,7 +707,7 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 
 	if verifyTab == nil || len(verifyTab) == 0 {
 		fmt.Println("[verify][error] verifyTab is nil")
-		return nil, beginKey, nil
+		return nil, beginKey, 0, nil
 	}
 
 	sort.Slice(verifyTab, func(i, j int) bool {
@@ -725,7 +725,7 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 		//fmt.Println("[verify][travelDB] verify succ,key=",base58.Encode(v.Hash[:]),"value=",v.OffsetIdx)
 	}
 
-	return hashTab, beginKey, err
+	return hashTab, beginKey, len(verifyTab), err
 }
 
 func (rd *KvDB) ScanDB() {
