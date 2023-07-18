@@ -16,8 +16,8 @@ import (
 	"github.com/yottachain/YTFS/opt"
 )
 
-const DiskIdxPre = 0xFF00
-const DiskIdxMax = 0x00FF
+const DiskIdxPre uint16 = 0xFF00
+const DiskIdxMax uint16 = 0x00FF
 
 // YottaDisk main entry of YTFS storage
 type YottaDisk struct {
