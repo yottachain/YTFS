@@ -160,7 +160,7 @@ func initStorages(config *opt.Options, init bool, dnId uint32) ([]*storageContex
 					Disk:        disk,
 					RealDiskCap: uint32(RealCap),
 				}
-				fmt.Printf("storage origin index %d, storage name %s\n", idx, storageOpt.StorageName)
+				fmt.Printf("storage origin index %d, real index %d, storage name %s\n", idx, realIdx, storageOpt.StorageName)
 			} else {
 				return nil, fmt.Errorf("stroage %s, %s",
 					storageOpt.StorageName, errors.ErrStorageSerialNumber.Error())
