@@ -11,6 +11,7 @@ func main() {
 	var daPath string
 	mainDBPath := path.Join("root/YTFS", ytfs.MdbFileName)
 	flag.StringVar(&daPath, "p", mainDBPath, "kv db path")
+	flag.Parse()
 
 	db, err := ytfs.OpenDB(daPath)
 	if err != nil {
