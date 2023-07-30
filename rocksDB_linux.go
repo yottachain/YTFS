@@ -729,6 +729,28 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 }
 
 func (rd *KvDB) ScanDB() {
+	ro := gorocksdb.NewDefaultReadOptions()
+	ro.SetFillCache(false)
+	iter := rd.Rdb.NewIterator(ro)
+
+	for iter.SeekToFirst(); iter.Valid(); iter.Next() {
+		if iter.Key().Size() != ydcommon.HashLength {
+			continue
+		}
+
+		data := iter.Value().Data()
+		if len(data) > 4 {
+			index := binary.LittleEndian.Uint32(data[0:4])
+			hashId := ydcommon.HashId(binary.LittleEndian.Uint64(data[4:12]))
+
+			fmt.Printf("hash_key:%s, hash_id:%d, index: %d\n", base58.Encode(iter.Key().Data()), hashId, index)
+		} else {
+			index := ydcommon.IndexTableValue(binary.LittleEndian.Uint32(data[0:4]))
+			hashId := 0
+			fmt.Printf("hash_key:%s, hash_id:%d, index: %d\n", base58.Encode(iter.Key().Data()), hashId, index)
+		}
+	}
+	return
 }
 
 func (rd *KvDB) GetDBKeysNum() uint64 {

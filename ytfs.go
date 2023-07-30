@@ -99,6 +99,10 @@ func Open(dir string, config *opt.Options, dnid uint32) (ytfs *YTFS, err error) 
 	return startYTFS(dir, settings, dnid)
 }
 
+func OpenDB(path string) (kvdb *KvDB, err error) {
+	return openKVDB(path)
+}
+
 // NewYTFS create a YTFS by config
 func NewYTFS(dir string, config *opt.Options, init bool, dnId uint32) (*YTFS, error) {
 	ytfs := new(YTFS)
