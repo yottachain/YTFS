@@ -20,24 +20,26 @@ const (
 
 // config errors
 var (
-	ErrConfigC          = errors.New("yotta config: config.C should in range [sum(Ti), MaxDiskCapability]")
-	ErrConfigN          = errors.New("yotta config: config.N should be power of 2 and less than MAX_RANGE")
-	ErrConfigD          = errors.New("yotta config: config.D should be consistent with YTFS")
-	ErrConfigM          = errors.New("yotta config: config.M setting is incorrect")
-	ErrConfigSyncPeriod = errors.New("yotta config: config.SyncPeriod setting is not power of 2")
+	ErrConfigC               = errors.New("yotta config: config.C should in range [sum(Ti), MaxDiskCapability]")
+	ErrConfigN               = errors.New("yotta config: config.N should be power of 2 and less than MAX_RANGE")
+	ErrConfigD               = errors.New("yotta config: config.D should be consistent with YTFS")
+	ErrConfigM               = errors.New("yotta config: config.M setting is incorrect")
+	ErrConfigSyncPeriod      = errors.New("yotta config: config.SyncPeriod setting is not power of 2")
+	ErrConfigCapProofSrcSize = errors.New("yotta config: config.CapProofSrcSize setting must be multiple of 8")
 )
 
 // Options Config options
 type Options struct {
-	YTFSTag        string           `json:"ytfs"`
-	Storages       []StorageOptions `json:"storages"`
-	SyncPeriod     uint32           `json:"syncPeriod"`
-	ReadOnly       bool             `json:"readonly"`
-	IndexTableCols uint32           `json:"M"`
-	IndexTableRows uint32           `json:"N"`
-	DataBlockSize  uint32           `json:"D"`
-	TotalVolumn    uint64           `json:"C"`
-	UseKvDb        bool             `json:"UseKvDb"`
+	YTFSTag         string           `json:"ytfs"`
+	Storages        []StorageOptions `json:"storages"`
+	SyncPeriod      uint32           `json:"syncPeriod"`
+	ReadOnly        bool             `json:"readonly"`
+	IndexTableCols  uint32           `json:"M"`
+	IndexTableRows  uint32           `json:"N"`
+	DataBlockSize   uint32           `json:"D"`
+	TotalVolumn     uint64           `json:"C"`
+	UseKvDb         bool             `json:"UseKvDb"`
+	CapProofSrcSize uint32           `json:"CapProofSrcSize"` //must be multiple of 8
 }
 
 // Equal compares 2 Options to tell if it is equal
@@ -90,12 +92,14 @@ func DefaultOptions() *Options {
 				DataBlockSize: 1 << 15,
 			},
 		},
-		ReadOnly:       false,
-		SyncPeriod:     1,
-		IndexTableCols: 0,
-		IndexTableRows: 1 << 13,
-		DataBlockSize:  1 << 15, // Just save HashLen for test.
-		TotalVolumn:    2 << 30, // 1G
+		ReadOnly:        false,
+		SyncPeriod:      1,
+		IndexTableCols:  0,
+		IndexTableRows:  1 << 13,
+		DataBlockSize:   1 << 15, // Just save HashLen for test.
+		TotalVolumn:     2 << 30, // 1G
+		UseKvDb:         true,
+		CapProofSrcSize: 8,
 	}
 
 	newConfig, err := FinalizeConfig(config)
@@ -163,6 +167,10 @@ func FinalizeConfig(config *Options) (*Options, error) {
 
 	if !ytfs.IsPowerOfTwo((uint64)(config.SyncPeriod)) {
 		return nil, ErrConfigSyncPeriod
+	}
+
+	if config.CapProofSrcSize%8 != 0 {
+		return nil, ErrConfigCapProofSrcSize
 	}
 
 	// check if YTFS param consistency with YTFS storage.
