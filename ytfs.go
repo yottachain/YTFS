@@ -357,9 +357,9 @@ func validateYTFSSchema(meta *ydcommon.Header, opt *opt.Options) (*ydcommon.Head
 	return meta, opt, nil
 }
 
-func InitYTFSStorageHeader(sContexts []*storageContext, dnId uint32) error {
-	return InitStoragesHeader(sContexts, dnId)
-}
+//func InitYTFSStorageHeader(config *opt.Options, dnId uint32) error {
+//	return InitStoragesHeader(config.Storages, dnId)
+//}
 
 // Get gets the value for the given key. It returns ErrNotFound if the
 // DB does not contains the key.
@@ -1087,5 +1087,5 @@ func (ytfs *YTFS) magrateData(key, value []byte) error {
 }
 
 func (ytfs *YTFS) InitStoragesHeader(dnId uint32) error {
-	return InitStoragesHeader(ytfs.context.config, dnId)
+	return InitStoragesHeader(ytfs.context.GetStorageContext(), dnId)
 }
