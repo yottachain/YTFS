@@ -300,6 +300,10 @@ func (disk *YottaDisk) GetStorage() Storage {
 	return disk.store
 }
 
+func (disk *YottaDisk) GetConfig() *opt.StorageOptions {
+	return disk.config
+}
+
 func (disk *YottaDisk) SetDnIdToStore(Bdn []byte) error {
 	writer, _ := disk.store.Writer()
 	header := disk.meta

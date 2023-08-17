@@ -93,10 +93,11 @@ func GetRealDiskCap(stor storage.Storage) uint64 {
 	return getresource.GetDiskCap(stor)
 }
 
-func InitStoragesHeader(config *opt.Options, dnId uint32) error {
-	for idx, storageOpt := range config.Storages {
-		fmt.Printf("init storage index %d, storage name %s\n", idx, storageOpt.StorageName)
-		_, err := storage.OpenYottaDisk(&storageOpt, true, idx, dnId)
+func InitStoragesHeader(sContexts []*storageContext, dnId uint32) error {
+	for idx, sContext := range sContexts {
+		fmt.Printf("init storage index %d, storage name %s\n",
+			idx, sContext.Disk.GetConfig().StorageName)
+		_, err := storage.OpenYottaDisk(sContext.Disk.GetConfig(), true, idx, dnId)
 		if err != nil {
 			// TODO: handle error if necessary, like keep using successed storages.
 			return err
