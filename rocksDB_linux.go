@@ -27,6 +27,8 @@ const ytBlkSzKeyNew = "yt_blk_size_key_blk16KB"
 const VerifyedKvFile = "/gc/rock_verify"
 const YtfsDnIdKey = "YtfsDnIdKeyKv"
 
+const ytKeyCapSrcSize = "yt_key_cap_src_size"
+
 type KvDB struct {
 	Rdb    *gorocksdb.DB
 	ro     *gorocksdb.ReadOptions
@@ -127,6 +129,12 @@ func openYTFSK(dir string, config *opt.Options, init bool, dnId uint32) (*YTFS, 
 		return nil, err
 	}
 
+	err = mDB.ChkCapSrcSize(config, init)
+	if err != nil {
+		fmt.Println("[KvDB] ChkCapSrcSize from db error:", err)
+		return nil, err
+	}
+
 	//3. open storages
 	context, err := NewContext(dir, config, uint64(mDB.PosIdx), init, dnId)
 	if err != nil {
@@ -224,8 +232,19 @@ func startYTFSK(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 		return nil, err
 	}
 
+	err = mDB.ChkCapSrcSize(config, init)
+	if err != nil {
+		fmt.Println("[KvDB] ChkCapSrcSize from db error:", err)
+		return nil, err
+	}
+
 	//3. open storages
 	context, err := NewContext(dir, config, uint64(mDB.PosIdx), init, dnid)
+	if err != nil {
+		return nil, err
+	}
+
+	err = InitCapProofTable(context.storages, uint16(config.CapProofSrcSize))
 	if err != nil {
 		return nil, err
 	}
@@ -765,4 +784,37 @@ func (rd *KvDB) GetDBKeysNum() uint64 {
 		count++
 	}
 	return count
+}
+
+func (rd *KvDB) ChkCapSrcSize(config *opt.Options, init bool) error {
+	key := []byte(ytKeyCapSrcSize)
+	srcSize, err := rd.Rdb.Get(rd.ro, key)
+	if err != nil {
+		fmt.Println("[KvDB] ChkCapSrcSize error:", err.Error())
+		return err
+	}
+
+	if srcSize.Exists() {
+		size := binary.LittleEndian.Uint32(srcSize.Data())
+		if config.CapProofSrcSize != size {
+			fmt.Printf("cap src size mismatch, db=%d, config=%d\n",
+				size, config.CapProofSrcSize)
+			return fmt.Errorf("cap src size mismatch, db=%d, config=%d\n",
+				size, config.CapProofSrcSize)
+		}
+	} else {
+		if init {
+			bSize := make([]byte, 4)
+			binary.LittleEndian.PutUint32(bSize, uint32(config.CapProofSrcSize))
+			err = rd.Rdb.Put(rd.wo, key, bSize)
+			if err != nil {
+				fmt.Println("[KvDB] err:", err)
+				return err
+			}
+		} else {
+			return fmt.Errorf("ChkCapSrcSize db data loss!")
+		}
+	}
+
+	return nil
 }

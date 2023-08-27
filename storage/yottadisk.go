@@ -11,6 +11,7 @@ import (
 	// use eth hash related func.
 	// "github.com/ethereum/go-ethereum/common"
 
+	ytfs "github.com/yottachain/YTFS"
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/errors"
 	"github.com/yottachain/YTFS/opt"
@@ -332,4 +333,105 @@ func (disk *YottaDisk) GetDnIdFromStore() uint32 {
 
 	dnid := binary.LittleEndian.Uint32(Bdn)
 	return dnid
+}
+
+func (disk *YottaDisk) WriteCapProofData(dataOffset uint64, srcData []byte, value []byte) error {
+	index := disk.store.ReaderIndex()
+	defer disk.store.ReaderIndexClose(index)
+
+	reader, _ := disk.store.Reader(index)
+	reader.Seek(int64(dataOffset), io.SeekStart)
+	kvNums := make([]byte, 4)
+	_, err := reader.Read(kvNums)
+	if err != nil {
+		fmt.Println("WriteCapProofData error:", err.Error())
+		return err
+	}
+
+	nums := binary.LittleEndian.Uint32(kvNums)
+	if nums >= uint32(ytfs.GlobalCapProofTable.KvItems) {
+		return errors.ErrCapProofLineFull
+	}
+
+	writer, _ := disk.store.Writer()
+	srcDataOffset := int64(dataOffset) + 4 +
+		int64(ytfs.GlobalCapProofTable.KvItems*ytfs.GlobalCapProofTable.ValueSize) +
+		int64(uint32(ytfs.GlobalCapProofTable.SrcSize)*nums)
+	writer.Seek(srcDataOffset, io.SeekStart)
+	_, err = writer.Write(srcData)
+	if err != nil {
+		return err
+	}
+
+	valueOffset := int64(dataOffset) + 4 +
+		int64(nums*uint32(ytfs.GlobalCapProofTable.ValueSize))
+	writer.Seek(valueOffset, io.SeekStart)
+	_, err = writer.Write(value)
+	if err != nil {
+		return err
+	}
+
+	nums += 1
+	binary.LittleEndian.PutUint32(kvNums, nums)
+	writer.Seek(int64(dataOffset), io.SeekStart)
+	_, err = writer.Write(kvNums)
+	if err != nil {
+		return err
+	}
+
+	writer.Sync()
+
+	return nil
+}
+
+func (disk *YottaDisk) GetCapProofSrcData(dataOffset uint64, value []byte) (srcData []byte, err error) {
+	index := disk.store.ReaderIndex()
+	defer disk.store.ReaderIndexClose(index)
+
+	reader, _ := disk.store.Reader(index)
+	reader.Seek(int64(dataOffset), io.SeekStart)
+	kvNums := make([]byte, 4)
+	_, err = reader.Read(kvNums)
+	if err != nil {
+		fmt.Println("WriteCapProofData error:", err.Error())
+		return
+	}
+
+	nums := binary.LittleEndian.Uint32(kvNums)
+	if nums > uint32(ytfs.GlobalCapProofTable.KvItems) {
+		err = errors.ErrCapProofMetaErr
+		return
+	}
+
+	allValueSize := nums * uint32(ytfs.GlobalCapProofTable.ValueSize)
+	allValues := make([]byte, allValueSize)
+	_, err = reader.Read(allValues)
+	if err != nil {
+		fmt.Println("GetCapProofSrcData error:", err.Error())
+		return
+	}
+
+	start := 0
+	end := 0
+	for i := 0; i < int(nums); i++ {
+		start = i * int(ytfs.GlobalCapProofTable.ValueSize)
+		end = (i + 1) * int(ytfs.GlobalCapProofTable.ValueSize)
+		if bytes.Equal(allValues[start:end], value) {
+			srcDataOffset := int64(dataOffset) + 4 +
+				int64(ytfs.GlobalCapProofTable.KvItems*ytfs.GlobalCapProofTable.ValueSize) +
+				int64(int(ytfs.GlobalCapProofTable.SrcSize)*i)
+			reader.Seek(srcDataOffset, io.SeekStart)
+			sData := make([]byte, ytfs.GlobalCapProofTable.SrcSize)
+			_, err = reader.Read(sData)
+			if err != nil {
+				fmt.Println("WriteCapProofData error:", err.Error())
+				return
+			}
+
+			srcData = sData
+			break
+		}
+	}
+
+	return
 }
