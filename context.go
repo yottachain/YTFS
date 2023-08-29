@@ -143,13 +143,13 @@ func initStorages(config *opt.Options, init bool, dnId uint32) ([]*storageContex
 			string(version[:]) == StoreVersion001 ||
 			version == Version002 ||
 			string(version[:]) == StoreVersion002 {
-			contexts = append(contexts, &storageContext{
+			contexts[idx] = &storageContext{
 				Name:        storageOpt.StorageName,
 				Cap:         disk.Capability(),
 				Len:         0,
 				Disk:        disk,
 				RealDiskCap: uint32(RealCap),
-			})
+			}
 		} else {
 			realIdx := disk.Index() & storage.DiskIdxMax
 			if (disk.Index()&storage.DiskIdxPre == storage.DiskIdxPre) &&
@@ -166,7 +166,6 @@ func initStorages(config *opt.Options, init bool, dnId uint32) ([]*storageContex
 				return nil, fmt.Errorf("stroage %s, %s",
 					storageOpt.StorageName, errors.ErrStorageSerialNumber.Error())
 			}
-
 		}
 	}
 
