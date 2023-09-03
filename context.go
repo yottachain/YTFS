@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
+	"hash/fnv"
 	"math"
 	"math/rand"
 	"runtime"
@@ -20,8 +21,9 @@ import (
 )
 
 var (
-	debugPrint          = opt.DebugPrint
-	GlobalCapProofTable CapProofInfo
+	debugPrint               = opt.DebugPrint
+	GlobalCapProofTable      CapProofInfo
+	GlobalCapProofCurSrcData []byte
 )
 
 type storageContext struct {
@@ -67,7 +69,7 @@ type CapProofInfo struct {
 
 func InitCapProofTable(sContext []*storageContext, srcSize uint16) error {
 	GlobalCapProofTable.SrcSize = srcSize
-	GlobalCapProofTable.ValueSize = 8
+	GlobalCapProofTable.ValueSize = 32 //32 bytes, 256 bit
 	GlobalCapProofTable.KvItems = 16 * 1024
 
 	GlobalCapProofTable.DiskInfo = make([]CapProofDiskInfo, len(sContext))
@@ -633,23 +635,12 @@ func (c *Context) CapProofPut(srcData []byte, value []byte) error {
 		return err
 	}
 
-	//valueU64 := binary.LittleEndian.Uint64(value)
-	//globalIdx := uint32(valueU64 % uint64(GlobalCapProofTable.TableRows))
-	//
-	//diskIdx := 0
-	//innerIdx := uint32(0)
-	//
-	//curLineTotal := uint32(0)
-	//for index, info := range GlobalCapProofTable.DiskInfo {
-	//	curLineTotal += info.Lines
-	//	if globalIdx < curLineTotal {
-	//		diskIdx = index
-	//		innerIdx = info.Lines - (curLineTotal - globalIdx)
-	//		break
-	//	}
-	//}
+	//value once again hash to u64
+	h := fnv.New64a()
+	h.Write(value)
+	hashValue := h.Sum64()
 
-	diskIdx, innerIdx := GlobalCapProofTable.getIndex(value)
+	diskIdx, innerIdx := GlobalCapProofTable.getIndex(hashValue)
 
 	err = c.capProofPutAt(srcData, value, diskIdx, innerIdx)
 	if nil != err {
@@ -690,7 +681,12 @@ func (c *Context) capProofPutAt(
 }
 
 func (c *Context) CapProofGetChallenge(value []byte) (srcData []byte, err error) {
-	diskIdx, innerIdx := GlobalCapProofTable.getIndex(value)
+	//value once again hash to u64
+	h := fnv.New64a()
+	h.Write(value)
+	hashValue := h.Sum64()
+
+	diskIdx, innerIdx := GlobalCapProofTable.getIndex(hashValue)
 
 	capProofWriteOffset := uint64(c.storages[diskIdx].Disk.GetStorageHeader().DataOffset) +
 		GlobalCapProofTable.getDiskInnerOffset(innerIdx)
@@ -724,8 +720,7 @@ func (cp *CapProofInfo) check(srcData []byte, value []byte) error {
 	return nil
 }
 
-func (cp *CapProofInfo) getIndex(value []byte) (int, uint32) {
-	valueU64 := binary.LittleEndian.Uint64(value)
+func (cp *CapProofInfo) getIndex(valueU64 uint64) (int, uint32) {
 	tableIndex := uint32(valueU64 % uint64(GlobalCapProofTable.TableRows))
 
 	diskIdx := 0

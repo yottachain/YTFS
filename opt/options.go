@@ -30,16 +30,17 @@ var (
 
 // Options Config options
 type Options struct {
-	YTFSTag         string           `json:"ytfs"`
-	Storages        []StorageOptions `json:"storages"`
-	SyncPeriod      uint32           `json:"syncPeriod"`
-	ReadOnly        bool             `json:"readonly"`
-	IndexTableCols  uint32           `json:"M"`
-	IndexTableRows  uint32           `json:"N"`
-	DataBlockSize   uint32           `json:"D"`
-	TotalVolumn     uint64           `json:"C"`
-	UseKvDb         bool             `json:"UseKvDb"`
-	CapProofSrcSize uint32           `json:"CapProofSrcSize"` //must be multiple of 8
+	YTFSTag           string           `json:"ytfs"`
+	Storages          []StorageOptions `json:"storages"`
+	SyncPeriod        uint32           `json:"syncPeriod"`
+	ReadOnly          bool             `json:"readonly"`
+	IndexTableCols    uint32           `json:"M"`
+	IndexTableRows    uint32           `json:"N"`
+	DataBlockSize     uint32           `json:"D"`
+	TotalVolumn       uint64           `json:"C"`
+	UseKvDb           bool             `json:"UseKvDb"`
+	CapProofSrcSize   uint32           `json:"CapProofSrcSize"` //must be multiple of 8
+	CapProofInitValue string           `json:"CapProofInitValue"`
 }
 
 // Equal compares 2 Options to tell if it is equal

@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"crypto/md5"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	_ "net/http/pprof"
 	"os"
 	"path"
@@ -17,6 +19,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/opt"
+	util "github.com/yottachain/YTFS/util"
 )
 
 type ytfsStatus struct {
@@ -777,6 +780,45 @@ func (ytfs *YTFS) GetCapProofSpace() uint32 {
 	}
 
 	return ytfs.context.RandCheckAvailablePos(buf, 10, useAbleCap) + 1
+}
+
+func recursionFun(data []byte) bool {
+	var byteMax = []byte{math.MaxUint8}
+	if len(data) == 0 {
+		return false
+	}
+	for i := len(data) - 1; i >= 0; i-- {
+		if !bytes.Equal(data[i:i+1], byteMax) {
+			data[i]++
+			break
+		}
+		if recursionFun(data[0:i]) {
+			data[i] = 0
+			break
+		}
+	}
+
+	return true
+}
+
+func (ytfs *YTFS) NewCapProofDataFill() (err error) {
+	//ytfs.mutex.Lock()
+	//defer ytfs.mutex.Unlock()
+	if !util.BytesPlusPlusRecursionFun(GlobalCapProofCurSrcData) {
+		return
+	}
+
+	hash := sha256.New()
+	hash.Write(GlobalCapProofCurSrcData)
+	hashValue := hash.Sum(nil)
+
+	err = ytfs.context.CapProofPut(GlobalCapProofCurSrcData, hashValue)
+
+	return
+}
+
+func (ytfs *YTFS) NewCapProofGetAnswerByChallenge(cValue []byte) ([]byte, error) {
+	return ytfs.context.CapProofGetChallenge(cValue)
 }
 
 func (ytfs *YTFS) TruncatStorageFile() {

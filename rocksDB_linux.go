@@ -2,6 +2,7 @@ package ytfs
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"github.com/mr-tron/base58/base58"
 	"github.com/tecbot/gorocksdb"
@@ -28,6 +29,7 @@ const VerifyedKvFile = "/gc/rock_verify"
 const YtfsDnIdKey = "YtfsDnIdKeyKv"
 
 const ytKeyCapSrcSize = "yt_key_cap_src_size"
+const ytKeyCapCurSrcData = "yt_key_cap_cur_src_data"
 
 type KvDB struct {
 	Rdb    *gorocksdb.DB
@@ -237,6 +239,13 @@ func startYTFSK(dir string, config *opt.Options, dnid uint32, init bool) (*YTFS,
 		fmt.Println("[KvDB] ChkCapSrcSize from db error:", err)
 		return nil, err
 	}
+
+	GlobalCapProofCurSrcData, err = mDB.GetCapCurSrcData(config)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("fun:startYTFSK, cap proof cur source data: %s\n",
+		hex.EncodeToString(GlobalCapProofCurSrcData))
 
 	//3. open storages
 	context, err := NewContext(dir, config, uint64(mDB.PosIdx), init, dnid)
@@ -817,4 +826,35 @@ func (rd *KvDB) ChkCapSrcSize(config *opt.Options, init bool) error {
 	}
 
 	return nil
+}
+
+func (rd *KvDB) GetCapCurSrcData(config *opt.Options) (curData []byte, err error) {
+	key := []byte(ytKeyCapCurSrcData)
+	curSrc, err := rd.Rdb.Get(rd.ro, key)
+	if err != nil {
+		fmt.Println("[KvDB] GetCapCurSrcData error:", err.Error())
+		return nil, err
+	}
+
+	if curSrc.Exists() {
+		curData = curSrc.Data()
+		return
+	} else {
+		if uint32(len(config.CapProofInitValue)) != config.CapProofSrcSize*2 {
+			err = fmt.Errorf("cap proof init value %s length ne %d", config.CapProofInitValue, config.CapProofSrcSize*2)
+			return nil, err
+		}
+		curData, err = hex.DecodeString(config.CapProofInitValue)
+		if err != nil {
+			fmt.Printf("hex DecodeString: %v\n", err)
+			return nil, err
+		}
+		err = rd.Rdb.Put(rd.wo, key, curData)
+		if err != nil {
+			fmt.Println("[KvDB] err:", err)
+			return nil, err
+		}
+	}
+
+	return
 }
