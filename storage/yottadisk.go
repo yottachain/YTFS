@@ -11,7 +11,6 @@ import (
 	// use eth hash related func.
 	// "github.com/ethereum/go-ethereum/common"
 
-	ytfs "github.com/yottachain/YTFS"
 	ydcommon "github.com/yottachain/YTFS/common"
 	"github.com/yottachain/YTFS/errors"
 	"github.com/yottachain/YTFS/opt"
@@ -19,6 +18,55 @@ import (
 
 const DiskIdxPre uint16 = 0xFF00
 const DiskIdxMax uint16 = 0x00FF
+
+var GlobalCapProofTable CapProofInfo
+
+type CapProofDiskInfo struct {
+	Lines uint32 //cur disk lines of cap proof table
+}
+
+type CapProofInfo struct {
+	SrcSize      uint16 //source data size, 64、128、256 bit
+	ValueSize    uint16 //hash value of source data, 64bit
+	KvItems      uint16 //kv pair nums(source data and hash value)
+	TableRows    uint32
+	TableRowSize uint32
+	DiskInfo     []CapProofDiskInfo
+}
+
+func (cp *CapProofInfo) Check(srcData []byte, value []byte) error {
+	if cp.SrcSize != uint16(len(srcData)) ||
+		cp.ValueSize != uint16(len(value)) {
+		return fmt.Errorf("cap proof info error, src data len should be %d, value len shoule be %d\n",
+			cp.SrcSize, cp.ValueSize)
+	}
+
+	return nil
+}
+
+func (cp *CapProofInfo) GetIndex(valueU64 uint64) (int, uint32) {
+	tableIndex := uint32(valueU64 % uint64(GlobalCapProofTable.TableRows))
+
+	diskIdx := 0
+	curLines := uint32(0)
+	curStartLines := uint32(0)
+	for idx, diskInfo := range cp.DiskInfo {
+		curLines += diskInfo.Lines
+		if tableIndex < curLines {
+			diskIdx = idx
+			break
+		}
+		curStartLines += diskInfo.Lines
+	}
+
+	tableDiskInnerIdx := tableIndex - curStartLines
+
+	return diskIdx, tableDiskInnerIdx
+}
+
+func (cp *CapProofInfo) GetDiskInnerOffset(innerIdx uint32) uint64 {
+	return uint64(cp.TableRowSize) * uint64(innerIdx)
+}
 
 // YottaDisk main entry of YTFS storage
 type YottaDisk struct {
@@ -349,14 +397,14 @@ func (disk *YottaDisk) WriteCapProofData(dataOffset uint64, srcData []byte, valu
 	}
 
 	nums := binary.LittleEndian.Uint32(kvNums)
-	if nums >= uint32(ytfs.GlobalCapProofTable.KvItems) {
+	if nums >= uint32(GlobalCapProofTable.KvItems) {
 		return errors.ErrCapProofLineFull
 	}
 
 	writer, _ := disk.store.Writer()
 	srcDataOffset := int64(dataOffset) + 4 +
-		int64(ytfs.GlobalCapProofTable.KvItems*ytfs.GlobalCapProofTable.ValueSize) +
-		int64(uint32(ytfs.GlobalCapProofTable.SrcSize)*nums)
+		int64(GlobalCapProofTable.KvItems*GlobalCapProofTable.ValueSize) +
+		int64(uint32(GlobalCapProofTable.SrcSize)*nums)
 	writer.Seek(srcDataOffset, io.SeekStart)
 	_, err = writer.Write(srcData)
 	if err != nil {
@@ -364,7 +412,7 @@ func (disk *YottaDisk) WriteCapProofData(dataOffset uint64, srcData []byte, valu
 	}
 
 	valueOffset := int64(dataOffset) + 4 +
-		int64(nums*uint32(ytfs.GlobalCapProofTable.ValueSize))
+		int64(nums*uint32(GlobalCapProofTable.ValueSize))
 	writer.Seek(valueOffset, io.SeekStart)
 	_, err = writer.Write(value)
 	if err != nil {
@@ -398,12 +446,12 @@ func (disk *YottaDisk) GetCapProofSrcData(dataOffset uint64, value []byte) (srcD
 	}
 
 	nums := binary.LittleEndian.Uint32(kvNums)
-	if nums > uint32(ytfs.GlobalCapProofTable.KvItems) {
+	if nums > uint32(GlobalCapProofTable.KvItems) {
 		err = errors.ErrCapProofMetaErr
 		return
 	}
 
-	allValueSize := nums * uint32(ytfs.GlobalCapProofTable.ValueSize)
+	allValueSize := nums * uint32(GlobalCapProofTable.ValueSize)
 	allValues := make([]byte, allValueSize)
 	_, err = reader.Read(allValues)
 	if err != nil {
@@ -414,14 +462,14 @@ func (disk *YottaDisk) GetCapProofSrcData(dataOffset uint64, value []byte) (srcD
 	start := 0
 	end := 0
 	for i := 0; i < int(nums); i++ {
-		start = i * int(ytfs.GlobalCapProofTable.ValueSize)
-		end = (i + 1) * int(ytfs.GlobalCapProofTable.ValueSize)
+		start = i * int(GlobalCapProofTable.ValueSize)
+		end = (i + 1) * int(GlobalCapProofTable.ValueSize)
 		if bytes.Equal(allValues[start:end], value) {
 			srcDataOffset := int64(dataOffset) + 4 +
-				int64(ytfs.GlobalCapProofTable.KvItems*ytfs.GlobalCapProofTable.ValueSize) +
-				int64(int(ytfs.GlobalCapProofTable.SrcSize)*i)
+				int64(GlobalCapProofTable.KvItems*GlobalCapProofTable.ValueSize) +
+				int64(int(GlobalCapProofTable.SrcSize)*i)
 			reader.Seek(srcDataOffset, io.SeekStart)
-			sData := make([]byte, ytfs.GlobalCapProofTable.SrcSize)
+			sData := make([]byte, GlobalCapProofTable.SrcSize)
 			_, err = reader.Read(sData)
 			if err != nil {
 				fmt.Println("WriteCapProofData error:", err.Error())

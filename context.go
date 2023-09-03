@@ -22,7 +22,6 @@ import (
 
 var (
 	debugPrint                   = opt.DebugPrint
-	GlobalCapProofTable          CapProofInfo
 	GlobalCapProofCurSrcData     []byte
 	GlobalCapProofDefaultSrcSize = uint32(32)
 )
@@ -55,28 +54,15 @@ type Context struct {
 	lock sync.RWMutex
 }
 
-type CapProofDiskInfo struct {
-	Lines uint32 //cur disk lines of cap proof table
-}
-
-type CapProofInfo struct {
-	SrcSize      uint16 //source data size, 64、128、256 bit
-	ValueSize    uint16 //hash value of source data, 64bit
-	KvItems      uint16 //kv pair nums(source data and hash value)
-	TableRows    uint32
-	TableRowSize uint32
-	DiskInfo     []CapProofDiskInfo
-}
-
 func InitCapProofTable(sContext []*storageContext, srcSize uint16) error {
-	GlobalCapProofTable.SrcSize = srcSize
-	GlobalCapProofTable.ValueSize = 32 //32 bytes, 256 bit
-	GlobalCapProofTable.KvItems = 16 * 1024
+	storage.GlobalCapProofTable.SrcSize = srcSize
+	storage.GlobalCapProofTable.ValueSize = 32 //32 bytes, 256 bit
+	storage.GlobalCapProofTable.KvItems = 16 * 1024
 
-	GlobalCapProofTable.DiskInfo = make([]CapProofDiskInfo, len(sContext))
+	storage.GlobalCapProofTable.DiskInfo = make([]storage.CapProofDiskInfo, len(sContext))
 
-	rowSize := uint32(GlobalCapProofTable.KvItems)*
-		uint32(GlobalCapProofTable.SrcSize+GlobalCapProofTable.ValueSize) + 4
+	rowSize := uint32(storage.GlobalCapProofTable.KvItems)*
+		uint32(storage.GlobalCapProofTable.SrcSize+storage.GlobalCapProofTable.ValueSize) + 4
 	totalLines := uint32(0)
 
 	for idx, disk := range sContext {
@@ -87,12 +73,12 @@ func InitCapProofTable(sContext []*storageContext, srcSize uint16) error {
 			return fmt.Errorf("disk %d %s cap t - h <= 0\n", idx, disk.Name)
 		}
 
-		GlobalCapProofTable.DiskInfo[idx].Lines = uint32(dataCap / uint64(rowSize))
-		totalLines += GlobalCapProofTable.DiskInfo[idx].Lines
+		storage.GlobalCapProofTable.DiskInfo[idx].Lines = uint32(dataCap / uint64(rowSize))
+		totalLines += storage.GlobalCapProofTable.DiskInfo[idx].Lines
 	}
 
-	GlobalCapProofTable.TableRows = totalLines
-	GlobalCapProofTable.TableRowSize = rowSize
+	storage.GlobalCapProofTable.TableRows = totalLines
+	storage.GlobalCapProofTable.TableRowSize = rowSize
 
 	return nil
 }
@@ -631,7 +617,7 @@ func (c *Context) CheckStorageDnid(dnid uint32) (bool, error) {
 }
 
 func (c *Context) CapProofPut(srcData []byte, value []byte) error {
-	err := GlobalCapProofTable.check(srcData, value)
+	err := storage.GlobalCapProofTable.Check(srcData, value)
 	if err != nil {
 		return err
 	}
@@ -641,7 +627,7 @@ func (c *Context) CapProofPut(srcData []byte, value []byte) error {
 	h.Write(value)
 	hashValue := h.Sum64()
 
-	diskIdx, innerIdx := GlobalCapProofTable.getIndex(hashValue)
+	diskIdx, innerIdx := storage.GlobalCapProofTable.GetIndex(hashValue)
 
 	err = c.capProofPutAt(srcData, value, diskIdx, innerIdx)
 	if nil != err {
@@ -660,7 +646,7 @@ func (c *Context) capProofPutAt(
 	defer c.lock.Unlock()
 
 	capProofWriteOffset := uint64(c.storages[diskIdx].Disk.GetStorageHeader().DataOffset) +
-		GlobalCapProofTable.getDiskInnerOffset(innerIdx)
+		storage.GlobalCapProofTable.GetDiskInnerOffset(innerIdx)
 	if int(c.sp.dev) < diskIdx {
 		// real data disk is not cap proof disk
 		c.storages[diskIdx].Disk.WriteCapProofData(capProofWriteOffset, srcData, value)
@@ -687,10 +673,10 @@ func (c *Context) CapProofGetChallenge(value []byte) (srcData []byte, err error)
 	h.Write(value)
 	hashValue := h.Sum64()
 
-	diskIdx, innerIdx := GlobalCapProofTable.getIndex(hashValue)
+	diskIdx, innerIdx := storage.GlobalCapProofTable.GetIndex(hashValue)
 
 	capProofWriteOffset := uint64(c.storages[diskIdx].Disk.GetStorageHeader().DataOffset) +
-		GlobalCapProofTable.getDiskInnerOffset(innerIdx)
+		storage.GlobalCapProofTable.GetDiskInnerOffset(innerIdx)
 	if int(c.sp.dev) < diskIdx {
 		// real data disk is not cap proof disk
 		return c.storages[diskIdx].Disk.GetCapProofSrcData(capProofWriteOffset, value)
@@ -709,38 +695,4 @@ func (c *Context) CapProofGetChallenge(value []byte) (srcData []byte, err error)
 	}
 
 	return nil, err
-}
-
-func (cp *CapProofInfo) check(srcData []byte, value []byte) error {
-	if cp.SrcSize != uint16(len(srcData)) ||
-		cp.ValueSize != uint16(len(value)) {
-		return fmt.Errorf("cap proof info error, src data len should be %d, value len shoule be %d\n",
-			cp.SrcSize, cp.ValueSize)
-	}
-
-	return nil
-}
-
-func (cp *CapProofInfo) getIndex(valueU64 uint64) (int, uint32) {
-	tableIndex := uint32(valueU64 % uint64(GlobalCapProofTable.TableRows))
-
-	diskIdx := 0
-	curLines := uint32(0)
-	curStartLines := uint32(0)
-	for idx, diskInfo := range cp.DiskInfo {
-		curLines += diskInfo.Lines
-		if tableIndex < curLines {
-			diskIdx = idx
-			break
-		}
-		curStartLines += diskInfo.Lines
-	}
-
-	tableDiskInnerIdx := tableIndex - curStartLines
-
-	return diskIdx, tableDiskInnerIdx
-}
-
-func (cp *CapProofInfo) getDiskInnerOffset(innerIdx uint32) uint64 {
-	return uint64(cp.TableRowSize) * uint64(innerIdx)
 }
