@@ -814,6 +814,9 @@ func (ytfs *YTFS) NewCapProofDataFill() (err error) {
 
 	err = ytfs.context.CapProofPut(GlobalCapProofCurSrcData, hashValue)
 
+	//write db every time for now, future optimization
+	ytfs.db.PutCapCurSrcData(GlobalCapProofCurSrcData)
+
 	return
 }
 

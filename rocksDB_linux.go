@@ -861,3 +861,15 @@ func (rd *KvDB) GetCapCurSrcData(config *opt.Options) (curData []byte, err error
 
 	return
 }
+
+func (rd *KvDB) PutCapCurSrcData(curData []byte) (err error) {
+	key := []byte(ytKeyCapCurSrcData)
+
+	err = rd.Rdb.Put(rd.wo, key, curData)
+	if err != nil {
+		fmt.Println("[KvDB] err:", err)
+		return
+	}
+
+	return
+}

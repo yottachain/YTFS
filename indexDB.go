@@ -309,3 +309,7 @@ func (db *IndexDB) GetBitMapTab(num int) ([]ydcommon.GcTableItem, error) {
 func (rd *IndexDB) GetDBKeysNum() uint64 {
 	return 0
 }
+
+func (rd *IndexDB) PutCapCurSrcData(curData []byte) (err error) {
+	return nil
+}

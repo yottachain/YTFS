@@ -495,3 +495,8 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 
 func (rd *KvDB) ScanDB() {
 }
+
+func (rd *KvDB) PutCapCurSrcData(curData []byte) (err error) {
+
+	return nil
+}
