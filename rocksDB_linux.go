@@ -812,6 +812,9 @@ func (rd *KvDB) ChkCapSrcSize(config *opt.Options, init bool) error {
 				size, config.CapProofSrcSize)
 		}
 	} else {
+		if config.CapProofSrcSize == 0 {
+			config.CapProofSrcSize = GlobalCapProofDefaultSrcSize
+		}
 		if init {
 			bSize := make([]byte, 4)
 			binary.LittleEndian.PutUint32(bSize, uint32(config.CapProofSrcSize))

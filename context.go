@@ -21,9 +21,10 @@ import (
 )
 
 var (
-	debugPrint               = opt.DebugPrint
-	GlobalCapProofTable      CapProofInfo
-	GlobalCapProofCurSrcData []byte
+	debugPrint                   = opt.DebugPrint
+	GlobalCapProofTable          CapProofInfo
+	GlobalCapProofCurSrcData     []byte
+	GlobalCapProofDefaultSrcSize = uint32(32)
 )
 
 type storageContext struct {
