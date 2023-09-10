@@ -843,6 +843,16 @@ func (rd *KvDB) GetCapCurSrcData(config *opt.Options) (curData []byte, err error
 		curData = curSrc.Data()
 		return
 	} else {
+		if len(config.CapProofInitValue) == 0 {
+			initString := make([]byte, config.CapProofSrcSize*2)
+
+			for i := 0; i < len(initString); i++ {
+				initString[i] = byte('0')
+			}
+
+			config.CapProofInitValue = string(initString)
+		}
+
 		if uint32(len(config.CapProofInitValue)) != config.CapProofSrcSize*2 {
 			err = fmt.Errorf("cap proof init value %s length ne %d", config.CapProofInitValue, config.CapProofSrcSize*2)
 			return nil, err
