@@ -317,7 +317,7 @@ func (rd *KvDB) CheckDbDnId(dnid uint32) (bool, error) {
 
 func (rd *KvDB) GetOldDataPos() (ydcommon.IndexTableValue, error) {
 	HKey := ydcommon.BytesToHash([]byte(ytPosKey))
-	hash := ydcommon.IndexTableKey{HKey, 0}
+	hash := ydcommon.IndexTableKey{HKey, 0, 0}
 	PosRocksdb, _, err := rd.Get(hash)
 	//PosRocksdb, err := rd.Get(ydcommon.IndexTableKey(HKey))
 	if err != nil {
@@ -484,15 +484,19 @@ func (rd *KvDB) BatchPut(kvPairs []ydcommon.IndexItem) (map[ydcommon.IndexTableK
 	for i, value := range kvPairs {
 		valbuf := make([]byte, 4)
 		hidBuf := make([]byte, 8)
+		hseqBuf := make([]byte, 8)
 
 		HKey := value.Hash.Hsh[:]
 		HId := value.Hash.Id
+		HSeq := value.Hash.Seq
 		HPos := value.OffsetIdx
 		binary.LittleEndian.PutUint32(valbuf, uint32(HPos))
 		binary.LittleEndian.PutUint64(hidBuf, uint64(HId))
+		binary.LittleEndian.PutUint64(hseqBuf, uint64(HSeq))
 		valbuf = append(valbuf, hidBuf...)
-		fmt.Printf("BatchPut dbputkey index=%d hash=%s hid=%d\n",
-			i, base58.Encode(HKey), int64(HId))
+		valbuf = append(valbuf, hseqBuf...)
+		fmt.Printf("BatchPut dbputkey index=%d hash=%s hid=%d hseq=%d\n",
+			i, base58.Encode(HKey), int64(HId), uint64(HSeq))
 
 		err := rd.Rdb.Put(rd.wo, HKey, valbuf)
 		if err != nil {
@@ -743,11 +747,13 @@ func (rd *KvDB) ScanDB() {
 			index := binary.LittleEndian.Uint32(data[0:4])
 			hashId := ydcommon.HashId(binary.LittleEndian.Uint64(data[4:12]))
 
-			fmt.Printf("hash_key:%s, hash_id:%d, index: %d\n", base58.Encode(iter.Key().Data()), hashId, index)
+			fmt.Printf("hash_key:%s, hash_id:%d, index: %d\n",
+				base58.Encode(iter.Key().Data()), hashId, index)
 		} else {
 			index := ydcommon.IndexTableValue(binary.LittleEndian.Uint32(data[0:4]))
 			hashId := 0
-			fmt.Printf("hash_key:%s, hash_id:%d, index: %d\n", base58.Encode(iter.Key().Data()), hashId, index)
+			fmt.Printf("hash_key:%s, hash_id:%d, index: %d\n",
+				base58.Encode(iter.Key().Data()), hashId, index)
 		}
 	}
 	return

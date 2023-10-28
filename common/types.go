@@ -25,6 +25,7 @@ const (
 
 type Hash [HashLength]byte
 type HashId int64
+type HashSeq uint64
 
 func BytesToHash(b []byte) Hash {
 	var h Hash
@@ -45,6 +46,7 @@ func HexToHash(s string) Hash { return BytesToHash(FromHex(s)) }
 type HashAndId struct {
 	Hsh Hash
 	Id  HashId
+	Seq HashSeq
 }
 
 type IndexTableKey HashAndId
