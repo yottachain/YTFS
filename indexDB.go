@@ -260,6 +260,13 @@ func (db *IndexDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashto
 	return retSlice, beginKey, 0, err
 }
 
+func (db *IndexDB) TravelDbForAccountCheck(
+	fn func(hash ydcommon.Hash, acInfo interface{}) error,
+	acInfo interface{}, maxSeq uint64) error {
+
+	return nil
+}
+
 func validateDBSchema(meta *ydcommon.Header, opt *opt.Options) error {
 	if opt.UseKvDb {
 		fmt.Println("[rocksdb] using rocksdb")

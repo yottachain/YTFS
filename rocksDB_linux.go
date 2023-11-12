@@ -732,6 +732,40 @@ func (rd *KvDB) TravelDBforverify(fn func(key ydcommon.IndexTableKey) (Hashtohas
 	return hashTab, beginKey, len(verifyTab), err
 }
 
+func (rd *KvDB) TravelDbForAccountCheck(
+	fn func(hash ydcommon.Hash, acInfo interface{}) error,
+	acInfo interface{}, maxSeq uint64) error {
+	ro := gorocksdb.NewDefaultReadOptions()
+	ro.SetFillCache(false)
+	iter := rd.Rdb.NewIterator(ro)
+
+	var err error
+
+	for ; iter.Valid(); iter.Next() {
+		if iter.Key().Size() != ydcommon.HashLength {
+			continue
+		}
+
+		var hash ydcommon.Hash
+		copy(hash[:], iter.Key().Data())
+		data := iter.Value().Data()
+		if len(data) > 12 {
+			if binary.LittleEndian.Uint64(data[12:20]) > maxSeq {
+				continue
+			}
+
+			err = fn(hash, acInfo)
+			if err != nil {
+				return err
+			}
+		} else {
+			continue
+		}
+	}
+
+	return err
+}
+
 func (rd *KvDB) ScanDB() {
 	ro := gorocksdb.NewDefaultReadOptions()
 	ro.SetFillCache(false)
