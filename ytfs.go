@@ -820,8 +820,15 @@ func (ytfs *YTFS) NewCapProofDataFill() (err error) {
 	return
 }
 
-func (ytfs *YTFS) NewCapProofGetAnswerByChallenge(cValue []byte) ([]byte, error) {
-	return ytfs.context.CapProofGetChallenge(cValue)
+func (ytfs *YTFS) NewCapProofGetAnswerByChallenge(
+	cValue []byte,
+	minerId uint32) ([]byte, error) {
+	realValue, err := util.Bytes32XorUint32(cValue, minerId)
+	if err != nil {
+		return nil, err
+	}
+
+	return ytfs.context.CapProofGetChallenge(realValue)
 }
 
 func (ytfs *YTFS) TruncatStorageFile() {

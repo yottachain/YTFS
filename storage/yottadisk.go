@@ -27,7 +27,7 @@ type CapProofDiskInfo struct {
 
 type CapProofInfo struct {
 	SrcSize      uint16 //source data size, 64、128、256 bit
-	ValueSize    uint16 //hash value of source data, 64bit
+	ValueSize    uint16 //hash value of source data, 32 bytes 256 bit
 	KvItems      uint16 //kv pair nums(source data and hash value)
 	TableRows    uint32
 	TableRowSize uint32
@@ -37,31 +37,38 @@ type CapProofInfo struct {
 func (cp *CapProofInfo) Check(srcData []byte, value []byte) error {
 	if cp.SrcSize != uint16(len(srcData)) ||
 		cp.ValueSize != uint16(len(value)) {
-		return fmt.Errorf("cap proof info error, src data len should be %d, value len shoule be %d\n",
+		return fmt.Errorf("cap proof info error, src data len should be %d, "+
+			"value len shoule be %d\n",
 			cp.SrcSize, cp.ValueSize)
 	}
 
 	return nil
 }
 
-func (cp *CapProofInfo) GetIndex(valueU64 uint64) (int, uint32) {
+func (cp *CapProofInfo) GetIndex(valueU64 uint64) (int, uint32, error) {
 	tableIndex := uint32(valueU64 % uint64(GlobalCapProofTable.TableRows))
 
 	diskIdx := 0
 	curLines := uint32(0)
 	curStartLines := uint32(0)
+	found := false
 	for idx, diskInfo := range cp.DiskInfo {
 		curLines += diskInfo.Lines
 		if tableIndex < curLines {
 			diskIdx = idx
+			found = true
 			break
 		}
 		curStartLines += diskInfo.Lines
 	}
 
+	if found == false {
+		return 0, 0, fmt.Errorf("getindex not find disk")
+	}
+
 	tableDiskInnerIdx := tableIndex - curStartLines
 
-	return diskIdx, tableDiskInnerIdx
+	return diskIdx, tableDiskInnerIdx, nil
 }
 
 func (cp *CapProofInfo) GetDiskInnerOffset(innerIdx uint32) uint64 {

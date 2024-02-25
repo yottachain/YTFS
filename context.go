@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"hash/fnv"
 	"math"
@@ -627,7 +628,10 @@ func (c *Context) CapProofPut(srcData []byte, value []byte) error {
 	h.Write(value)
 	hashValue := h.Sum64()
 
-	diskIdx, innerIdx := storage.GlobalCapProofTable.GetIndex(hashValue)
+	diskIdx, innerIdx, err := storage.GlobalCapProofTable.GetIndex(hashValue)
+	if err != nil {
+		return err
+	}
 
 	err = c.capProofPutAt(srcData, value, diskIdx, innerIdx)
 	if nil != err {
@@ -649,13 +653,19 @@ func (c *Context) capProofPutAt(
 		storage.GlobalCapProofTable.GetDiskInnerOffset(innerIdx)
 	if int(c.sp.dev) < diskIdx {
 		// real data disk is not cap proof disk
-		c.storages[diskIdx].Disk.WriteCapProofData(capProofWriteOffset, srcData, value)
+		err := c.storages[diskIdx].Disk.WriteCapProofData(capProofWriteOffset, srcData, value)
+		if err != nil {
+			fmt.Printf("cap proof write data error, %s\n", err.Error())
+		}
 	} else if int(c.sp.dev) == diskIdx {
 		curWriteDataOffset := uint64(c.storages[diskIdx].Disk.GetStorageHeader().DataOffset) +
 			uint64(c.storages[diskIdx].Disk.GetStorageHeader().DataBlockSize*(c.sp.posIdx+1))
 
 		if curWriteDataOffset < capProofWriteOffset {
-			c.storages[diskIdx].Disk.WriteCapProofData(capProofWriteOffset, srcData, value)
+			err := c.storages[diskIdx].Disk.WriteCapProofData(capProofWriteOffset, srcData, value)
+			if err != nil {
+				fmt.Printf("cap proof write data error, %s\n", err.Error())
+			}
 		} else {
 			return errors.ErrCapProofWriteDataOverflow
 		}
@@ -663,6 +673,9 @@ func (c *Context) capProofPutAt(
 		// real data already overflow
 		return errors.ErrCapProofWriteDataOverflow
 	}
+
+	fmt.Printf("cap proof write data, src_data:%s, disk_idx:%d, inner_idx:%d",
+		hex.EncodeToString(srcData), diskIdx, innerIdx)
 
 	return nil
 }
@@ -673,7 +686,10 @@ func (c *Context) CapProofGetChallenge(value []byte) (srcData []byte, err error)
 	h.Write(value)
 	hashValue := h.Sum64()
 
-	diskIdx, innerIdx := storage.GlobalCapProofTable.GetIndex(hashValue)
+	diskIdx, innerIdx, err := storage.GlobalCapProofTable.GetIndex(hashValue)
+	if err != nil {
+		return nil, err
+	}
 
 	capProofWriteOffset := uint64(c.storages[diskIdx].Disk.GetStorageHeader().DataOffset) +
 		storage.GlobalCapProofTable.GetDiskInnerOffset(innerIdx)
