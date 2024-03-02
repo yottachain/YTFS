@@ -53,7 +53,7 @@ var GcLock sync.Mutex
 
 const GcWrtOverNum = 3
 
-// Open opens or creates a YTFS for the given storage.
+// OpenInit Open opens or creates a YTFS for the given storage.
 // The YTFS will be created if not exist.
 //
 // The returned YTFS instance is safe for concurrent use.
@@ -802,8 +802,6 @@ func recursionFun(data []byte) bool {
 }
 
 func (ytfs *YTFS) NewCapProofDataFill() (err error) {
-	//ytfs.mutex.Lock()
-	//defer ytfs.mutex.Unlock()
 	if !util.BytesPlusPlusRecursionFun(GlobalCapProofCurSrcData) {
 		return
 	}
@@ -815,9 +813,30 @@ func (ytfs *YTFS) NewCapProofDataFill() (err error) {
 	err = ytfs.context.CapProofPut(GlobalCapProofCurSrcData, hashValue)
 
 	//write db every time for now, future optimization
-	ytfs.db.PutCapCurSrcData(GlobalCapProofCurSrcData)
+	_ = ytfs.db.PutCapCurSrcData(GlobalCapProofCurSrcData)
 
 	return
+}
+
+func (ytfs *YTFS) NewCapProofCheckInit() error {
+	stat, err := ytfs.db.GetCapProofInitStat()
+	if err != nil {
+		fmt.Printf("get cap proof init stat error:%s\n", err.Error())
+		return err
+	}
+
+	if stat == false {
+		err = ytfs.context.CapProofInit()
+		if err != nil {
+			return err
+		}
+
+		err = ytfs.db.PutCapProofInitStat()
+	} else {
+		return nil
+	}
+
+	return err
 }
 
 func (ytfs *YTFS) NewCapProofGetAnswerByChallenge(

@@ -313,3 +313,11 @@ func (rd *IndexDB) GetDBKeysNum() uint64 {
 func (rd *IndexDB) PutCapCurSrcData(curData []byte) (err error) {
 	return nil
 }
+
+func (rd *IndexDB) GetCapProofInitStat() (bool, error) {
+	return false, nil
+}
+
+func (rd *IndexDB) PutCapProofInitStat() (err error) {
+	return nil
+}

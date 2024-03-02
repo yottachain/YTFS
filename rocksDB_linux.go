@@ -30,6 +30,7 @@ const YtfsDnIdKey = "YtfsDnIdKeyKv"
 
 const ytKeyCapSrcSize = "yt_key_cap_src_size"
 const ytKeyCapCurSrcData = "yt_key_cap_cur_src_data"
+const ytKeyCapProofInit = "yt_key_cap_proof_init"
 
 type KvDB struct {
 	Rdb    *gorocksdb.DB
@@ -805,27 +806,38 @@ func (rd *KvDB) ChkCapSrcSize(config *opt.Options, init bool) error {
 
 	if srcSize.Exists() {
 		size := binary.LittleEndian.Uint32(srcSize.Data())
-		if config.CapProofSrcSize != size {
+		if size%8 != 0 {
+			fmt.Printf("cap src size, it's not a multiple of 8, db=%d, config=%d\n",
+				size, config.CapProofSrcSize)
+			return fmt.Errorf("cap src size, it's not a multiple of 8, db=%d, config=%d\n",
+				size, config.CapProofSrcSize)
+		}
+
+		if config.CapProofSrcSize != 0 && config.CapProofSrcSize != size {
 			fmt.Printf("cap src size mismatch, db=%d, config=%d\n",
 				size, config.CapProofSrcSize)
 			return fmt.Errorf("cap src size mismatch, db=%d, config=%d\n",
 				size, config.CapProofSrcSize)
 		}
+
+		if config.CapProofSrcSize == 0 {
+			config.CapProofSrcSize = size
+		}
 	} else {
 		if config.CapProofSrcSize == 0 {
 			config.CapProofSrcSize = GlobalCapProofDefaultSrcSize
 		}
-		if init {
-			bSize := make([]byte, 4)
-			binary.LittleEndian.PutUint32(bSize, uint32(config.CapProofSrcSize))
-			err = rd.Rdb.Put(rd.wo, key, bSize)
-			if err != nil {
-				fmt.Println("[KvDB] err:", err)
-				return err
-			}
-		} else {
-			return fmt.Errorf("ChkCapSrcSize db data loss!")
+		//if init {
+		bSize := make([]byte, 4)
+		binary.LittleEndian.PutUint32(bSize, uint32(config.CapProofSrcSize))
+		err = rd.Rdb.Put(rd.wo, key, bSize)
+		if err != nil {
+			fmt.Println("[KvDB] err:", err)
+			return err
 		}
+		//} else {
+		//	return fmt.Errorf("ChkCapSrcSize db data loss!")
+		//}
 	}
 
 	return nil
@@ -876,6 +888,33 @@ func (rd *KvDB) PutCapCurSrcData(curData []byte) (err error) {
 	key := []byte(ytKeyCapCurSrcData)
 
 	err = rd.Rdb.Put(rd.wo, key, curData)
+	if err != nil {
+		fmt.Println("[KvDB] err:", err)
+		return
+	}
+
+	return
+}
+
+func (rd *KvDB) GetCapProofInitStat() (bool, error) {
+	key := []byte(ytKeyCapProofInit)
+	curStat, err := rd.Rdb.Get(rd.ro, key)
+	if err != nil {
+		fmt.Println("[KvDB] GetCapCurSrcData error:", err.Error())
+		return false, err
+	}
+
+	if curStat.Exists() {
+		return true, nil
+	} else {
+		return false, nil
+	}
+}
+
+func (rd *KvDB) PutCapProofInitStat() (err error) {
+	key := []byte(ytKeyCapProofInit)
+
+	err = rd.Rdb.Put(rd.wo, key, []byte("v1"))
 	if err != nil {
 		fmt.Println("[KvDB] err:", err)
 		return

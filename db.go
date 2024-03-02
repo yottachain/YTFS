@@ -29,5 +29,7 @@ type DB interface {
 	CheckDbDnId(uint32) (bool, error)
 	GetDBKeysNum() uint64
 	PutCapCurSrcData([]byte) error
+	GetCapProofInitStat() (bool, error)
+	PutCapProofInitStat() (err error)
 	//GcProcess(fn func(key ydcommon.IndexTableKey) (Hashtohash,error)) error
 }

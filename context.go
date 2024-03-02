@@ -674,8 +674,57 @@ func (c *Context) capProofPutAt(
 		return errors.ErrCapProofWriteDataOverflow
 	}
 
-	fmt.Printf("cap proof write data, src_data:%s, disk_idx:%d, inner_idx:%d",
+	fmt.Printf("cap proof write data, src_data:%s, disk_idx:%d, inner_idx:%d\n",
 		hex.EncodeToString(srcData), diskIdx, innerIdx)
+
+	return nil
+}
+
+func (c *Context) CapProofInit() error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	for idx, diskInfo := range storage.GlobalCapProofTable.DiskInfo {
+		if uint8(idx) == c.sp.dev {
+			curWriteDataOffset := c.storages[idx].Disk.GetStorageHeader().DataBlockSize * (c.sp.posIdx + 1)
+			rowSize := storage.GlobalCapProofTable.TableRowSize
+			capInnerIdx := curWriteDataOffset / rowSize
+			if curWriteDataOffset%rowSize > 0 {
+				capInnerIdx += 1
+			}
+
+			capProofWriteOffset := uint64(c.storages[idx].Disk.GetStorageHeader().DataOffset) +
+				storage.GlobalCapProofTable.GetDiskInnerOffset(capInnerIdx)
+
+			for capInnerIdx < diskInfo.Lines {
+
+				err := c.storages[idx].Disk.WriteZeroCapProofHead(capProofWriteOffset)
+				if err != nil {
+					fmt.Printf("cap proof init write error: %s\n", err.Error())
+					return err
+				}
+
+				capInnerIdx += 1
+				capProofWriteOffset += uint64(storage.GlobalCapProofTable.TableRowSize)
+			}
+		} else if uint8(idx) > c.sp.dev {
+			capInnerIdx := uint32(0)
+			capProofWriteOffset := uint64(c.storages[idx].Disk.GetStorageHeader().DataOffset) +
+				storage.GlobalCapProofTable.GetDiskInnerOffset(capInnerIdx)
+
+			for capInnerIdx < diskInfo.Lines {
+
+				err := c.storages[idx].Disk.WriteZeroCapProofHead(capProofWriteOffset)
+				if err != nil {
+					fmt.Printf("cap proof init write error: %s\n", err.Error())
+					return err
+				}
+
+				capInnerIdx += 1
+				capProofWriteOffset += uint64(storage.GlobalCapProofTable.TableRowSize)
+			}
+		}
+	}
 
 	return nil
 }

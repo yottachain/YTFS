@@ -439,6 +439,21 @@ func (disk *YottaDisk) WriteCapProofData(dataOffset uint64, srcData []byte, valu
 	return nil
 }
 
+func (disk *YottaDisk) WriteZeroCapProofHead(dataOffset uint64) error {
+	kvNums := make([]byte, 4)
+	binary.LittleEndian.PutUint32(kvNums, 0)
+	writer, _ := disk.store.Writer()
+	writer.Seek(int64(dataOffset), io.SeekStart)
+	_, err := writer.Write(kvNums)
+	if err != nil {
+		return err
+	}
+
+	writer.Sync()
+
+	return nil
+}
+
 func (disk *YottaDisk) GetCapProofSrcData(dataOffset uint64, value []byte) (srcData []byte, err error) {
 	index := disk.store.ReaderIndex()
 	defer disk.store.ReaderIndexClose(index)
@@ -486,6 +501,10 @@ func (disk *YottaDisk) GetCapProofSrcData(dataOffset uint64, value []byte) (srcD
 			srcData = sData
 			break
 		}
+	}
+
+	if srcData == nil {
+		err = fmt.Errorf("GetCapProofSrcData the given data does not exist")
 	}
 
 	return
